@@ -4,7 +4,7 @@ This document describes the end-to-end AI-assisted workflow used to build the Pr
 
 ---
 
-## Phase 0 -- Definition and Research
+## Phase 0 — Definition and Research
 
 **Goal:** Define the problem space, scope the MVP, and produce a research foundation that spec-draft can build from.
 
@@ -177,3 +177,4 @@ Approval gates:
 - Sees each task result as it completes and can redirect at any point
 
 Agents never make product decisions autonomously. They execute within a defined scope and surface any ambiguity for human resolution. All architectural decisions belong to the human -- agents propose, the human decides.
+
