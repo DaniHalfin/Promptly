@@ -24,7 +24,7 @@ export function Landing() {
           </ul>
         </div>
 
-        <button className="primary text-lg px-8 py-3" onClick={() => dispatch({ phase: 'connection' })}>
+        <button className="primary text-lg px-8 py-3" onClick={() => { localStorage.setItem('promptly_welcomed', 'true'); dispatch({ phase: 'connection' }); }}>
           Start Analysis
         </button>
       </div>

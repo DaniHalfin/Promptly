@@ -46,7 +46,7 @@ export const SessionContext = React.createContext<SessionContextType | undefined
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({
-    phase: 'landing',
+    phase: localStorage.getItem('promptly_welcomed') === 'true' ? 'connection' : 'landing',
     sources: {},
   });
 
