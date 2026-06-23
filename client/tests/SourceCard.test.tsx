@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SourceCard } from '../src/components/SourceCard';
 import { SessionContext } from '../src/context/SessionContext.js';
@@ -73,6 +73,61 @@ describe('SourceCard', () => {
     renderSourceCard('openai', { status: 'error', error: 'Invalid API key' });
 
     expect(screen.getByText('Invalid API key')).toBeInTheDocument();
+  });
+
+  it('renders "How to connect" toggle for non-disabled sources', () => {
+    renderSourceCard('openai');
+
+    expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
+    // instructions hidden initially
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('expands setup instructions when toggle is clicked', () => {
+    renderSourceCard('openai');
+
+    const toggle = screen.getByRole('button', { name: /how to connect/i });
+    fireEvent.click(toggle);
+
+    expect(screen.getByText(/platform.openai.com\/api-keys/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /official docs/i })).toBeInTheDocument();
+    // toggle label changes
+    expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument();
+  });
+
+  it('collapses instructions when toggle is clicked again', () => {
+    renderSourceCard('openai');
+
+    const toggle = screen.getByRole('button', { name: /how to connect/i });
+    fireEvent.click(toggle); // expand
+    fireEvent.click(screen.getByRole('button', { name: /hide/i })); // collapse
+
+    expect(screen.queryByText(/platform.openai.com\/api-keys/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
+  });
+
+  it('shows amber note in expanded GitHub Copilot instructions', () => {
+    renderSourceCard('github_copilot');
+
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+
+    expect(screen.getByText(/org-licensed users may not have billing access/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /official docs/i })).toBeInTheDocument();
+  });
+
+  it('shows setup instructions for claude_code without a docsUrl link', () => {
+    renderSourceCard('claude_code', { enabled: false });
+
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+
+    expect(screen.getByText(/no setup needed/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /official docs/i })).not.toBeInTheDocument();
+  });
+
+  it('does NOT render the toggle for disabled claude_export source', () => {
+    renderSourceCard('claude_export');
+
+    expect(screen.queryByRole('button', { name: /how to connect/i })).not.toBeInTheDocument();
   });
 });
 
