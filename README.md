@@ -14,7 +14,7 @@ The platform is designed for practical cost visibility: connect supported source
 - **Cost breakdowns** by source and model so you can pinpoint the biggest drivers of spend
 - **Peak-hour analysis** to identify concentration during expensive or overloaded usage windows
 - **Recommendation engine** with R1–R4 rules for caching, model selection, prompt efficiency, and off-peak usage
-- **Price map coverage** for 2,300+ models to support consistent normalization and comparisons
+- **Up-to-date pricing estimates** — model costs are fetched fresh at startup so your analysis reflects current rates
 
 ## Getting Started
 
@@ -93,6 +93,7 @@ Project documentation lives in [`docs/`](./docs/):
 ## License
 
 MIT
+
 
 
 
