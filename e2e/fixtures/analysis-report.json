@@ -1,0 +1,219 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-22T12:00:00.000Z",
+    "analysis_period_start": "2026-05-23",
+    "analysis_period_end": "2026-06-22",
+    "promptly_version": "0.1.0-e2e",
+    "litellm_price_map_date": "2026-06-01"
+  },
+  "sources": [
+    {
+      "source_id": "claude_code",
+      "tier": "B",
+      "connected": true,
+      "error": null,
+      "metrics": {
+        "sourceId": "claude_code",
+        "tier": "B",
+        "periodStart": "2026-05-23",
+        "periodEnd": "2026-06-22",
+        "warnings": [],
+        "totalActualSpendUsd": 128.42,
+        "dailySpend": [
+          { "date": "2026-06-20", "spendUsd": 31.25 },
+          { "date": "2026-06-21", "spendUsd": 42.17 },
+          { "date": "2026-06-22", "spendUsd": 55.00 }
+        ],
+        "modelBreakdown": [
+          {
+            "model": "claude-opus-4",
+            "estimatedCostShare": 0.7,
+            "estimatedCostUsd": 89.89,
+            "inputTokens": 1800000,
+            "outputTokens": 420000,
+            "cachedInputTokens": 650000,
+            "inputOutputRatio": 4.29
+          },
+          {
+            "model": "claude-sonnet-4",
+            "estimatedCostShare": 0.3,
+            "estimatedCostUsd": 38.53,
+            "inputTokens": 900000,
+            "outputTokens": 280000,
+            "cachedInputTokens": 220000,
+            "inputOutputRatio": 3.21
+          }
+        ],
+        "aggregateInputOutputRatio": 3.86,
+        "cachedTokenFractionClaudeCode": 0.32,
+        "cachedTokenSavingsUsdClaudeCode": 46.18,
+        "avgDailySpendUsd": 42.81,
+        "peakSpendDay": { "date": "2026-06-22", "spendUsd": 55.00 },
+        "rollingAvgSpend7dUsd": 40.17,
+        "momChangePct": 12.5,
+        "claudeCodeSessionCount": 42,
+        "claudeCodeAvgTokensPerSession": 80952,
+        "claudeCodePeakHourFraction": 0.64,
+        "totalInputTokensClaudeCode": 2700000,
+        "cacheCreationInputTokensClaudeCode": 310000
+      }
+    },
+    {
+      "source_id": "github_copilot",
+      "tier": "B",
+      "connected": true,
+      "error": null,
+      "metrics": {
+        "sourceId": "github_copilot",
+        "tier": "B",
+        "periodStart": "2026-05-23",
+        "periodEnd": "2026-06-22",
+        "warnings": ["Acceptance metrics require GitHub org admin access."],
+        "copilotGrossSpendUsd": 97.50,
+        "copilotDiscountUsd": 12.25,
+        "copilotNetSpendUsd": 85.25,
+        "copilotSpendByModel": [
+          { "model": "gpt-5.3-codex", "netAmountUsd": 55.41, "netSpendUsd": 55.41, "spendShare": 0.65 },
+          { "model": "claude-sonnet-4.5", "netAmountUsd": 29.84, "netSpendUsd": 29.84, "spendShare": 0.35 }
+        ],
+        "copilotCostPerInteractionUsd": 0.0612,
+        "copilotModelDistribution": [
+          { "model": "gpt-5.3-codex", "share": 0.65 },
+          { "model": "claude-sonnet-4.5", "share": 0.35 }
+        ],
+        "copilotAcceptanceRate": null,
+        "copilotTotalSuggestions": 0,
+        "copilotTotalAcceptances": 0
+      }
+    },
+    {
+      "source_id": "openai",
+      "tier": "B",
+      "connected": true,
+      "error": null,
+      "metrics": {
+        "sourceId": "openai",
+        "tier": "B",
+        "periodStart": "2026-05-23",
+        "periodEnd": "2026-06-22",
+        "warnings": ["OpenAI per-model billing is estimated from usage and price-map data."],
+        "totalActualSpendUsd": 63.77,
+        "dailySpend": [
+          { "date": "2026-06-20", "spendUsd": 18.10 },
+          { "date": "2026-06-21", "spendUsd": 21.04 },
+          { "date": "2026-06-22", "spendUsd": 24.63 }
+        ],
+        "modelBreakdown": [
+          {
+            "model": "gpt-4.1",
+            "estimatedCostShare": 0.74,
+            "estimatedCostUsd": 47.19,
+            "inputTokens": 980000,
+            "outputTokens": 210000,
+            "cachedInputTokens": 120000,
+            "inputOutputRatio": 4.67,
+            "estimated": true
+          },
+          {
+            "model": "gpt-4.1-mini",
+            "estimatedCostShare": 0.26,
+            "estimatedCostUsd": 16.58,
+            "inputTokens": 1400000,
+            "outputTokens": 360000,
+            "cachedInputTokens": 80000,
+            "inputOutputRatio": 3.89,
+            "estimated": true
+          }
+        ],
+        "aggregateInputOutputRatio": 4.19,
+        "avgDailySpendUsd": 21.26,
+        "peakSpendDay": { "date": "2026-06-22", "spendUsd": 24.63 },
+        "rollingAvgSpend7dUsd": 20.8,
+        "momChangePct": 5.1
+      }
+    },
+    {
+      "source_id": "anthropic",
+      "tier": "B",
+      "connected": true,
+      "error": null,
+      "metrics": {
+        "sourceId": "anthropic",
+        "tier": "B",
+        "periodStart": "2026-05-23",
+        "periodEnd": "2026-06-22",
+        "warnings": [],
+        "totalActualSpendUsd": 112.36,
+        "dailySpend": [
+          { "date": "2026-06-20", "spendUsd": 30.00 },
+          { "date": "2026-06-21", "spendUsd": 39.75 },
+          { "date": "2026-06-22", "spendUsd": 42.61 }
+        ],
+        "modelBreakdown": [
+          {
+            "model": "claude-opus-4",
+            "estimatedCostShare": 0.62,
+            "estimatedCostUsd": 69.66,
+            "inputTokens": 1500000,
+            "outputTokens": 310000,
+            "cachedInputTokens": 210000,
+            "inputOutputRatio": 4.84
+          },
+          {
+            "model": "claude-sonnet-4",
+            "estimatedCostShare": 0.38,
+            "estimatedCostUsd": 42.70,
+            "inputTokens": 1200000,
+            "outputTokens": 420000,
+            "cachedInputTokens": 160000,
+            "inputOutputRatio": 2.86
+          }
+        ],
+        "aggregateInputOutputRatio": 3.7,
+        "cachedTokenFractionAnthropic": 0.14,
+        "cachedTokenSavingsUsdAnthropic": 23.41,
+        "avgDailySpendUsd": 37.45,
+        "peakSpendDay": { "date": "2026-06-22", "spendUsd": 42.61 },
+        "rollingAvgSpend7dUsd": 36.9,
+        "momChangePct": 18.2,
+        "totalInputTokensAnthropic": 2700000,
+        "cacheCreationInputTokensAnthropic": 480000
+      }
+    }
+  ],
+  "cross_source_summary": {
+    "total_actual_spend_usd": 389.80,
+    "total_estimated_spend_usd": 0,
+    "total_actual_tokens": 10700000,
+    "total_estimated_tokens": 0,
+    "allSourcesFailed": false
+  },
+  "recommendations": [
+    {
+      "id": "R1",
+      "severity": "High",
+      "title": "Increase prompt caching for Anthropic workloads",
+      "body": "Anthropic cache creation/input patterns show reusable prompts that could benefit from better cache hit rates.",
+      "triggeringMetric": "cachedTokenFractionAnthropic",
+      "triggeringValue": 0.14,
+      "estimatedSavingsUsd": 31.25,
+      "supportingChartRef": { "sourceId": "anthropic", "chartId": "prompt-cache-impact" },
+      "sourceIds": ["anthropic"]
+    },
+    {
+      "id": "R2",
+      "severity": "Medium",
+      "title": "Shift routine claude-opus work to lower-cost models",
+      "body": "claude-opus accounts for most model spend; use Sonnet for routine code and analysis where quality remains sufficient.",
+      "triggeringMetric": "claude-opus spend share",
+      "triggeringValue": "62% Anthropic / 70% Claude Code",
+      "estimatedSavingsUsd": 74.80,
+      "supportingChartRef": { "sourceId": "claude_code", "chartId": "model-cost-breakdown" },
+      "sourceIds": ["anthropic", "claude_code"]
+    }
+  ],
+  "assumptions": [
+    "E2E fixture data uses mocked billing and token metrics.",
+    "OpenAI model-level costs are estimated from usage and price-map data."
+  ]
+}

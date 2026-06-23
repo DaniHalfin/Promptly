@@ -1,0 +1,96 @@
+import React, { useMemo } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+
+interface TokenRatioBarProps {
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens?: number;
+}
+
+const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa'];
+
+export function TokenRatioBar({
+  inputTokens,
+  outputTokens,
+  cachedTokens,
+}: TokenRatioBarProps) {
+  const data = useMemo(() => {
+    const chartData = [];
+    
+    if (inputTokens > 0) {
+      chartData.push({
+        name: 'Input Tokens',
+        value: inputTokens,
+        fill: COLORS[0],
+      });
+    }
+    
+    if (outputTokens > 0) {
+      chartData.push({
+        name: 'Output Tokens',
+        value: outputTokens,
+        fill: COLORS[1],
+      });
+    }
+    
+    if (cachedTokens && cachedTokens > 0) {
+      chartData.push({
+        name: 'Cached Tokens',
+        value: cachedTokens,
+        fill: COLORS[2],
+      });
+    }
+    
+    return chartData;
+  }, [inputTokens, outputTokens, cachedTokens]);
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
+        <p className="text-slate-500">No data available</p>
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis type="number" />
+        <YAxis dataKey="name" type="category" width={140} />
+        <Tooltip
+          formatter={(value) => {
+            if (typeof value === 'number') {
+              return value.toLocaleString();
+            }
+            return value;
+          }}
+          contentStyle={{
+            backgroundColor: '#f1f5f9',
+            border: '1px solid #cbd5e1',
+            borderRadius: '4px',
+          }}
+        />
+        <Bar dataKey="value" fill="#8884d8" radius={[0, 8, 8, 0]}>
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

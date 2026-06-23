@@ -1,0 +1,32 @@
+{
+  "name": "promptly",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first AI token economy analysis tool",
+  "author": "Dani Halfin",
+  "license": "MIT",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "npm-run-all --parallel start:server start:client",
+    "start:server": "npm --workspace server run start",
+    "start:client": "npm --workspace client run start",
+    "dev": "npm-run-all --parallel dev:server dev:client",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace server run build && npm --workspace client run build",
+    "lint": "npm-run-all --parallel lint:server lint:client",
+    "test": "npm --workspace server run test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "npm-run-all": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

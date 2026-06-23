@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-white text-gray-900;
+}
+
+input[type='date'],
+input[type='text'],
+input[type='password'],
+input[type='email'],
+select,
+textarea {
+  @apply border border-gray-300 rounded px-3 py-2 w-full;
+}
+
+input[type='date']:focus,
+input[type='text']:focus,
+input[type='password']:focus,
+input[type='email']:focus,
+select:focus,
+textarea:focus {
+  @apply outline-none ring-2 ring-blue-500 border-transparent;
+}
+
+button {
+  @apply px-4 py-2 rounded font-semibold;
+}
+
+button.primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+button.secondary {
+  @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
+}
+
+button.danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
