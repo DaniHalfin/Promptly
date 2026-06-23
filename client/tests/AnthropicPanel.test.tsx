@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { AnthropicPanel } from '../components/Results/panels/AnthropicPanel';
-import type { SourceMetrics, SourceReport } from '../types/index.js';
+import { AnthropicPanel } from '../src/components/Results/panels/AnthropicPanel';
+import type { SourceMetrics, SourceReport } from '../src/types/index.js';
 
 vi.mock('../components/Results/charts/DailySpendLine.js', () => ({
   DailySpendLine: () => <div data-testid="daily-spend-line" />,
@@ -63,4 +63,5 @@ describe('AnthropicPanel', () => {
     expect(screen.queryByText(/prompt cache savings/i)).not.toBeInTheDocument();
   });
 });
+
 

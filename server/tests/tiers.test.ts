@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classifyTier } from '../engine/tiers.js';
-import type { NormalizedSourceData } from '../types/index.js';
+import { classifyTier } from '../src/engine/tiers.js';
+import type { NormalizedSourceData } from '../src/types/index.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
   sourceId: 'anthropic',
@@ -60,3 +60,4 @@ describe('classifyTier', () => {
     expect(classifyTier(base({ dailyTokensByModel: [] }))).not.toBe('B');
   });
 });
+

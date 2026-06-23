@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { CopilotPanel } from '../components/Results/panels/CopilotPanel';
-import type { SourceMetrics, SourceReport } from '../types/index.js';
+import { CopilotPanel } from '../src/components/Results/panels/CopilotPanel';
+import type { SourceMetrics, SourceReport } from '../src/types/index.js';
 
 vi.mock('../components/Results/charts/ModelCostSharePie.js', () => ({
   ModelCostSharePie: ({ data }: { data: unknown[] }) => <div data-testid="model-cost-share-pie">{data.length} slices</div>,
@@ -89,4 +89,5 @@ describe('CopilotPanel', () => {
     expect(screen.getByText(/code completions are unlimited and not billed here/i)).toBeInTheDocument();
   });
 });
+
 

@@ -2,8 +2,8 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import claudeCodeAdapter, { isPeakHour } from '../adapters/claudeCode.js';
-import type { PriceMap } from '../data/priceMap.js';
+import claudeCodeAdapter, { isPeakHour } from '../src/adapters/claudeCode.js';
+import type { PriceMap } from '../src/data/priceMap.js';
 
 let previousClaudeConfigDir: string | undefined;
 let tempDirs: string[] = [];
@@ -64,3 +64,4 @@ describe('Claude Code adapter helpers', () => {
     expect(result.raw?.claudeCodePeakHourFraction).toBe(0.5);
   });
 });
+

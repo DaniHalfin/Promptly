@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { PriceMap } from '../data/priceMap.js';
-import { computeTierBMetrics } from '../engine/metrics/tierB.js';
-import type { NormalizedCopilotBillingItem, NormalizedSourceData } from '../types/index.js';
+import type { PriceMap } from '../src/data/priceMap.js';
+import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
+import type { NormalizedCopilotBillingItem, NormalizedSourceData } from '../src/types/index.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
   sourceId: 'anthropic',
@@ -152,3 +152,4 @@ describe('computeTierBMetrics', () => {
     expect(claudeCode.totalInputTokensAnthropic).toBeUndefined();
   });
 });
+

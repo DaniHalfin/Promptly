@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ClaudeCodePanel } from '../components/Results/panels/ClaudeCodePanel';
-import type { SourceMetrics, SourceReport } from '../types/index.js';
+import { ClaudeCodePanel } from '../src/components/Results/panels/ClaudeCodePanel';
+import type { SourceMetrics, SourceReport } from '../src/types/index.js';
 
 vi.mock('../components/Results/charts/DailySpendLine.js', () => ({
   DailySpendLine: () => <div data-testid="daily-spend-line" />,
@@ -74,5 +74,6 @@ describe('ClaudeCodePanel', () => {
     expect(screen.queryByText('Prompt cache impact')).not.toBeInTheDocument();
   });
 });
+
 
 

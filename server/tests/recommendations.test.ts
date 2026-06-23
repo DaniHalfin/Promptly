@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PriceMap } from '../data/priceMap.js';
-import { R1 } from '../engine/recommendations/R1_promptCaching.js';
-import { R2 } from '../engine/recommendations/R2_modelDowngrade.js';
-import { R3 } from '../engine/recommendations/R3_verbosity.js';
-import { R4 } from '../engine/recommendations/R4_offPeak.js';
-import type { RuleContext } from '../engine/recommendations/index.js';
-import type { SourceMetrics } from '../types/index.js';
+import type { PriceMap } from '../src/data/priceMap.js';
+import { R1 } from '../src/engine/recommendations/R1_promptCaching.js';
+import { R2 } from '../src/engine/recommendations/R2_modelDowngrade.js';
+import { R3 } from '../src/engine/recommendations/R3_verbosity.js';
+import { R4 } from '../src/engine/recommendations/R4_offPeak.js';
+import type { RuleContext } from '../src/engine/recommendations/index.js';
+import type { SourceMetrics } from '../src/types/index.js';
 
 const emptyPriceMap: PriceMap = new Map();
 
@@ -170,3 +170,4 @@ describe('recommendation rules', () => {
     });
   });
 });
+

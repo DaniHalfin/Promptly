@@ -52,9 +52,14 @@ npx playwright test
 ```text
 promptly/
 ├─ client/                 # React + Vite frontend
+│  ├─ src/                 # Application source (components, context, pages)
+│  └─ tests/               # Vitest + React Testing Library unit tests
 ├─ server/                 # Express + TypeScript backend
-├─ docs/                   # Product and engineering documentation
+│  ├─ src/                 # Application source (adapters, engine, routes)
+│  └─ tests/               # Vitest unit tests
 ├─ e2e/                    # Playwright end-to-end tests
+│  └─ fixtures/            # Mock API response fixtures
+├─ docs/                   # Product and engineering documentation
 ├─ playwright.config.ts    # E2E configuration
 ├─ package.json            # Workspace scripts and dependencies
 └─ package-lock.json
@@ -77,10 +82,12 @@ All 78 tests must pass before review or merge.
 
 Project documentation lives in [`docs/`](./docs/):
 
-- [`spec-v1.6.md`](./docs/spec-v1.6.md)
-- [`engineering-design.md`](./docs/engineering-design.md)
-- [`engineering-design-errata.md`](./docs/engineering-design-errata.md)
+- [`spec-v1.6.md`](./docs/spec-v1.6.md) — Product spec (current)
+- [`spec-changelog.md`](./docs/spec-changelog.md) — Spec revision history (reference only)
+- [`engineering-design.md`](./docs/engineering-design.md) — Engineering design
+- [`engineering-design-errata.md`](./docs/engineering-design-errata.md) — Design errata and blocker fixes
 
 ## License
 
 MIT
+

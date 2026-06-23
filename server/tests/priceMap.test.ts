@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isModelCostEstimated, lookupPrice, type PriceEntry, type PriceMap } from '../data/priceMap.js';
+import { isModelCostEstimated, lookupPrice, type PriceEntry, type PriceMap } from '../src/data/priceMap.js';
 
 const entry = (input: number, output: number): PriceEntry => ({
   input_cost_per_token: input,
@@ -45,3 +45,4 @@ describe('priceMap', () => {
     expect(isModelCostEstimated('claude_code')).toBe(false);
   });
 });
+

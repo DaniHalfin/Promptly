@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { SourceCard } from '../components/SourceCard';
-import { SessionContext } from '../context/SessionContext.js';
-import type { SourceId } from '../types/index.js';
+import { SourceCard } from '../src/components/SourceCard';
+import { SessionContext } from '../src/context/SessionContext.js';
+import type { SourceId } from '../src/types/index.js';
 
 vi.mock('../api/client.js', () => ({
   apiClient: {
@@ -75,4 +75,5 @@ describe('SourceCard', () => {
     expect(screen.getByText('Invalid API key')).toBeInTheDocument();
   });
 });
+
 
