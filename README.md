@@ -10,7 +10,7 @@ The platform is designed for practical cost visibility: connect supported source
 
 ## Features
 
-- **Multi-source adapters** for GitHub Copilot, Claude Code, Claude Export, OpenAI, and Anthropic
+- **Currently supports** GitHub Copilot, Claude Code, OpenAI API, and Claude API — with an extensible adapter model for additional sources
 - **Cost breakdowns** by source and model so you can pinpoint the biggest drivers of spend
 - **Peak-hour analysis** to identify concentration during expensive or overloaded usage windows
 - **Recommendation engine** with R1–R4 rules for caching, model selection, prompt efficiency, and off-peak usage
@@ -93,6 +93,7 @@ Project documentation lives in [`docs/`](./docs/):
 ## License
 
 MIT
+
 
 
 
