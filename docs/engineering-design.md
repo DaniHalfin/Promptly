@@ -5,6 +5,7 @@ source_type: sub-agent
 tags: [engineering-design, promptly, architecture, amendment, v1.1]
 created_at: 2026-06-22T18:02:23.713Z
 ---
+> **Reference document.** This is the amendment that describes changes from v1.0 to v1.1. The canonical current design is [`engineering-design-v1.1.md`](./engineering-design-v1.1.md).
 # Promptly Engineering Design Amendment: v1.0 → v1.1
 
 **Design version:** 1.1
