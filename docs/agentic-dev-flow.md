@@ -4,6 +4,29 @@ This document describes the end-to-end AI-assisted workflow used to build the Pr
 
 ---
 
+## Phase 0 -- Definition and Research
+
+**Goal:** Define the problem space, scope the MVP, and produce a research foundation that spec-draft can build from.
+
+Phase 0 is a structured conversation between the human and the AI planning partner. The planning partner's role is to surface scope, constraints, and unknowns through targeted questions, then dispatch the researcher to fill knowledge gaps, and synthesize the output into a brief that spec-draft can act on.
+
+**Agents involved:**
+
+1. **AI planning partner (orchestrator)** -- Facilitates the ideation conversation, helps frame and scope the problem, identifies what research is needed, dispatches the researcher, and synthesizes findings into guidance for spec-draft. Does not produce artifacts directly -- acts as the connective layer between the human's vision and the execution agents.
+
+2. **researcher** -- Investigates the problem domain: competitive landscape, platform data availability, API access paths, pricing models, and feasibility constraints. Produces a research report that grounds the spec in what is actually possible.
+
+   Note: researcher does not stop at the end of Phase 0. As spec-draft surfaces specific data-access questions during Phase 1, researcher is dispatched on demand to answer them.
+
+**Loop mechanic:** Human articulates vision → planning partner scopes and frames → researcher investigates → planning partner synthesizes findings → brief handed to spec-draft. Researcher loops back throughout Phase 1 as new questions arise.
+
+**Output:**
+- LLM Usage Analytics and Cost Optimization Research Report (competitive landscape, feasibility, platform APIs)
+- Targeted follow-up research on GitHub Copilot billing access and Claude/Anthropic data access paths (produced during Phase 1 as spec questions surfaced)
+- Scoping guidance: individual developer spend, local data sources where possible, no proxy dependency
+
+---
+
 ## Phase 1: Spec Creation
 
 **Goal:** Produce a product specification that is internally consistent, complete, and critique-proof before any design work begins.
