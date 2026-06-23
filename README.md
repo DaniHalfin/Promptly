@@ -59,7 +59,8 @@ promptly/
 │  └─ tests/               # Vitest unit tests
 ├─ e2e/                    # Playwright end-to-end tests
 │  └─ fixtures/            # Mock API response fixtures
-├─ docs/                   # Product and engineering documentation
+├─ docs/                   # Product, engineering, and research documentation
+│  └─ research/            # Phase 0 research artifacts
 ├─ playwright.config.ts    # E2E configuration
 ├─ package.json            # Workspace scripts and dependencies
 └─ package-lock.json
@@ -89,6 +90,10 @@ Project documentation lives in [`docs/`](./docs/):
 | [`engineering-design-v1.1.md`](./docs/engineering-design-v1.1.md) | Engineering design — current canonical |
 | [`engineering-design-amendment-v1.0-v1.1.md`](./docs/engineering-design-amendment-v1.0-v1.1.md) | Amendment reference (v1.0 → v1.1 delta) |
 | [`engineering-design-errata.md`](./docs/engineering-design-errata.md) | Blocker fixes applied to v1.1 |
+| [`agentic-dev-flow.md`](./docs/agentic-dev-flow.md) | End-to-end agentic development workflow used to build this project |
+| [`research/llm-analytics-landscape.md`](./docs/research/llm-analytics-landscape.md) | Phase 0 research — LLM usage analytics landscape and competitive tools |
+| [`research/github-copilot-data-access.md`](./docs/research/github-copilot-data-access.md) | Phase 0 research — GitHub Copilot usage data access paths |
+| [`research/claude-anthropic-data-access.md`](./docs/research/claude-anthropic-data-access.md) | Phase 0 research — Claude and Anthropic usage data access paths |
 
 ## License
 

@@ -21,8 +21,9 @@ Phase 0 is a structured conversation between the human and the AI planning partn
 **Loop mechanic:** Human articulates vision → planning partner scopes and frames → researcher investigates → planning partner synthesizes findings → brief handed to spec-draft. Researcher loops back throughout Phase 1 as new questions arise.
 
 **Output:**
-- LLM Usage Analytics and Cost Optimization Research Report (competitive landscape, feasibility, platform APIs)
-- Targeted follow-up research on GitHub Copilot billing access and Claude/Anthropic data access paths (produced during Phase 1 as spec questions surfaced)
+- [`research/llm-analytics-landscape.md`](./research/llm-analytics-landscape.md) -- LLM usage analytics landscape, competitive tools, and feasibility analysis
+- [`research/github-copilot-data-access.md`](./research/github-copilot-data-access.md) -- GitHub Copilot usage data access paths (produced during Phase 1 as spec questions surfaced)
+- [`research/claude-anthropic-data-access.md`](./research/claude-anthropic-data-access.md) -- Claude and Anthropic usage data access paths (produced during Phase 1)
 - Scoping guidance: individual developer spend, local data sources where possible, no proxy dependency
 
 ---
