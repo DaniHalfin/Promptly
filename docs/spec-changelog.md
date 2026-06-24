@@ -6,6 +6,24 @@
 
 
 
+### v1.7 (2026-06-24)
+- **GitHub Copilot source rewritten to use local session JSONL files; API-based approach removed.** The previous approach (classic PAT → GitHub billing API → `netAmount` from `usageItems[]`) excluded org-licensed users who lacked org-admin/billing-manager access, and provided no token counts. The new approach reads `~/.copilot/session-state/*/events.jsonl` — no credentials required. The VS Code Copilot extension delegates to the embedded Copilot CLI; all session data is in `~/.copilot`, consistent with the Claude Code local-file pattern.
+- **§4 Step 2** — GitHub Copilot connection method changed from "Token entry (GitHub PAT)" to "Local file read (auto); no input required." Validation note added mirroring the Claude Code pattern.
+- **§5 P0 Sources table** — Copilot row updated: access method → `~/.copilot/session-state/*/events.jsonl`; data available → per-model token counts + premium request cost; credential note removed.
+- **§5 Source 4** — Complete rewrite. Removed: API endpoint references, PAT/admin requirements, org-vs-user fallback logic, engagement metrics API. Added: file path, `session.shutdown` event structure (`modelMetrics` schema: `requests.count`, `requests.cost`, `usage.inputTokens/outputTokens/cacheReadTokens/cacheWriteTokens/reasoningTokens`), `totalPremiumRequests`, `sessionStartTime`. Known limitations updated: local-machine scope; acceptance rate removed (not in JSONL).
+- **§6 Tier detection** — Copilot Tier B condition changed from `netAmount` non-null → `session.shutdown` event with non-empty `modelMetrics` present.
+- **§6 Tier B unlocks** — Removed Copilot exception on input/output token ratio; removed Copilot-specific "additionally" bullet (AI credit spend, cost per interaction, engagement rate).
+- **§7.1** — Definition updated: Copilot cost now derived from `requests.cost` in `modelMetrics`; removed AI credit billing language.
+- **§7.2** — Updated to include GitHub Copilot as a token-reporting source; removed "Copilot billing API does not expose per-interaction token counts" display string.
+- **§7.15–7.19** — Replaced API-based metrics (total AI credit spend, spend by model, cost per interaction, model distribution, acceptance rate) with token-based metrics matching the Claude Code pattern: session count (7.15), token breakdown by model (7.16), total cost (7.17), model cost breakdown (7.18), cached token fraction (7.19).
+- **§8 R1** — Updated "Tiers that can trigger this" to clarify Copilot is excluded because prompt caching is provider-managed (not because it lacks cache data).
+- **§8 R2** — Removed Copilot exception on `output_tokens_per_day` condition (now applicable since token counts are available). Updated model_cost_share reference from §7.16 → §7.18. Removed `pricePerUnit` billing API references for `premium_model_price` and `cheaper_model_price`; both now use LiteLLM price map uniformly. `[N]` now includes Copilot with sourcing from `usage.outputTokens`.
+- **§8 R3** — Updated "Tiers that can trigger this" to include GitHub Copilot.
+- **§10 Export schema** — `github_copilot` metrics example updated to token-based fields (session_count, model_breakdown with token fields, total_cost_usd, input_output_ratio).
+- **§11 Architecture** — `github_copilot.js` adapter description updated from API call to local file enumeration; `api.github.com` replaced with `~/.copilot/session-state/` in the data sources diagram.
+- **§13 OQ-2** — Reclassified as SUPERSEDED; original PAT/scope resolution no longer applicable.
+- **§13 OQ-3** — Reclassified as SUPERSEDED; `netAmount`-based resolution no longer applicable.
+
 ### v1.6 (2026-06-22)
 - **[OQ-1 RESOLVED] OpenAI per-model cost approximation:** Token-fraction approximation accepted for MVP. Per-model OpenAI cost is described as "estimated via token-fraction approximation; exact per-model billing data not available from the OpenAI API" in §5 Source 2 (Assumptions) and §7.6 (Model cost share Note). OQ-1 marked resolved in §13.
 - **[OQ-2 RESOLVED] GitHub Copilot OAuth scopes:** Classic PAT required (fine-grained PATs not supported by the billing usage endpoints). Org endpoint (`/organizations/{org}/settings/billing/ai_credit/usage`): requires `repo` scope (recommended for onboarding UI) or `admin:org` scope; user must be org admin (owner) or billing manager. Individual user endpoint (`/users/{username}/settings/billing/ai_credit/usage`): requires `user` scope; user must have a self-purchased Copilot plan (Free/Pro/Pro+/Max) — org/enterprise-licensed users must use the org endpoint. API version header `X-GitHub-Api-Version: 2026-03-10` required. Data retained for 24 months. §5 Source 4 Assumptions updated with exact token type and scope requirements. OQ-2 marked resolved in §13.

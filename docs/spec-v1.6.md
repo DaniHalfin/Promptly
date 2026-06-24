@@ -1,9 +1,9 @@
 ---
-title: promptly-product-spec-v1-6
+title: promptly-product-spec-v1-7
 source: spec-draft
 source_type: sub-agent
-tags: [spec, promptly, product, v1.6]
-created_at: 2026-06-22T16:18:40.436Z
+tags: [spec, promptly, product, v1.7]
+created_at: 2026-06-24T00:48:50.086Z
 ---
 ---
 title: promptly-product-spec-v1-6
@@ -13,8 +13,8 @@ tags: [spec, promptly, product, v1.6]
 created_at: 2026-06-19T23:55:04.576Z
 ---
 # Promptly Product Spec
-**Version:** 1.6
-**Date:** 2026-06-22
+**Version:** 1.7
+**Date:** 2026-06-24
 **Author:** spec-draft agent
 **Stakeholder:** Dani Halfin, Principal PM, Microsoft
 **Status:** Draft
@@ -107,7 +107,7 @@ The core frame is **token economy**: how efficiently are you allocating your tok
 **Mental model:** Thinks in token costs and model tiers; knows `gpt-4o` is more expensive than `gpt-4o-mini` but has never quantified the split in his own usage
 **Pain:** His OpenAI bill came in higher than expected this month. He suspects one feature is over-using the frontier model but has no way to confirm without instrumenting code. He also wonders if his long ChatGPT conversations are inflating his personal usage.
 
-**Scenario:** Danny clones Promptly, runs `npm install && npm start`, opens the browser, pastes his OpenAI Admin key and his GitHub token. Promptly also reads his local Claude Code session data from `~/.claude/projects/` automatically. In under five minutes he sees: (a) his OpenAI model split by token cost, (b) that 3 API keys account for 70% of his spend, (c) that his Claude Code sessions show consistently high input token counts — triggering a Reduce Prompt Verbosity recommendation, and (d) that switching the identified high-volume, low-output API calls to `gpt-4o-mini` could reduce his API spend by an estimated 40-60%. He exports a PDF, closes the tab, and his data is gone.
+**Scenario:** Danny clones Promptly, runs `npm install && npm start`, opens the browser, pastes his OpenAI Admin key. Promptly also reads his local Claude Code session data from `~/.claude/projects/` and his GitHub Copilot session data from `~/.copilot/session-state/` automatically — no credentials required for either. In under five minutes he sees: (a) his OpenAI model split by token cost, (b) that 3 API keys account for 70% of his spend, (c) that his Claude Code sessions show consistently high input token counts — triggering a Reduce Prompt Verbosity recommendation, and (d) that switching the identified high-volume, low-output API calls to `gpt-4o-mini` could reduce his API spend by an estimated 40-60%. He exports a PDF, closes the tab, and his data is gone.
 
 ### PM Parker
 
@@ -139,9 +139,9 @@ The user can connect any combination of sources in any order. Each source card h
 | Claude Code | Local file read (auto) | No input required; Promptly reads session JSONL files under `~/.claude/projects/` (or `$CLAUDE_CONFIG_DIR/projects/` if set) when the card is enabled |
 | OpenAI | API key entry | Admin API key (text input, masked) + date range picker (default: last 30 days) |
 | Anthropic | API key entry | Admin API key (text input, masked) + date range picker (default: last 30 days) |
-| GitHub Copilot | Token entry | GitHub personal access token (text input, masked) |
+| GitHub Copilot | Local file read (auto) | No input required; Promptly reads session events from `~/.copilot/session-state/` (Windows: `C:\Users\<user>\.copilot\session-state\`) automatically when the card is enabled |
 
-Each card shows a status indicator: unconfigured / configured / fetching / ready / error. Configured API keys are stored only in JavaScript memory (the `window` object in the frontend); they are not written to `localStorage`, `sessionStorage`, cookies, or any other persistent store. The backend receives the key as a request header on each call and does not store it.
+Each card shows a status indicator: unconfigured / configured / fetching / ready / error. Configured API keys are stored only in JavaScript memory (the `window` object in the frontend); they are not written to `localStorage`, `sessionStorage`, cookies, or any other persistent store. The backend receives the key as a request header on each call and does not store it. GitHub Copilot requires no credentials — it reads from the local filesystem only.
 
 **Step 3: Validation**
 When a source is configured, the frontend immediately sends a lightweight validation request through the local Express server to the provider API to confirm the key is valid and has the required permissions. Status updates on the card:
@@ -149,6 +149,8 @@ When a source is configured, the frontend immediately sends a lightweight valida
 - Red X + human-readable error message (e.g., "This key does not have Admin permissions. Org-level admin keys are required for usage data.")
 
 For Claude Code, the validation step checks that the `~/.claude/projects/` directory (or `$CLAUDE_CONFIG_DIR/projects/` if set) exists and contains at least one JSONL session file. If the directory is missing or empty, the card displays: "No Claude Code data found. Have you run Claude Code at least once?"
+
+For GitHub Copilot, the validation step checks that the `~/.copilot/session-state/` directory (Windows: `C:\Users\<user>\.copilot\session-state\`) exists and contains at least one `events.jsonl` file with a `session.shutdown` event. If the directory is missing or empty, the card displays: "No Copilot session data found. Have you run GitHub Copilot at least once?"
 
 **Step 4: Run analysis**
 User clicks "Start analysis." The frontend disables the button and shows a per-source progress indicator. The analysis runs as **one HTTP request per connected source** (not a single combined request), so the frontend can update each source card's progress indicator independently as each request resolves:
@@ -188,7 +190,7 @@ User clicks export buttons to download files to local disk. When the user closes
 | **Claude Code** (Anthropic CLI) | Local file read (`~/.claude/projects/<encoded-project-path>/<sessionId>.jsonl`) | Token counts per message (JSONL format), model, per-session — cost computed from tokens × model price; no auth required |
 | **OpenAI API** (direct API users) | One-time API call (`GET /v1/usage`) | Daily tokens by model, costs — needs API key |
 | **Anthropic API** (direct API users) | One-time API call (`GET /v1/usage`) | Daily tokens by model, workspace-level costs — needs admin key |
-| **GitHub Copilot** (Chat, CLI, cloud agent, Spaces) | GitHub API (`GET /organizations/{org}/settings/billing/ai_credit/usage` + engagement metrics reports; individual plans: `GET /users/{username}/settings/billing/ai_credit/usage`) | AI credit costs by model, per-user spend, model attribution, engagement metrics (interactions, acceptance rate) — GitHub PAT required |
+| **GitHub Copilot** (Chat, CLI, cloud agent, Spaces) | Local file read (`~/.copilot/session-state/*/events.jsonl`) | Token counts per model (input/output/cache-read/cache-write/reasoning), premium request cost per session — no credentials required |
 
 ### P1 Sources (future releases)
 
@@ -281,40 +283,40 @@ User clicks export buttons to download files to local disk. When the user closes
 
 ### Source 4: GitHub Copilot
 
-**Connection:** GitHub personal access token entered in the frontend UI. The local Express server calls the GitHub REST API using this token.
+**Connection:** Auto-detected from `~/.copilot/session-state/` (Windows: `C:\Users\<user>\.copilot\session-state\`). No credentials required — same local-file pattern as Claude Code. The VS Code Copilot extension delegates to the embedded Copilot CLI; all session data lands in `~/.copilot`, not in VS Code's own storage.
 
-**Tier classification:** Tier B (actual AI credit costs per model, model attribution, engagement metrics)
+**Tier classification:** Tier B (full token counts: input/output/cache-read/cache-write/reasoning per model, plus premium request cost per session)
 
-**Billing unit:** AI credits. 1 AI credit = $0.01 USD.
+**Files read:**
+- `~/.copilot/session-state/*/events.jsonl` — one directory per session, each containing an `events.jsonl` file. The adapter reads all such files it can find under the session-state root.
 
-**GA date:** June 1, 2026 (Copilot Business and Copilot Enterprise).
-
-**APIs called:**
-
-*Billing data (cost):*
-- `GET /organizations/{org}/settings/billing/ai_credit/usage` — returns AI credit usage and costs per model for the organization. Filterable by date, model, and user. Response fields per item in `usageItems[]`: `product`, `sku`, `model`, `pricePerUnit`, `grossQuantity`, `grossAmount`, `discountAmount`, `netAmount`.
-
-*Engagement metrics:*
-- `GET /orgs/{org}/copilot/metrics/reports/organization-1-day` and `GET /orgs/{org}/copilot/metrics/reports/users-1-day` — NDJSON download links returning daily engagement metrics (interactions, acceptance rate, active users). These replace the deprecated `/orgs/{org}/copilot/usage` endpoint, which was shut down April 2, 2026.
-
-*For individual plans (self-purchased):*
-- `GET /users/{username}/settings/billing/ai_credit/usage` — same schema as the org billing endpoint. The adapter detects which path to use based on whether an org token or user token is provided.
+**Event structure used:**
+The adapter extracts only `session.shutdown` events. Each such event contains:
+- `sessionStartTime` — Unix millisecond timestamp for the session start date
+- `modelMetrics` — object keyed by model name (e.g. `gpt-5.4-mini`, `claude-opus-4.6-1m`), each entry containing:
+  - `requests.count` — number of requests made to this model in the session
+  - `requests.cost` — premium request AI credit cost for this model in the session (USD)
+  - `usage.inputTokens`, `usage.outputTokens` — prompt and completion tokens
+  - `usage.cacheReadTokens`, `usage.cacheWriteTokens` — cache read and write tokens
+  - `usage.reasoningTokens` — reasoning tokens (where applicable)
+- `totalPremiumRequests` — total AI credit cost for the entire session (USD); used as a cross-check against summed `requests.cost` per model
 
 **Data returned:**
-- Cost: gross AI credit spend, discounts applied, net AI credit spend in USD — per model, per day
-- Model attribution: model names (e.g., Claude Sonnet 4.6, GPT-5.4, Gemini 3.5 Flash) with per-model pricing and usage quantities; 15+ models with widely varying pricing
-- Engagement: interactions, acceptance rate (from engagement metrics reports)
-- User segmentation: per-user spend filterable via the billing API
+- Per-model token breakdown (input/output/cache-read/cache-write/reasoning), aggregated daily from session timestamps
+- Per-model request count and premium request cost, aggregated daily
+- Total session count and total cost over the analysis period
+- All data is from the local machine only; no org-wide or cross-user data is included
 
 **Known limitations / scope:**
-- Code completions and Next Edit Suggestions are **not** billed in AI credits — they are unlimited on paid Copilot plans. AI credit billing applies only to: Copilot Chat, Copilot CLI, Copilot cloud agent, and Copilot Spaces interactions.
-- Token counts for individual Copilot interactions are not exposed via the billing API; cost is tracked in AI credits at the interaction level, not token counts.
-- Acceptance rate data (from engagement metrics reports) reflects code completions only, which are not cost-denominated.
+- Only covers sessions run on this local machine. Does not include usage by other users or sessions from other machines.
+- No engagement metrics (acceptance rate for code completions) — these are not present in `events.jsonl`. Acceptance rate is removed from Copilot scope.
+- `requests.cost` reflects premium request AI credit billing only (Chat, CLI, cloud agent, Spaces). Code completions (which are unlimited on paid plans) are not tracked in these events and do not appear in any cost total.
 
 **Assumptions:**
-- ASSUMPTION: The user provides a **classic PAT** (fine-grained PATs are not supported by the Copilot billing usage endpoints). For the org endpoint, the token requires the `repo` scope (recommended; users are already familiar with it) or `admin:org` scope; the user must also be an org admin (owner) or billing manager. For the individual user endpoint, the token requires the `user` scope; the user must have a self-purchased Copilot plan (Free/Pro/Pro+/Max) — if Copilot is org/enterprise licensed, the org endpoint must be used instead. All requests must include the `X-GitHub-Api-Version: 2026-03-10` API version header. OQ-2 is resolved; see §13.
-- ASSUMPTION: If the token lacks Copilot access or the user is not on a Copilot plan, the API returns a 403. Promptly shows a graceful error: "This GitHub token does not have the required permissions to access Copilot billing data. Ensure your token has the billing read scope."
-- ASSUMPTION: The adapter tries the org endpoint first; if it receives a 404 or 403, it falls back to the individual user endpoint. If both fail, the source is marked as error.
+- ASSUMPTION: The `~/.copilot/session-state/` directory exists and is readable. If the directory is missing or contains no valid `session.shutdown` events, the card displays: "No Copilot session data found. Have you run GitHub Copilot at least once?"
+- ASSUMPTION: The adapter enumerates all subdirectories under `~/.copilot/session-state/`, reads each `events.jsonl` file, and filters for `session.shutdown` events. Events other than `session.shutdown` are skipped. Malformed lines are skipped with a warning.
+- ASSUMPTION: If `modelMetrics` is absent or empty in a `session.shutdown` event, the session contributes only to session count and not to token or cost aggregates.
+- ASSUMPTION: `sessionStartTime` is a Unix millisecond timestamp. The adapter converts it to a calendar date for daily bucketing.
 
 ---
 
@@ -334,7 +336,7 @@ Tier A is defined in the system for architectural completeness but has no MVP da
 
 Tier detection is automatic and per-source. When a source is processed, the adapter assigns the tier based on what fields are present in the returned data:
 - If `cost_usd` is non-null AND actual token fields (`input_tokens`, `output_tokens`) are non-null AND data is bucketed by day: Tier B
-- For GitHub Copilot: if `netAmount` from the AI credit billing API is non-null AND model attribution is present: Tier B
+- For GitHub Copilot: if `~/.copilot/session-state/` exists and contains at least one `events.jsonl` file with a `session.shutdown` event that includes a non-empty `modelMetrics` object: Tier B
 - If all token fields are estimated or only aggregate counts are available: Tier C
 - If the adapter fails to fetch data (network error, invalid credentials, HTTP 4xx/5xx): the source is marked as `error` with a null tier. The source card displays the error message and is excluded from all metric aggregations. The tier column for this source in the export shows `null`.
 
@@ -346,12 +348,11 @@ The tier label is displayed on each source card in the results dashboard.
 - Total spend (actual USD) for the analysis period
 - Daily spend trend (line chart)
 - Model cost breakdown (pie or bar chart: % of total spend per model)
-- Input vs. output token ratio (per model and aggregate — Anthropic, OpenAI, Claude Code only; Copilot provides interaction-level cost, not token counts)
+- Input vs. output token ratio (per model and aggregate — all Tier B sources)
 - Cached token fraction (Anthropic and Claude Code: see §7.8 for source-specific formulas)
 - Average daily spend and 7-day rolling average
 - Peak spend day
 - All Tier B recommendations (see §8)
-- GitHub Copilot additionally: AI credit spend by model, cost per interaction, engagement rate (from metrics reports)
 
 **Tier C (no MVP sources — future P1 placeholder):**
 Tier C is defined for completeness and future P1 sources. When a Tier C source is connected in a future release, it will unlock:
@@ -381,15 +382,15 @@ All metrics are defined below with their formula and the minimum tier at which t
 ### Cross-source metrics (aggregate, shown at top of results)
 
 **7.1 Total token spend (USD)**
-- Definition: Sum of actual dollar costs from all Tier B sources. For GitHub Copilot, AI credit spend (covering Chat, CLI, cloud agent, and Spaces) is included in this total. Code completions and Next Edit Suggestions are not billed in AI credits and do not contribute to any cost figure.
-- Formula: `sum(tier_b_actual_cost_usd)` across all connected Tier B sources including GitHub Copilot AI credit net spend.
+- Definition: Sum of actual dollar costs from all Tier B sources. For GitHub Copilot, cost is derived from `requests.cost` summed across all `modelMetrics` entries in `session.shutdown` events (covers Chat, CLI, cloud agent, and Spaces interactions only; code completions are not tracked in these events).
+- Formula: `sum(tier_b_actual_cost_usd)` across all connected Tier B sources.
 - Display: "Actual: $X.XX (from [source list])". The display notes which sources contributed.
 - Tier: B
 
 **7.2 Total tokens consumed**
-- Definition: Sum of actual tokens across all sources that expose token-level data. GitHub Copilot is not included — the billing API tracks AI credit usage at the interaction level, not the token level.
-- Formula: `sum(input_tokens + output_tokens)` for Anthropic, OpenAI, and Claude Code sources only.
-- Display: Shows actual token counts from token-reporting sources. If Copilot is the only connected source, this field displays "N/A — Copilot billing API does not expose per-interaction token counts."
+- Definition: Sum of actual tokens across all sources that expose token-level data. All four P0 MVP sources report per-model token counts.
+- Formula: `sum(input_tokens + output_tokens)` across all connected Tier B sources. For GitHub Copilot, uses `usage.inputTokens + usage.outputTokens` summed across all `modelMetrics` entries.
+- Display: Shows actual token counts from all token-reporting sources.
 - Tier: B
 
 **7.3 Analysis period**
@@ -489,36 +490,35 @@ Note: Cached token fraction for Claude Code is defined in §7.8 (alongside the A
 
 ### GitHub Copilot metrics (Tier B)
 
-**7.15 Copilot total AI credit spend**
-- Definition: Total AI credit cost for the analysis period, shown as gross spend, total discounts applied, and net spend.
-- Formula: `gross = sum(grossAmount); discounts = sum(discountAmount); net = sum(netAmount)` across all `usageItems` in the billing API response.
-- Display: "Net AI credit spend: $X.XX (gross: $Y.YY, discounts: -$Z.ZZ)". All values in USD (1 AI credit = $0.01).
+**7.15 Copilot session count**
+- Definition: Number of distinct Copilot sessions found in `~/.copilot/session-state/` that contain a `session.shutdown` event with non-empty `modelMetrics`.
+- Formula: `count(sessions with valid session.shutdown events)` across all subdirectories under the session-state root.
+- Display: "N sessions analyzed"
 - Tier: B
 
-**7.16 Copilot spend by model**
-- Definition: Breakdown of net AI credit spend per model for the analysis period.
-- Formula: Group `usageItems` by `model`; sum `netAmount` per group; sort descending.
-- Display: Table of model name, net spend (USD), and percentage of total Copilot spend.
+**7.16 Copilot token breakdown by model**
+- Definition: Per-model daily aggregates of input, output, cache-read, cache-write, and reasoning tokens, plus request count and premium request cost. Mirrors the Claude Code token breakdown structure.
+- Formula: For each model key in `modelMetrics`, sum `usage.inputTokens`, `usage.outputTokens`, `usage.cacheReadTokens`, `usage.cacheWriteTokens`, `usage.reasoningTokens`, `requests.count`, and `requests.cost` across all sessions whose `sessionStartTime` falls within the analysis period; bucket by calendar day.
+- Display: Table of model name, daily token totals (input / output / cache-read / cache-write / reasoning), request count, and cost (USD). Sorted by total cost descending.
 - Tier: B
 
-**7.17 Copilot cost per interaction**
-- Definition: Average net AI credit cost per interaction (Chat, CLI, cloud agent, or Spaces).
-- Formula: `cost_per_interaction = sum(netAmount) / sum(grossQuantity)`, where `grossQuantity` represents the number of AI credit interactions billed.
-- Display: "$X.XX per interaction (average, net)". Labeled "applies to Chat, CLI, cloud agent, and Spaces; code completions are unlimited and not included."
+**7.17 Copilot total cost**
+- Definition: Total premium request cost for the analysis period, summed across all models and all sessions.
+- Formula: `total_cost = sum(requests.cost)` across all `modelMetrics` entries in all qualifying `session.shutdown` events.
+- Display: "Total Copilot cost: $X.XX (premium interactions only — code completions are unlimited and not tracked)."
 - Tier: B
 
-**7.18 Copilot model distribution**
-- Definition: Percentage of total Copilot AI credit spend by model name.
-- Formula: `model_spend_share(m) = sum(netAmount for model m) / total_net_spend`
+**7.18 Copilot model cost breakdown**
+- Definition: Percentage of total Copilot cost attributable to each model.
+- Formula: `model_cost_share(m) = sum(requests.cost for model m) / total_cost`
 - Chart type: Pie chart or bar chart.
-- Display: Model names with spend percentage and absolute net cost. Shows which models (e.g., Claude Sonnet 4.6, GPT-5.4, Gemini 3.5 Flash) account for what share of cost.
+- Display: Model names with cost percentage and absolute cost. Sorted by cost descending.
 - Tier: B
 
-**7.19 Copilot acceptance rate (completions)**
-- Definition: Fraction of code completion suggestions that the user accepted, sourced from engagement metrics reports.
-- Formula: `acceptance_rate = total_acceptances_count / total_suggestions_count` (from `organization-1-day` or `users-1-day` NDJSON reports).
-- Display: Percentage with raw counts. Prominently labeled: "Completions only — code completions are not billed in AI credits. This metric reflects coding productivity, not cost efficiency."
-- Note: This metric is still valuable for understanding Copilot's code-completion utility independent of cost.
+**7.19 Copilot cached token fraction**
+- Definition: Fraction of total input-equivalent tokens served from the cache, per model and in aggregate. Uses the same formula as the Claude Code cache fraction.
+- Formula: `cache_fraction_copilot(m) = cacheReadTokens_m / (inputTokens_m + cacheReadTokens_m + cacheWriteTokens_m)` for each model `m`; aggregate: same formula summed across all models.
+- Display: Percentage with raw token counts. Shown per model and as a weighted aggregate.
 - Tier: B
 
 ---
@@ -576,7 +576,7 @@ Where (all variables are scoped to the triggering source — Anthropic Usage API
 
 `[savings_estimate]` = sum of `savings_m` across all models with available `cache_read_input_token_cost`. If no models for the source have this entry, suppress the savings estimate and omit "could reduce costs by up to [savings_estimate]" from the body.
 
-**Tiers that can trigger this:** B (Anthropic and Claude Code only — trigger requires `cache_read_input_tokens` data; GitHub Copilot and OpenAI do not expose cache metrics)
+**Tiers that can trigger this:** B (Anthropic and Claude Code only — prompt caching is a developer-controlled setting for these sources; OpenAI does not expose cache metrics, and GitHub Copilot caching is managed automatically by the provider)
 
 ### R2: Downgrade Model
 
@@ -591,7 +591,7 @@ Where (all variables are scoped to the triggering source — Anthropic Usage API
 | claude-3-5-sonnet-* | claude-3-haiku-* |
 | claude-3-opus-* | claude-3-5-sonnet-* |
 
-For GitHub Copilot: trigger fires when a single model accounts for >30% of Copilot AI credit spend AND at least one cheaper alternative model is available for that interaction type. The $5.00 minimum total Copilot AI credit spend guard applies before this trigger is evaluated. (The `output_tokens_per_day(premium_model) < 500` condition from the general trigger does not apply for Copilot — GitHub Copilot billing does not expose per-interaction token counts; see §5.)
+For GitHub Copilot: trigger fires when a single model accounts for >30% of total Copilot cost (derived from `requests.cost` summed across `modelMetrics`) AND `output_tokens_per_day(premium_model) < 500` AND total Copilot cost for the premium model exceeds $5.00. The $5.00 minimum total Copilot spend guard applies before this trigger is evaluated.
 
 If a premium model is detected in usage data but does not appear in this table, the recommendation does not fire.
 
@@ -599,28 +599,28 @@ If a premium model is detected in usage data but does not appear in this table, 
 **Body:** "[Model name] accounts for [X]% of your actual spend but generates an average of only [N] output tokens per day. Consider testing [cheaper model] for these interactions. Estimated savings: [Y]% if volume holds."
 
 Where `[Model name]` and `[cheaper model]` are resolved at render time:
-- `[Model name]` = the name of the detected `premium_model` that fired the trigger, as returned by the source's usage or billing API
+- `[Model name]` = the name of the detected `premium_model` that fired the trigger, as returned by the source's usage data (API or local file)
 - `[cheaper model]` = the value in the "Suggested cheaper alternative" column of the downgrade-candidate table (non-Copilot) or the Copilot substitution table (Copilot) for the row matching the detected `premium_model`
 - If the trigger fires for multiple premium models simultaneously, generate one R2 card per model, each resolving `[Model name]` and `[cheaper model]` independently
 
 **Savings estimate formula:** `savings_estimate = current_spend * model_cost_share(premium_model) * (1 - (cheaper_model_price / premium_model_price))`
 
 Where:
-- `current_spend` = total actual cost for the analysis period for the source that contains `premium_model` (i.e., the Tier B source whose usage or billing API reported the triggering model)
+- `current_spend` = total actual cost for the analysis period for the source that contains `premium_model` (i.e., the Tier B source whose usage data reported the triggering model)
 - `total_spend_premium_model_usd` = `current_spend * model_cost_share(premium_model)` — used for the $5.00 minimum-spend guard in the trigger
-- `model_cost_share(premium_model)` = fraction of total spend attributable to the premium model (§7.6 for Anthropic/OpenAI; §7.16 for Copilot)
+- `model_cost_share(premium_model)` = fraction of total spend attributable to the premium model (§7.6 for Anthropic/OpenAI; §7.18 for Copilot)
 - `output_tokens_per_day(premium_model)` = average daily output tokens for the premium model over the analysis period (see §7.12a)
-- `premium_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map (non-Copilot sources); for GitHub Copilot, use the `pricePerUnit` field from the billing API response for the premium model
-- `cheaper_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map (non-Copilot sources); for GitHub Copilot, use `pricePerUnit` from the billing API for the suggested alternative model if the user has used it; otherwise suppress the savings estimate for that model pair
+- `premium_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map (all Tier B sources including GitHub Copilot)
+- `cheaper_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map for the suggested alternative model; if absent, suppress the savings estimate for that model pair
 - `[X]` = `model_cost_share(premium_model) * 100` (percentage of total source spend, rounded to one decimal place)
-- `[N]` = `output_tokens_per_day(premium_model)` for Anthropic, OpenAI, and Claude Code (average daily output tokens for the premium model, as defined in §7.12a); for GitHub Copilot, `[N]` is not available — omit "but generates an average of only [N] output tokens per day" from the body for Copilot-triggered cards
+- `[N]` = `output_tokens_per_day(premium_model)` for all Tier B sources including GitHub Copilot (average daily output tokens for the premium model, as defined in §7.12a; for Copilot, derived from `usage.outputTokens` in `modelMetrics` across `session.shutdown` events)
 - `[Y]` = `model_cost_share(premium_model) * (1 - (cheaper_model_price / premium_model_price)) * 100` — percentage of total source spend that would be saved if all calls to the premium model were routed to the cheaper alternative at the same volume
 
 Note: If `cheaper_model_price` is absent for a given model pair, suppress the savings estimate for that pair — omit "Estimated savings: [Y]% if volume holds." from the body for that card.
 
 **Tiers that can trigger this:** B (all Tier B sources, including GitHub Copilot)
 
-**Copilot-specific note:** For GitHub Copilot, model selection for Chat and CLI is configurable in Copilot settings. The recommendation body surfaces the per-model cost breakdown (§7.16) as evidence and links users to Copilot model configuration settings.
+**Copilot-specific note:** For GitHub Copilot, model selection for Chat and CLI is configurable in Copilot settings. The recommendation body surfaces the per-model cost breakdown (§7.18) as evidence and links users to Copilot model configuration settings.
 
 **Copilot model substitution table**
 
@@ -646,7 +646,7 @@ Where:
 - `[N]` = p90 value of daily input tokens across Tier B sources with token data over the analysis period (same quantity used in the trigger condition)
 - `[X]` = `total_input_tokens / total_output_tokens` across Tier B sources with token data over the analysis period, rounded to one decimal place (same ratio used in the trigger condition)
 
-**Tiers that can trigger this:** B (Anthropic, OpenAI, and Claude Code only — requires per-day token counts; GitHub Copilot interactions are excluded as the Copilot billing API does not expose per-interaction token counts)
+**Tiers that can trigger this:** B (all Tier B sources including GitHub Copilot — requires per-day token counts; GitHub Copilot is included as it now exposes per-session token counts via `usage.inputTokens` in `modelMetrics`)
 
 ### R4: Use Off-Peak Hours
 
@@ -686,11 +686,11 @@ The following recommendation types require reading or classifying prompt content
 
 ### Core guarantees
 
-1. **No user data leaves the user's machine to any server other than the AI providers the user explicitly connects to.** The outbound network calls from the local Express server are: (a) `api.openai.com`, `api.anthropic.com`, and `api.github.com` using credentials the user provides; and (b) `raw.githubusercontent.com` to fetch the LiteLLM price map at startup (no user data is included in this request; it is a plain GET for a public JSON file). If option (b) fails, the bundled price map snapshot is used instead and no retry is attempted.
+1. **No user data leaves the user's machine to any server other than the AI providers the user explicitly connects to.** The outbound network calls from the local Express server are: (a) `api.openai.com` and `api.anthropic.com` using credentials the user provides; and (b) `raw.githubusercontent.com` to fetch the LiteLLM price map at startup (no user data is included in this request; it is a plain GET for a public JSON file). GitHub Copilot data is read from the local filesystem (`~/.copilot/session-state/`) — no network call is made. If option (b) fails, the bundled price map snapshot is used instead and no retry is attempted.
 
 2. **API keys are ephemeral.** Keys entered in the frontend are held in JavaScript heap memory only. They are never written to `localStorage`, `sessionStorage`, IndexedDB, cookies, or any file on disk. The Express server receives keys as HTTP request headers on each individual proxied request and does not store them in memory beyond the lifetime of that request handler.
 
-3. **Local file reads do not leave the user's machine.** Claude Code data is read directly from `~/.claude/` on the user's filesystem by the local Express server. No Claude Code data is transmitted to any network endpoint; it is parsed in memory and returned as metrics to the frontend only.
+3. **Local file reads do not leave the user's machine.** Claude Code data is read directly from `~/.claude/` and GitHub Copilot data from `~/.copilot/session-state/` on the user's filesystem by the local Express server. No local file data is transmitted to any network endpoint; it is parsed in memory and returned as metrics to the frontend only.
 
 4. **Session end = data gone.** When the user closes the browser tab, all frontend state is cleared. The Express server process has no persistent state; restarting it (or even just receiving no requests) means no data persists. There is no session store, no database, and no log file that captures user data.
 
@@ -705,7 +705,7 @@ The local Express server is a **stateless computation proxy**. Its responsibilit
 - Compute recommendation logic on metrics returned from all adapters
 - Return computed metrics to the frontend as JSON
 
-The server does not: store any data (beyond reading local Claude Code files), maintain sessions, log user data, or make any network calls other than to the supported provider APIs.
+The server does not: store any data (beyond reading local Claude Code and GitHub Copilot files), maintain sessions, log user data, or make any network calls other than to the supported provider APIs.
 
 ### What the frontend does
 
@@ -717,13 +717,13 @@ The React frontend holds all session state in React component state and context.
 |---|---|---|---|---|
 | OpenAI Admin key | Frontend text input | React state (memory only) | Session only | `api.openai.com` via local server |
 | Anthropic Admin key | Frontend text input | React state (memory only) | Session only | `api.anthropic.com` via local server |
-| GitHub token | Frontend text input | React state (memory only) | Session only | `api.github.com` via local server |
+| GitHub Copilot | Auto-detected (no input) | N/A — no credentials | N/A | Local filesystem only (`~/.copilot/session-state/`) |
 
 ### Threat model (scoped to local use)
 
 **In scope for MVP:**
 - Accidental credential exposure: keys are never persisted, reducing risk of later leakage.
-- Malicious local files: Claude Code session JSONL files are parsed with a strict JSON parser; no `eval` or dynamic code execution is used.
+- Malicious local files: Claude Code session JSONL files and GitHub Copilot session JSONL files are parsed with a strict JSON parser; no `eval` or dynamic code execution is used.
 
 **Out of scope for MVP (local-only tool):**
 - Network interception (user is calling providers directly from their own machine).
@@ -807,13 +807,13 @@ The JSON export contains the complete structured data produced by the analysis. 
         "avg_daily_spend_usd": 1.41,
         "peak_spend_day": {"date": "2026-05-28", "spend_usd": 5.20}
         // Example for github_copilot:
-        // "total_gross_spend_usd": 12.40,
-        // "total_net_spend_usd": 11.80,
-        // "model_breakdown": [{"model": "claude-sonnet-4-6", "net_spend_usd": 7.10, "spend_share": 0.60, "gross_quantity": 710}],
-        // "cost_per_interaction_usd": 0.016,
-        // "acceptance_rate": 0.34,
-        // "total_suggestions": 4200,
-        // "total_acceptances": 1428
+        // "session_count": 42,
+        // "analysis_period_days": 30,
+        // "model_breakdown": [{"model": "gpt-5.4-mini", "input_tokens": 320000, "output_tokens": 48000, "cache_read_tokens": 15000, "cache_write_tokens": 8000, "reasoning_tokens": 2000, "requests_count": 210, "requests_cost_usd": 2.10, "cost_share": 0.45}],
+        // "total_cost_usd": 4.67,
+        // "input_output_ratio": 6.67,
+        // "avg_daily_cost_usd": 0.156,
+        // "peak_cost_day": {"date": "2026-06-15", "cost_usd": 0.82}
       }
     }
   ],
@@ -883,7 +883,7 @@ If a model name from the usage data does not appear in the price map, Promptly d
    |       claude_code.js      -- enumerates ~/.claude/projects/**/*.jsonl session files, parses JSONL, computes cost from tokens × LiteLLM price map, returns Tier B data
    |       openai.js           -- calls api.openai.com, returns normalized Tier B data
    |       anthropic.js        -- calls api.anthropic.com, returns normalized Tier B data
-   |       github_copilot.js   -- calls api.github.com (billing + engagement), returns normalized Tier B data
+   |       github_copilot.js   -- enumerates ~/.copilot/session-state/*/events.jsonl, extracts session.shutdown events, aggregates modelMetrics, returns normalized Tier B data
    |     engine/
    |       metrics.js          -- computes all metrics defined in Section 7
    |       recommendations.js  -- evaluates all recommendation triggers from Section 8
@@ -897,7 +897,7 @@ If a model name from the usage data does not appear in the price map, Promptly d
    ~/.claude/projects/     -- Claude Code session JSONL files (read-only; no network call)
    api.openai.com          -- Usage API + Costs API
    api.anthropic.com       -- Usage Report API + Cost Report API
-   api.github.com          -- Copilot Billing API (ai_credit/usage) + Engagement Metrics API
+   ~/.copilot/session-state/  -- GitHub Copilot session event JSONL files (read-only; no network call)
 ```
 
 ### Adapter pattern
@@ -994,11 +994,11 @@ The following questions require a stakeholder decision before engineering begins
 **OQ-1 [RESOLVED] OpenAI Costs API model-level granularity**
 Resolved. Token-fraction approximation is acceptable for MVP. Per-model cost is estimated by multiplying each model's share of total tokens (from the Usage API) by the total daily cost (from the Costs API). Exact per-model billing data is not available from the OpenAI API. The UI labels the model cost breakdown chart as "Estimated model cost breakdown." See §5 Source 2 (Assumptions) and §7.6 for implementation details.
 
-**OQ-2 [RESOLVED] GitHub Copilot billing API — required OAuth scopes**
-Resolved. Classic PAT only — fine-grained PATs are not supported by the billing usage endpoints. Org endpoint (`/organizations/{org}/settings/billing/ai_credit/usage`): requires `repo` scope (recommended for onboarding UI; users already know it) or `admin:org` scope; user must be an org admin (owner) or billing manager. Individual user endpoint (`/users/{username}/settings/billing/ai_credit/usage`): requires `user` scope; user must have a self-purchased Copilot plan (Free/Pro/Pro+/Max). If Copilot is org/enterprise licensed, the org endpoint must be used. API version header required: `X-GitHub-Api-Version: 2026-03-10`. Data retention: 24 months. See §5 Source 4 (Assumptions) for implementation details.
+**OQ-2 [SUPERSEDED] GitHub Copilot billing API — required OAuth scopes**
+Superseded by v1.7 source rewrite. The API-based approach (classic PAT + org billing endpoint) has been replaced by local file reads from `~/.copilot/session-state/`. No credentials or OAuth scopes are required. The original resolution details (PAT scopes, org vs. user endpoint fallback logic) are no longer applicable and have been removed from §5 Source 4.
 
-**OQ-3 [RESOLVED] Copilot subscription cost input**
-Resolved. This question is no longer applicable. GitHub Copilot now provides actual AI credit billing data via the billing API (GA June 1, 2026). Subscription cost input is not needed; the adapter reads actual billed costs directly from `netAmount` fields in the billing API response.
+**OQ-3 [SUPERSEDED] Copilot subscription cost input**
+Superseded by v1.7 source rewrite. Both the original question (subscription cost input) and the v1.6 resolution (reading actual billing costs from `netAmount` in the API) are no longer applicable. Cost is now read directly from `requests.cost` in `session.shutdown` events in the local `~/.copilot/session-state/` files. No API key or subscription cost input is required.
 
 **OQ-4 [MEDIUM] Date range default and configurability**
 The spec defaults the analysis window to "last 30 days." Should users be able to select arbitrary date ranges, or only preset windows (7d, 30d, 90d, custom)? The Anthropic cost report API has a daily granularity and the OpenAI APIs support flexible date ranges, so technically both options are feasible. Decision needed before building the date range UI component.
@@ -1023,7 +1023,7 @@ Resolved. `~/.claude/stats-cache.json` does not exist. Real data location: `~/.c
 
 ---
 
-*End of Promptly Product Spec v1.6*
+*End of Promptly Product Spec v1.7*
 ---
 
 ## Changelog
