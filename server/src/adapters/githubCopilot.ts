@@ -43,7 +43,7 @@ function asNumber(value: unknown): number {
  *   - outputTokens = TOTAL completion tokens. reasoningTokens is a SUBSET, NOT additive.
  *   - requests.cost is a USD float (AI credit units), NOT a request count integer.
  */
-interface ShutdownEvent {
+export interface ShutdownEvent {
   type: 'session.shutdown';
   sessionStartTime: number; // Unix ms
   modelMetrics?: Record<string, {
@@ -94,7 +94,7 @@ async function parseEventsFile(filePath: string): Promise<ShutdownEvent[]> {
 }
 
 /** Map a ShutdownEvent to a NormalizedCopilotSession. */
-function normalizeSession(event: ShutdownEvent, sourceFile: string): NormalizedCopilotSession {
+export function normalizeSession(event: ShutdownEvent, sourceFile: string): NormalizedCopilotSession {
   const date = localDateString(event.sessionStartTime);
   const models: NormalizedCopilotSession['models'] = {};
   let totalCost = 0;
@@ -164,6 +164,10 @@ const githubCopilotAdapter: SourceAdapter = {
 
       // Determine the analysis window (default: last 30 days in local timezone)
       const endDate = ctx.endDate ?? new Date();
+      // TODO(DST): This arithmetic shifts by fixed-length hours and is not DST-aware.
+      // date-fns/dayjs/luxon are not available in this package.
+      // If DST skew causes users to miss 1 day at period boundaries,
+      // add date-fns and replace with subDays(endDate, DEFAULT_DAYS - 1).
       const startDate = ctx.startDate ?? new Date(endDate.getTime() - (DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000);
       const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const startStr = startDate.toLocaleDateString('en-CA', { timeZone: localTz });
@@ -171,11 +175,13 @@ const githubCopilotAdapter: SourceAdapter = {
 
       const copilotSessions: NormalizedCopilotSession[] = [];
       let hadMalformedFiles = false;
+      let hadSubdirs = false;
 
       // Read all immediate subdirectories under root; each may contain events.jsonl
       const rootDir = await opendir(root);
       for await (const entry of rootDir) {
         if (!entry.isDirectory()) continue;
+        hadSubdirs = true;
 
         const eventsFilePath = path.join(root, entry.name, 'events.jsonl');
 
@@ -216,9 +222,15 @@ const githubCopilotAdapter: SourceAdapter = {
       }
 
       if (copilotSessions.length === 0) {
-        warnings.push(
-          'No Copilot session data found for the selected period. Try a wider date range.',
-        );
+        if (!hadSubdirs) {
+          warnings.push(
+            'No session subdirectories found — Copilot may not have generated sessions yet.',
+          );
+        } else {
+          warnings.push(
+            'No Copilot session data found for the selected period. Try a wider date range.',
+          );
+        }
       }
 
       // Derive period bounds from actual session dates (fall back to window bounds)
