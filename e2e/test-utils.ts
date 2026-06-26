@@ -33,6 +33,14 @@ export async function mockValidationRoutes(page: Page) {
       body: JSON.stringify(readFixture('anthropic-validate-invalid.json')),
     });
   });
+
+  await page.route('**/api/sources/github_copilot/validate', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(readFixture('github-copilot-validate.json')),
+    });
+  });
 }
 
 export async function mockAnalyzeRoute(page: Page, override?: (report: any) => any) {
