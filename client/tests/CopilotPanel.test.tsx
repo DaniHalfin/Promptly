@@ -14,9 +14,10 @@ const baseMetrics: SourceMetrics = {
   periodStart: '2026-05-01',
   periodEnd: '2026-05-31',
   warnings: [],
-  copilotGrossSpendUsd: 120,
-  copilotDiscountUsd: 20,
   copilotNetSpendUsd: 100,
+  copilotSessionCount: 42,
+  copilotTotalInputTokens: 850_000,
+  copilotTotalOutputTokens: 120_000,
   copilotSpendByModel: [
     { model: 'gpt-4o', netAmountUsd: 25, netSpendUsd: 25, spendShare: 0.25 },
     { model: 'claude-sonnet-4', netAmountUsd: 60, netSpendUsd: 60, spendShare: 0.6 },
@@ -27,8 +28,6 @@ const baseMetrics: SourceMetrics = {
     { model: 'claude-sonnet-4', share: 0.6 },
     { model: 'gpt-4.1-mini', share: 0.15 },
   ],
-  copilotCostPerInteractionUsd: 0.1234,
-  copilotAcceptanceRate: null,
 };
 
 function report(metrics: SourceMetrics = baseMetrics): SourceReport {
@@ -42,15 +41,14 @@ function report(metrics: SourceMetrics = baseMetrics): SourceReport {
 }
 
 describe('CopilotPanel', () => {
-  it('renders gross, discount, and net spend KPI tiles', () => {
+  it('renders net spend, session count, and total tokens KPI tiles', () => {
     render(<CopilotPanel report={report()} />);
 
-    expect(screen.getByText('Gross Spend')).toBeInTheDocument();
-    expect(screen.getByText('$120.00')).toBeInTheDocument();
-    expect(screen.getByText('Discount')).toBeInTheDocument();
-    expect(screen.getByText('-$20.00')).toBeInTheDocument();
     expect(screen.getByText('Net Spend')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('Total Tokens')).toBeInTheDocument();
   });
 
   it('renders model spend table sorted by net spend descending', () => {
@@ -63,24 +61,11 @@ describe('CopilotPanel', () => {
     expect(within(bodyRows[2]).getByText('gpt-4.1-mini')).toBeInTheDocument();
   });
 
-  it('renders cost-per-interaction tile', () => {
+  it('renders input and output token tiles', () => {
     render(<CopilotPanel report={report()} />);
 
-    expect(screen.getByText('Average net cost per interaction')).toBeInTheDocument();
-    expect(screen.getByText('$0.1234')).toBeInTheDocument();
-  });
-
-  it('shows unavailable acceptance message when copilotAcceptanceRate is null', () => {
-    render(<CopilotPanel report={report({ ...baseMetrics, copilotAcceptanceRate: null })} />);
-
-    expect(screen.getByText(/acceptance rate unavailable/i)).toBeInTheDocument();
-  });
-
-  it('shows code completions label when copilotAcceptanceRate is a number', () => {
-    render(<CopilotPanel report={report({ ...baseMetrics, copilotAcceptanceRate: 0.417 })} />);
-
-    expect(screen.getByText('41.7%')).toBeInTheDocument();
-    expect(screen.getByText(/code completions only/i)).toBeInTheDocument();
+    expect(screen.getByText('Input tokens')).toBeInTheDocument();
+    expect(screen.getByText('Output tokens')).toBeInTheDocument();
   });
 
   it('billing label includes that completions are not billed', () => {

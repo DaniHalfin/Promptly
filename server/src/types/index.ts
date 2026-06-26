@@ -15,10 +15,7 @@ export interface SourceConfig {
   hasCredential: boolean;
   startDate?: string;       // ISO date YYYY-MM-DD
   endDate?: string;
-  options?: {
-    copilotPlanMonthlyUsd?: number;
-    resolvedOrg?: string;
-  };
+  options?: Record<string, unknown>;
 }
 
 export interface AnalysisRequest {
@@ -53,21 +50,23 @@ export interface NormalizedConversation {
   multimodalPartsSkipped: number;
 }
 
-export interface NormalizedCopilotBillingItem {
-  date: string;
-  product: string;
-  model: string;
-  pricePerUnit: number;
-  grossQuantity: number;
-  grossAmountUsd: number;
-  discountAmountUsd: number;
-  netAmountUsd: number;
-}
+// ====== Copilot-specific normalized shapes ======
 
-export interface NormalizedCopilotEngagement {
-  date: string;
-  suggestionsCount: number;
-  acceptancesCount: number;
+/** Per-session data extracted from session.shutdown events in events.jsonl.
+ *  One entry per session.shutdown event within the analysis window. */
+export interface NormalizedCopilotSession {
+  date: string;         // ISO date (local TZ) derived from sessionStartTime
+  sourceFile: string;   // path for diagnostics
+  models: Record<string, {
+    requestCount: number;
+    requestCost: number;       // AI credit units (USD float)
+    inputTokens: number;       // TOTAL; cacheRead/cacheWrite are subsets
+    outputTokens: number;      // TOTAL; reasoningTokens is a subset
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    reasoningTokens: number;
+  }>;
+  totalCost: number;    // cross-check: equals sum(requestCost) across models
 }
 
 export interface NormalizedSourceData {
@@ -76,8 +75,8 @@ export interface NormalizedSourceData {
   dailyCostUsd?: { date: string; costUsd: number }[];
   cachedTokensSupported?: boolean;
   conversations?: NormalizedConversation[];
-  copilotBillingItems?: NormalizedCopilotBillingItem[];
-  copilotEngagement?: NormalizedCopilotEngagement[];
+  /** GitHub Copilot: per-session data from session.shutdown JSONL events. */
+  copilotSessions?: NormalizedCopilotSession[];
   sessionCount?: number;
   claudeCodePeakHourFraction?: number;
   periodStart: string;
@@ -134,8 +133,6 @@ export interface SourceMetrics {
   cacheCreationInputTokensAnthropic?: number;
 
   // GitHub Copilot Tier B
-  copilotGrossSpendUsd?: number;
-  copilotDiscountUsd?: number;
   copilotNetSpendUsd?: number;
   copilotSpendByModel?: {
     model: string;
@@ -143,14 +140,13 @@ export interface SourceMetrics {
     netSpendUsd: number;
     spendShare: number;
   }[];
-  copilotCostPerInteractionUsd?: number | null;
   copilotModelDistribution?: {
     model: string;
     share: number;
   }[];
-  copilotAcceptanceRate?: number | null;
-  copilotTotalSuggestions?: number;
-  copilotTotalAcceptances?: number;
+  copilotTotalInputTokens?: number;
+  copilotTotalOutputTokens?: number;
+  copilotSessionCount?: number;
 
   // Tier C (file exports)
   estimatedTotalTokens?: number;

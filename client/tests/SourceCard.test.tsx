@@ -106,13 +106,17 @@ describe('SourceCard', () => {
     expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
   });
 
-  it('shows amber note in expanded GitHub Copilot instructions', () => {
-    renderSourceCard('github_copilot');
+  it('renders github_copilot as a local source with enable toggle and no credential field', () => {
+    renderSourceCard('github_copilot', { enabled: false });
+    expect(screen.getByRole('checkbox', { name: /enable local/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/api key/i)).not.toBeInTheDocument();
+  });
 
+  it('shows auto-detect setup instructions for github_copilot with no docs link', () => {
+    renderSourceCard('github_copilot', { enabled: false });
     fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
-
-    expect(screen.getByText(/org-licensed users may not have billing access/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /official docs/i })).toBeInTheDocument();
+    expect(screen.getByText(/no setup needed/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /official docs/i })).not.toBeInTheDocument();
   });
 
   it('shows setup instructions for claude_code without a docsUrl link', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PriceMap } from '../src/data/priceMap.js';
 import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
-import type { NormalizedCopilotBillingItem, NormalizedSourceData } from '../src/types/index.js';
+import type { NormalizedCopilotSession, NormalizedSourceData } from '../src/types/index.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
   sourceId: 'anthropic',
@@ -12,15 +12,17 @@ const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData =>
   ...overrides,
 });
 
-const billingItem = (model: string, netAmountUsd: number): NormalizedCopilotBillingItem => ({
+const session = (model: string, requestCost: number): NormalizedCopilotSession => ({
   date: '2026-06-01',
-  product: 'copilot',
-  model,
-  pricePerUnit: netAmountUsd,
-  grossQuantity: 1,
-  grossAmountUsd: netAmountUsd + 1,
-  discountAmountUsd: 1,
-  netAmountUsd,
+  sourceFile: '/tmp/test/events.jsonl',
+  models: {
+    [model]: {
+      requestCount: 1, requestCost,
+      inputTokens: 100, outputTokens: 50,
+      cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0,
+    },
+  },
+  totalCost: requestCost,
 });
 
 const priceMap: PriceMap = new Map([[
@@ -34,35 +36,28 @@ const priceMap: PriceMap = new Map([[
 ]]);
 
 describe('computeTierBMetrics', () => {
-  it('sums Copilot net spend from billing items', () => {
+  it('sums Copilot net spend from sessions', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
-      copilotBillingItems: [billingItem('gpt-5.4', 3), billingItem('gpt-5.4-mini', 4)],
+      copilotSessions: [session('gpt-5.4', 3), session('gpt-5.4-mini', 4)],
     }), priceMap);
-
     expect(metrics.copilotNetSpendUsd).toBe(7);
   });
 
   it('sorts Copilot spend by model descending by net amount', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
-      copilotBillingItems: [
-        billingItem('low', 1),
-        billingItem('high', 5),
-        billingItem('middle', 3),
-      ],
+      copilotSessions: [session('low', 1), session('high', 5), session('middle', 3)],
     }), priceMap);
-
-    expect(metrics.copilotSpendByModel?.map(row => row.model)).toEqual(['high', 'middle', 'low']);
+    expect(metrics.copilotSpendByModel?.map(r => r.model)).toEqual(['high', 'middle', 'low']);
   });
 
-  it('sets Copilot acceptance rate to null when there is no engagement data', () => {
+  it('sets copilotSessionCount to the number of sessions', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
-      copilotBillingItems: [billingItem('gpt-5.4', 5)],
+      copilotSessions: [session('gpt-5.4', 5), session('gpt-5.4', 3)],
     }), priceMap);
-
-    expect(metrics.copilotAcceptanceRate).toBeNull();
+    expect(metrics.copilotSessionCount).toBe(2);
   });
 
   it('computes Claude Code cached-token fraction', () => {

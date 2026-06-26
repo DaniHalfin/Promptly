@@ -41,17 +41,13 @@ const sourceInfo: Record<
   },
   github_copilot: {
     label: 'GitHub Copilot',
-    type: 'api',
-    description: 'Copilot usage via GitHub',
+    type: 'local',
+    description: 'Reads session data from ~/.copilot/session-state/ automatically; no API key required.',
     setupInstructions: {
       steps: [
-        'Go to github.com/settings/tokens and create a classic PAT',
-        'Required scopes: repo (recommended) or admin:org',
-        'You must be an org admin or billing manager',
-        'Paste the token here',
+        'No setup needed — Promptly reads ~/.copilot/session-state/ automatically',
+        'Enable the toggle to start analysis',
       ],
-      note: 'Org-licensed users may not have billing access. A local file-based option is coming.',
-      docsUrl: 'https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements',
     },
   },
   chatgpt_export: {
@@ -210,7 +206,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         <div>
           <label className="flex items-center gap-3 text-sm font-medium mb-2">
             <input type="checkbox" checked={Boolean(source?.enabled)} onChange={handleLocalToggle} disabled={validating} />
-            Enable local Claude Code analysis
+            Enable local {info.label} analysis
           </label>
           <p className="text-xs text-slate-500">
             Promptly scans <code>~/.claude/projects</code> on this computer. No API key or file upload is required.

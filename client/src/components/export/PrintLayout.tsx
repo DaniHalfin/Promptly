@@ -267,13 +267,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                 </div>
               )}
 
-              {metrics.copilotAcceptanceRate !== undefined && metrics.copilotAcceptanceRate !== null && (
+              {metrics.copilotSessionCount !== undefined && (
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    ACCEPTANCE RATE
+                    SESSIONS
                   </p>
                   <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    {(metrics.copilotAcceptanceRate * 100).toFixed(1)}%
+                    {metrics.copilotSessionCount.toLocaleString()}
                   </p>
                 </div>
               )}

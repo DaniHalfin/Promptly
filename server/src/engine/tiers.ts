@@ -4,8 +4,8 @@ import { NormalizedSourceData } from '../types/index.js';
 export function classifyTier(data: NormalizedSourceData | null): Tier | null {
   if (!data) return null;
 
-  // Tier B: GitHub Copilot billing export includes actual billable usage/cost.
-  if (data.sourceId === 'github_copilot' && data.copilotBillingItems?.length) {
+  // Tier B: GitHub Copilot session data contains actual billable usage/cost.
+  if (data.sourceId === 'github_copilot' && data.copilotSessions?.length) {
     return 'B';
   }
 
@@ -14,8 +14,8 @@ export function classifyTier(data: NormalizedSourceData | null): Tier | null {
     return 'B';
   }
 
-  // Tier C: has tokens, conversation, or Copilot engagement data
-  if (data.dailyTokensByModel?.length || data.conversations?.length || data.copilotEngagement?.length) {
+  // Tier C: has tokens or conversation data
+  if (data.dailyTokensByModel?.length || data.conversations?.length) {
     return 'C';
   }
 

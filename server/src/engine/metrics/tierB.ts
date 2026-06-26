@@ -165,42 +165,47 @@ function daysInPeriod(periodStart: string, periodEnd: string): number | null {
 }
 
 function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceMetrics> {
-  const billingItems = data.copilotBillingItems ?? [];
-  const engagement = data.copilotEngagement ?? [];
+  const sessions = data.copilotSessions ?? [];
+  if (sessions.length === 0) return { copilotNetSpendUsd: 0, copilotSessionCount: 0 };
 
-  const copilotGrossSpendUsd = billingItems.reduce((sum, item) => sum + (item.grossAmountUsd || 0), 0);
-  const copilotDiscountUsd = billingItems.reduce((sum, item) => sum + (item.discountAmountUsd || 0), 0);
-  const copilotNetSpendUsd = billingItems.reduce((sum, item) => sum + (item.netAmountUsd || 0), 0);
+  const modelAgg: Record<string, { requestCost: number; inputTokens: number; outputTokens: number }> = {};
+  let totalNetSpend = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
-  const spendByModel = new Map<string, number>();
-  for (const item of billingItems) {
-    const model = item.model || 'unknown';
-    spendByModel.set(model, (spendByModel.get(model) ?? 0) + (item.netAmountUsd || 0));
+  for (const session of sessions) {
+    totalNetSpend += session.totalCost;
+    for (const [model, m] of Object.entries(session.models)) {
+      if (!modelAgg[model]) modelAgg[model] = { requestCost: 0, inputTokens: 0, outputTokens: 0 };
+      modelAgg[model].requestCost += m.requestCost;
+      modelAgg[model].inputTokens += m.inputTokens;    // TOTAL — do NOT add cache subsets
+      modelAgg[model].outputTokens += m.outputTokens;  // TOTAL — do NOT add reasoning subsets
+      totalInputTokens += m.inputTokens;
+      totalOutputTokens += m.outputTokens;
+    }
   }
 
-  const copilotSpendByModel = [...spendByModel.entries()]
-    .map(([model, netAmountUsd]) => ({
+  const copilotSpendByModel = Object.entries(modelAgg)
+    .map(([model, agg]) => ({
       model,
-      netAmountUsd,
-      netSpendUsd: netAmountUsd,
-      spendShare: copilotNetSpendUsd > 0 ? netAmountUsd / copilotNetSpendUsd : 0,
+      netAmountUsd: agg.requestCost,   // kept for R2 backward compat
+      netSpendUsd: agg.requestCost,
+      spendShare: totalNetSpend > 0 ? agg.requestCost / totalNetSpend : 0,
     }))
-    .sort((a, b) => b.netAmountUsd - a.netAmountUsd);
+    .sort((a, b) => b.netSpendUsd - a.netSpendUsd);
 
-  const totalSuggestions = engagement.reduce((sum, item) => sum + (item.suggestionsCount || 0), 0);
-  const totalAcceptances = engagement.reduce((sum, item) => sum + (item.acceptancesCount || 0), 0);
-  const totalInteractions = totalSuggestions + totalAcceptances;
-  const hasEngagement = engagement.length > 0;
+  const copilotModelDistribution = copilotSpendByModel.map(row => ({
+    model: row.model,
+    share: row.spendShare,
+  }));
 
+  // TODO: add dailySpend aggregation when a Copilot trend chart is added (R4)
   return {
-    copilotGrossSpendUsd,
-    copilotDiscountUsd,
-    copilotNetSpendUsd,
+    copilotNetSpendUsd: totalNetSpend,
     copilotSpendByModel,
-    copilotCostPerInteractionUsd: hasEngagement && totalInteractions > 0 ? copilotNetSpendUsd / totalInteractions : null,
-    copilotModelDistribution: copilotSpendByModel.map(({ model, spendShare }) => ({ model, share: spendShare })),
-    copilotAcceptanceRate: hasEngagement && totalSuggestions > 0 ? totalAcceptances / totalSuggestions : null,
-    copilotTotalSuggestions: hasEngagement ? totalSuggestions : undefined,
-    copilotTotalAcceptances: hasEngagement ? totalAcceptances : undefined,
+    copilotModelDistribution,
+    copilotTotalInputTokens: totalInputTokens,
+    copilotTotalOutputTokens: totalOutputTokens,
+    copilotSessionCount: sessions.length,
   };
 }

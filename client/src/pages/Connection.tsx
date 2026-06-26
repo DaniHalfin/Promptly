@@ -34,7 +34,7 @@ export function Connection() {
         sources: [
           isActive('openai') ? sourceConfig('openai', true) : null,
           isActive('anthropic') ? sourceConfig('anthropic', true) : null,
-          isActive('github_copilot') ? sourceConfig('github_copilot', true) : null,
+          isActive('github_copilot') ? sourceConfig('github_copilot', false) : null,
           isActive('chatgpt_export') ? sourceConfig('chatgpt_export', false) : null,
           isActive('claude_code') ? sourceConfig('claude_code', false) : null,
         ].filter((source): source is SourceConfig => source !== null),
@@ -45,7 +45,6 @@ export function Connection() {
       const credentials = {
         openai: state.sources.openai?.credential,
         anthropic: state.sources.anthropic?.credential,
-        github_copilot: state.sources.github_copilot?.credential,
       };
 
       const files = {

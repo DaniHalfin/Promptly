@@ -17,18 +17,20 @@ describe('classifyTier', () => {
     }))).toBe('B');
   });
 
-  it('classifies Copilot billing data as Tier B', () => {
+  it('classifies Copilot session data as Tier B', () => {
     expect(classifyTier(base({
       sourceId: 'github_copilot',
-      copilotBillingItems: [{
+      copilotSessions: [{
         date: '2026-06-01',
-        product: 'copilot',
-        model: 'gpt-5.4',
-        pricePerUnit: 1,
-        grossQuantity: 1,
-        grossAmountUsd: 8,
-        discountAmountUsd: 2,
-        netAmountUsd: 6,
+        sourceFile: '/home/.copilot/session-state/abc/events.jsonl',
+        models: {
+          'gpt-5.4': {
+            requestCount: 1, requestCost: 6,
+            inputTokens: 1000, outputTokens: 200,
+            cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0,
+          },
+        },
+        totalCost: 6,
       }],
     }))).toBe('B');
   });

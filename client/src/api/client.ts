@@ -9,7 +9,6 @@ class APIClient {
     let headerName: string;
     if (sourceId === 'openai') headerName = 'x-credential-openai';
     else if (sourceId === 'anthropic') headerName = 'x-credential-anthropic';
-    else if (sourceId === 'github_copilot') headerName = 'x-credential-github';
     else return; // File uploads don't need credential headers
     
     this.headers[headerName] = credential;

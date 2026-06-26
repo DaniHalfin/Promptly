@@ -24,9 +24,10 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
     );
   }
 
-  const grossSpend = metrics.copilotGrossSpendUsd ?? 0;
-  const discount = metrics.copilotDiscountUsd ?? 0;
   const netSpend = metrics.copilotNetSpendUsd ?? 0;
+  const sessionCount = metrics.copilotSessionCount ?? 0;
+  const totalInputTokens = metrics.copilotTotalInputTokens ?? 0;
+  const totalOutputTokens = metrics.copilotTotalOutputTokens ?? 0;
   const spendByModel = metrics.copilotSpendByModel ?? [];
   const sortedSpendByModel = [...spendByModel].sort((a, b) => b.netSpendUsd - a.netSpendUsd);
   const distributionByModel = new Map((metrics.copilotModelDistribution ?? []).map(model => [model.model, model.share]));
@@ -37,7 +38,6 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       percentage: model.share * 100,
     }))
     .filter(model => model.percentage > 0);
-  const acceptanceRate = metrics.copilotAcceptanceRate;
 
   return (
     <div className="border rounded-lg p-6 bg-white">
@@ -57,16 +57,18 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Gross Spend</p>
-          <p className="text-2xl font-bold text-slate-900">${grossSpend.toFixed(2)}</p>
-        </div>
-        <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Discount</p>
-          <p className="text-2xl font-bold text-green-600">-${discount.toFixed(2)}</p>
-        </div>
-        <div className="bg-slate-50 rounded p-4">
           <p className="text-sm text-slate-600">Net Spend</p>
           <p className="text-2xl font-bold text-blue-600">${netSpend.toFixed(2)}</p>
+        </div>
+        <div className="bg-slate-50 rounded p-4">
+          <p className="text-sm text-slate-600">Sessions</p>
+          <p className="text-2xl font-bold text-slate-900">{sessionCount.toLocaleString()}</p>
+        </div>
+        <div className="bg-slate-50 rounded p-4">
+          <p className="text-sm text-slate-600">Total Tokens</p>
+          <p className="text-2xl font-bold text-slate-900">
+            {(totalInputTokens + totalOutputTokens).toLocaleString()}
+          </p>
         </div>
       </div>
 
@@ -102,23 +104,14 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Average net cost per interaction</p>
-          <p className="text-2xl font-bold text-purple-600">
-            {metrics.copilotCostPerInteractionUsd === null || metrics.copilotCostPerInteractionUsd === undefined
-              ? '—'
-              : `$${metrics.copilotCostPerInteractionUsd.toFixed(4)}`}
-          </p>
+          <p className="text-sm text-slate-600">Input tokens</p>
+          <p className="text-2xl font-bold text-purple-600">{totalInputTokens.toLocaleString()}</p>
+          <p className="text-xs text-slate-500 mt-1">Total prompt tokens (cache subsets included)</p>
         </div>
         <div className="bg-slate-50 rounded p-4">
-          {acceptanceRate === null || acceptanceRate === undefined ? (
-            <p className="text-sm text-slate-500 mt-2">Acceptance rate unavailable — metrics endpoint requires org admin access</p>
-          ) : (
-            <>
-              <p className="text-sm font-semibold text-slate-700">Code completion acceptance rate</p>
-              <p className="text-2xl font-bold text-indigo-600">{(acceptanceRate * 100).toFixed(1)}%</p>
-              <p className="text-xs font-semibold text-indigo-700 mt-1">Code completions only — not billed in AI credits</p>
-            </>
-          )}
+          <p className="text-sm text-slate-600">Output tokens</p>
+          <p className="text-2xl font-bold text-indigo-600">{totalOutputTokens.toLocaleString()}</p>
+          <p className="text-xs text-slate-500 mt-1">Total completion tokens (reasoning subsets included)</p>
         </div>
       </div>
 
