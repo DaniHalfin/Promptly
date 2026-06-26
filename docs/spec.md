@@ -9,7 +9,6 @@ created_at: 2026-06-24T00:48:50.086Z
 **Version:** 1.7
 **Date:** 2026-06-24
 **Author:** spec-draft agent
-**Stakeholder:** Dani Halfin, Principal PM, Microsoft
 **Status:** Draft
 
 ---
@@ -1130,4 +1129,5 @@ The full revision history for this spec is maintained in a separate reference fi
 **See:** [docs/spec-changelog.md](./spec-changelog.md)
 
 > Load spec-changelog.md only when you need to trace a specific change, understand a past decision, or audit version history. It is not required context for implementing or reviewing the current spec.
+
 

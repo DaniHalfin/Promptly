@@ -87,7 +87,7 @@ Project documentation lives in [`docs/`](./docs/):
 |---|---|
 | [`spec.md`](./docs/spec.md) | Product spec — current canonical |
 | [`spec-changelog.md`](./docs/spec-changelog.md) | Spec revision history (reference, load on demand) |
-| [`engineering-design-v1.1.md`](./docs/engineering-design-v1.1.md) | Engineering design — current canonical |
+| [`engineering-design.md`](./docs/engineering-design.md) | Engineering design — current canonical |
 | [`engineering-design-amendment-v1.0-v1.1.md`](./docs/engineering-design-amendment-v1.0-v1.1.md) | Amendment reference (v1.0 → v1.1 delta) |
 | [`engineering-design-errata.md`](./docs/engineering-design-errata.md) | Blocker fixes applied to v1.1 |
 | [`agentic-dev-flow.md`](./docs/agentic-dev-flow.md) | End-to-end agentic development workflow used to build this project |
@@ -98,6 +98,7 @@ Project documentation lives in [`docs/`](./docs/):
 ## License
 
 MIT
+
 
 
 

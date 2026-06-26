@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Local-first AI token economy analysis tool",
-  "author": "Dani Halfin",
+  "author": "DaniHalfin",
   "license": "MIT",
   "workspaces": [
     "client",
@@ -30,3 +30,4 @@
     "npm": ">=10.0.0"
   }
 }
+

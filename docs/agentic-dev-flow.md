@@ -85,7 +85,7 @@ For amendments: loop scoped to changed sections only
 
 ### Output
 
-- `docs/engineering-design-v1.1.md` -- canonical merged design (base + all amendments + errata applied)
+- `docs/engineering-design.md` -- canonical merged design (base + all amendments + errata applied)
 - `docs/engineering-design-amendment-v1.0-v1.1.md` -- amendment delta (historical reference)
 - `docs/engineering-design-errata.md` -- blocker fixes record
 
@@ -178,6 +178,7 @@ Approval gates:
 - Sees each task result as it completes and can redirect at any point
 
 Agents never make product decisions autonomously. They execute within a defined scope and surface any ambiguity for human resolution. All architectural decisions belong to the human -- agents propose, the human decides.
+
 
 
 
