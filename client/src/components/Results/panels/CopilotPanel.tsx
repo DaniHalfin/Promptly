@@ -106,7 +106,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="bg-slate-50 rounded p-4">
           <p className="text-sm text-slate-600">Input tokens</p>
           <p className="text-2xl font-bold text-purple-600">{totalInputTokens.toLocaleString()}</p>
-          <p className="text-xs text-slate-500 mt-1">Total prompt tokens (cache subsets included)</p>
+          <p className="text-xs text-slate-500 mt-1">Total prompt tokens (cached reads/writes are subsets, not additive)</p>
         </div>
         <div className="bg-slate-50 rounded p-4">
           <p className="text-sm text-slate-600">Output tokens</p>
