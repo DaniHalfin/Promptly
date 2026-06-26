@@ -25,7 +25,6 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
         let credential: string | undefined;
         if (src.sourceId === 'openai') credential = req.headers['x-credential-openai'] as string;
         else if (src.sourceId === 'anthropic') credential = req.headers['x-credential-anthropic'] as string;
-        else if (src.sourceId === 'github_copilot') credential = req.headers['x-credential-github'] as string;
 
         let fileBuffer: Buffer | undefined;
         if (src.sourceId === 'chatgpt_export') {
@@ -119,7 +118,7 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
         'OpenAI model cost shares are estimated from usage tokens and the LiteLLM price map',
         'Anthropic and Claude Code costs include cache creation/read token pricing when present in the LiteLLM price map',
         'Claude Code usage is read from local session JSONL files under the server process user profile',
-        'GitHub Copilot spend uses AI credit billing net amounts; engagement metrics are included only when available',
+        'GitHub Copilot usage is read from local session JSONL files under ~/.copilot/session-state/. No credentials required.',
         'ChatGPT and Claude.ai export analysis is deferred from the MVP',
       ],
     };

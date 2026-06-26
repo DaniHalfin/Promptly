@@ -10,11 +10,11 @@ const DOWNGRADE_MAP: Array<{ pattern: string; cheaper: string }> = [
 ];
 
 const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale: string }> = [
-  { pattern: /^gpt-5\.4(?!-mini)|^gpt-5\.5(?!-mini)/i, cheaper: 'gpt-5.4-mini', rationale: '5–20x cheaper' },
-  { pattern: /^claude-opus-4/i, cheaper: 'claude-haiku-4-5', rationale: '10–30x cheaper' },
-  { pattern: /^claude-sonnet-4/i, cheaper: 'claude-haiku-4-5', rationale: '3–5x cheaper' },
-  { pattern: /^gemini-3-1-pro/i, cheaper: 'gemini-3-5-flash', rationale: '4–8x cheaper' },
-  { pattern: /^claude-fable-5/i, cheaper: 'claude-sonnet-4-6', rationale: 'Significant cost reduction' },
+  { pattern: /^gpt-5\.4(?!-mini)|^gpt-5\.5(?!-mini)/i, cheaper: 'gpt-5.4-mini', rationale: '5–20x cheaper; equivalent quality for code completion and short queries' },
+  { pattern: /^claude-opus-4/i, cheaper: 'claude-haiku-4-5', rationale: '10–30x cheaper; suitable for straightforward Chat queries' },
+  { pattern: /^claude-sonnet-4/i, cheaper: 'claude-haiku-4-5', rationale: '3–5x cheaper; appropriate for most coding assistance tasks' },
+  { pattern: /^gemini-3-1-pro/i, cheaper: 'gemini-3-5-flash', rationale: '4–8x cheaper; comparable quality for standard tasks' },
+  { pattern: /^claude-fable-5/i, cheaper: 'claude-sonnet-4-6', rationale: 'Significant cost reduction; Fable 5 reserved for complex multi-step tasks' },
 ];
 
 export const R2: Rule = {
