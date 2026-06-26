@@ -120,6 +120,12 @@ describe('recommendation rules', () => {
     it('does not fire when Copilot model share is below 0.30', () => {
       expect(R2.evaluate(ctx([copilot('gpt-5.4', { copilotModelDistribution: [{ model: 'gpt-5.4', share: 0.29 }] })]))).toHaveLength(0);
     });
+
+    it('does not fire for gpt-5.5-mini — mini variant should not get downgrade card', () => {
+      // gpt-5.5-mini IS the cheaper option; the regex must exclude -mini variants
+      // to avoid recommending a downgrade from a model that is already the budget choice
+      expect(R2.evaluate(ctx([copilot('gpt-5.5-mini', { copilotModelDistribution: [{ model: 'gpt-5.5-mini', share: 0.9 }] })]))).toHaveLength(0);
+    });
   });
 
   describe('R2 Copilot branch — NormalizedCopilotSession-derived metrics', () => {
@@ -214,6 +220,21 @@ describe('recommendation rules', () => {
       const cards = R2.evaluate(ctx([metrics]));
       const opusCard = cards.find(c => c.body.includes('claude-opus-4-8'));
       expect(opusCard).toBeUndefined();
+    });
+
+    // Verifies aggregation: two sessions with same model must sum before threshold check
+    it('fires and sums copilotNetSpendUsd across two sessions when combined spend exceeds $5', () => {
+      const session1 = makeSession({ 'claude-opus-4-8': { requestCost: 3 } }, 3);
+      const session2 = makeSession({ 'claude-opus-4-8': { requestCost: 3 } }, 3);
+      const metrics = metricsFromSessions([session1, session2]);
+
+      // R2 should fire: combined spend is $6, above $5 threshold
+      const cards = R2.evaluate(ctx([metrics]));
+      expect(cards.length).toBeGreaterThan(0);
+      expect(cards[0].id).toBe('R2');
+
+      // Aggregation check: copilotNetSpendUsd must be the sum (6), not one session's value (3)
+      expect(metrics.copilotNetSpendUsd).toBe(6);
     });
   });
 
