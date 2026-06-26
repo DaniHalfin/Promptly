@@ -11,7 +11,7 @@ interface SetupInstructions {
 
 const sourceInfo: Record<
   SourceId,
-  { label: string; type: 'api' | 'file' | 'local'; description: string; disabled?: boolean; setupInstructions?: SetupInstructions }
+  { label: string; type: 'api' | 'file' | 'local'; description: string; disabled?: boolean; setupInstructions?: SetupInstructions; localPath?: string; localCheckMessage?: string; }
 > = {
   openai: {
     label: 'OpenAI',
@@ -43,6 +43,8 @@ const sourceInfo: Record<
     label: 'GitHub Copilot',
     type: 'local',
     description: 'Reads session data from ~/.copilot/session-state/ automatically; no API key required.',
+    localPath: '~/.copilot/session-state',
+    localCheckMessage: 'Checking local GitHub Copilot data...',
     setupInstructions: {
       steps: [
         'No setup needed — Promptly reads ~/.copilot/session-state/ automatically',
@@ -74,6 +76,8 @@ const sourceInfo: Record<
     label: 'Claude Code',
     type: 'local',
     description: 'Reads Claude Code JSONL from ~/.claude/projects locally; no data leaves this machine.',
+    localPath: '~/.claude/projects',
+    localCheckMessage: 'Checking local Claude Code data...',
     setupInstructions: {
       steps: [
         'No setup needed — Promptly reads ~/.claude/projects/ automatically',
@@ -209,9 +213,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             Enable local {info.label} analysis
           </label>
           <p className="text-xs text-slate-500">
-            Promptly scans <code>~/.claude/projects</code> on this computer. No API key or file upload is required.
+            Promptly scans <code>{info.localPath}</code> on this computer. No API key or file upload is required.
           </p>
-          {validating && <p className="text-sm text-blue-600 mt-2">Checking local Claude Code data...</p>}
+          {validating && <p className="text-sm text-blue-600 mt-2">{info.localCheckMessage ?? 'Checking local data...'}</p>}
         </div>
       ) : (
         <div>

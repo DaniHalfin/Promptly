@@ -176,6 +176,8 @@ const githubCopilotAdapter: SourceAdapter = {
       const copilotSessions: NormalizedCopilotSession[] = [];
       let hadMalformedFiles = false;
       let hadSubdirs = false;
+      const seenSessionKeys = new Set<string>();
+      let hadDuplicateEvents = false;
 
       // Read all immediate subdirectories under root; each may contain events.jsonl
       const rootDir = await opendir(root);
@@ -211,6 +213,15 @@ const githubCopilotAdapter: SourceAdapter = {
           // Filter to analysis window
           if (sessionDate < startStr || sessionDate > endStr) continue;
 
+          // Deduplicate: crash/recovery cycles can write two session.shutdown events
+          // with the same sessionStartTime to the same file.
+          const sessionKey = `${eventsFilePath}:${event.sessionStartTime}`;
+          if (seenSessionKeys.has(sessionKey)) {
+            hadDuplicateEvents = true;
+            continue;
+          }
+          seenSessionKeys.add(sessionKey);
+
           copilotSessions.push(normalizeSession(event, eventsFilePath));
         }
       }
@@ -218,6 +229,12 @@ const githubCopilotAdapter: SourceAdapter = {
       if (hadMalformedFiles) {
         warnings.push(
           'One or more Copilot session files could not be fully parsed. Sessions with malformed events are skipped; all valid session.shutdown events are still included.',
+        );
+      }
+
+      if (hadDuplicateEvents) {
+        warnings.push(
+          'Duplicate session.shutdown events were detected and skipped. This can occur after a crash/recovery cycle; totals reflect deduplicated data.',
         );
       }
 
@@ -251,7 +268,7 @@ const githubCopilotAdapter: SourceAdapter = {
 
       return {
         sourceId: SOURCE_ID,
-        tier: 'B',
+        tier: copilotSessions.length > 0 ? 'B' : null,
         connected: true,
         error: null,
         raw,
