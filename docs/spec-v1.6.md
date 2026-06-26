@@ -5,15 +5,8 @@ source_type: sub-agent
 tags: [spec, promptly, product, v1.7]
 created_at: 2026-06-24T00:48:50.086Z
 ---
----
-title: promptly-product-spec-v1-6
-source: spec-draft
-source_type: sub-agent
-tags: [spec, promptly, product, v1.6]
-created_at: 2026-06-19T23:55:04.576Z
----
 # Promptly Product Spec
-**Version:** 1.7
+**Version:** 1.7 *(file: spec-v1.6.md)*
 **Date:** 2026-06-24
 **Author:** spec-draft agent
 **Stakeholder:** Dani Halfin, Principal PM, Microsoft
@@ -55,7 +48,7 @@ Native provider dashboards (OpenAI Usage, Anthropic Console) show raw numbers wi
 
 Promptly is a **one-time analysis tool** that aggregates a user's existing AI usage data from up to four P0 sources, classifies it by the quality of data available, and produces a concrete set of insights and optimization recommendations. It runs entirely on the user's local machine. Data never leaves the machine. When the browser tab closes, everything is gone.
 
-The core frame is **token economy**: how efficiently are you allocating your token budget? All four P0 MVP sources provide actual dollar costs from provider APIs. Cost (in dollars) is shown from provider billing data for all connected sources. For future P1 sources — flat-subscription web tools and file exports where no per-token billing exists — the tool will show **relative cost estimates** derived from the LiteLLM model price map and token count estimates.
+The core frame is **token economy**: how efficiently are you allocating your token budget? All four P0 MVP sources provide actual dollar costs. OpenAI and Anthropic return costs directly from their provider billing APIs. Claude Code computes cost locally from token counts × model price using the LiteLLM price map — no provider API call is made. GitHub Copilot reads per-model cost directly from local session event files. Provider billing data is only used for OpenAI and Anthropic. For future P1 sources — flat-subscription web tools and file exports where no per-token billing exists — the tool will show **relative cost estimates** derived from the LiteLLM model price map and token count estimates.
 
 ### What makes it different
 
@@ -82,7 +75,7 @@ The core frame is **token economy**: how efficiently are you allocating your tok
 - **G5.** The user can export their full analysis as a PDF report and/or a structured JSON file.
 - **G6.** No user data is retained after the session ends; no account required.
 - **G7.** The codebase is publishable on GitHub as a clone-and-run tool requiring only two commands: `npm install` and `npm start`.
-- **G8.** The architecture does not foreclose future evolution toward a persistent multi-session dashboard.
+- **G8 — No one-way doors:** No existing adapter, route, or schema change is required to add a persistence layer or multi-user support in a future release.
 
 ### Non-Goals (MVP)
 
@@ -129,7 +122,7 @@ User arrives at `http://localhost:5173` (Vite default port). The page shows:
 - One-sentence description of what Promptly does
 - A privacy notice: "All analysis runs locally. Nothing is sent to any server other than the AI providers you explicitly connect to."
 - A "Connect sources" section with cards for each of the 4 supported sources
-- A "Start analysis" button (disabled until at least one source is connected)
+- A "Start analysis" button (disabled until at least one source is ready). For local-file sources (Claude Code, GitHub Copilot), 'ready' is reached automatically when the validation check passes after the user enables the card.
 
 **Step 2: Source connection**
 The user can connect any combination of sources in any order. Each source card has its own connection UI:
@@ -141,19 +134,25 @@ The user can connect any combination of sources in any order. Each source card h
 | Anthropic | API key entry | Admin API key (text input, masked) + date range picker (default: last 30 days) |
 | GitHub Copilot | Local file read (auto) | No input required; Promptly reads session events from `~/.copilot/session-state/` (Windows: `C:\Users\<user>\.copilot\session-state\`) automatically when the card is enabled |
 
+When only local-file sources (Claude Code and/or GitHub Copilot) are enabled and no API-key sources are configured, a global date range picker (default: last 30 days) is displayed at the top of the connection step and applies to all local-file sources. This picker is hidden when at least one API-key source is configured, as the API sources carry their own per-card date range pickers that govern the analysis window. If multiple API sources are connected with different date ranges, all local-file sources (Claude Code and GitHub Copilot) use the union of those ranges (earliest start date to latest end date).
+
 Each card shows a status indicator: unconfigured / configured / fetching / ready / error. Configured API keys are stored only in JavaScript memory (the `window` object in the frontend); they are not written to `localStorage`, `sessionStorage`, cookies, or any other persistent store. The backend receives the key as a request header on each call and does not store it. GitHub Copilot requires no credentials — it reads from the local filesystem only.
 
 **Step 3: Validation**
 When a source is configured, the frontend immediately sends a lightweight validation request through the local Express server to the provider API to confirm the key is valid and has the required permissions. Status updates on the card:
 - Green checkmark + "Connected: [N] days of data available" (where the API reveals this)
+- Successful validation (green checkmark) moves the source card to the **'ready'** state. This applies to API-key sources (OpenAI, Anthropic) identically to the automatic 'ready' transition for local-file sources described in Step 1.
 - Red X + human-readable error message (e.g., "This key does not have Admin permissions. Org-level admin keys are required for usage data.")
 
 For Claude Code, the validation step checks that the `~/.claude/projects/` directory (or `$CLAUDE_CONFIG_DIR/projects/` if set) exists and contains at least one JSONL session file. If the directory is missing or empty, the card displays: "No Claude Code data found. Have you run Claude Code at least once?"
 
-For GitHub Copilot, the validation step checks that the `~/.copilot/session-state/` directory (Windows: `C:\Users\<user>\.copilot\session-state\`) exists and contains at least one `events.jsonl` file with a `session.shutdown` event. If the directory is missing or empty, the card displays: "No Copilot session data found. Have you run GitHub Copilot at least once?"
+For GitHub Copilot, the validation step checks that `~/.copilot/session-state/` (Windows: `C:\Users\<user>\.copilot\session-state\`) exists and contains at least one parseable `session.shutdown` event.
+
+- If the directory is missing: card displays "No Copilot session data found. Have you run GitHub Copilot at least once?"
+- If the directory exists but contains no parseable `session.shutdown` events in the selected period: card displays "No Copilot session data found for the selected period. Try a wider date range."
 
 **Step 4: Run analysis**
-User clicks "Start analysis." The frontend disables the button and shows a per-source progress indicator. The analysis runs as **one HTTP request per connected source** (not a single combined request), so the frontend can update each source card's progress indicator independently as each request resolves:
+User clicks "Start analysis." The frontend disables the button and shows a per-source progress indicator. The analysis runs as **one HTTP request per connected source** (not a single combined request), so the frontend can update each source card's progress indicator independently as each request resolves (status indicators update progressively; result panels render after all sources settle):
 
 1. The frontend sends one `POST /analyze/{sourceId}` request per connected source, in parallel.
 2. As each response arrives, the corresponding source card updates from "fetching" to "ready" (or "error").
@@ -218,14 +217,24 @@ User clicks export buttons to download files to local disk. When the user closes
 **Data returned:**
 - Tokens: `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens` per model
 - Cost: computed from token counts × model price (using the LiteLLM price map); cost is not stored directly in the session files
+
+Cost formula (per session message):
+`cost = (input_tokens × input_cost_per_token)
+      + (cache_creation_input_tokens × cache_creation_input_token_cost)
+      + (cache_read_input_tokens × cache_read_input_token_cost)
+      + (output_tokens × output_cost_per_token)`
+
+All four price fields are sourced from the LiteLLM price map (see §11) keyed by model name. If `cache_creation_input_token_cost` is absent for a model, fall back to `input_cost_per_token` (slight underestimate). If `cache_read_input_token_cost` is absent, fall back to `input_cost_per_token`.
 - Model names: as reported by the CLI
 - Timestamps: session start time
+- **Note:** Session timestamps (Unix milliseconds) are stored in UTC. For daily bucketing, display dates, and R4 peak-hours classification, timestamps are converted to local machine timezone at display time, consistent with the timezone model in §5 Source 4.
 
 **Tier classification:** Tier B (actual token counts + actual cost, per model, no prompt content)
 
 **Assumptions:**
 - ASSUMPTION: The JSONL session transcript format is stable across Claude Code CLI versions. If the schema changes, the adapter must be updated. OQ-10 is resolved; see §13.
 - ASSUMPTION: The path `~/.claude/projects/` is the default base path. If `CLAUDE_CONFIG_DIR` is set in the user's environment, the adapter uses `$CLAUDE_CONFIG_DIR/projects/` instead. Users with non-standard paths must be given a config option.
+- ASSUMPTION: When API-key sources are also connected, the Claude Code adapter uses the same analysis window as the connected API sources. If multiple API sources have different date ranges, Claude Code uses the union of those ranges (earliest start date to latest end date), matching the behaviour defined for GitHub Copilot in §5 Source 4.
 
 **Error states:**
 - `~/.claude/projects/` does not exist (or `$CLAUDE_CONFIG_DIR/projects/` if set): "No Claude Code data found. Have you run Claude Code at least once?"
@@ -242,7 +251,7 @@ User clicks export buttons to download files to local disk. When the user closes
 - `GET /v1/organization/costs`: returns dollar costs bucketed by day. Pagination via `next_page` cursor.
 
 **Data returned:**
-- Tokens: `input_tokens`, `output_tokens`, `cached_input_tokens` per model per day
+- Tokens: `input_tokens`, `output_tokens`, `cached_input_tokens` (subset of `input_tokens` — already counted within it; provided for breakdown purposes only, do not add to token total) per model per day
 - Cost: dollar amount per day (not per-model via the Costs API; model breakdown is from Usage API only)
 - Time range: user-specified date range (default: last 30 days)
 - Segmentation: model name
@@ -251,7 +260,7 @@ User clicks export buttons to download files to local disk. When the user closes
 
 **Assumptions:**
 - ASSUMPTION: The user has an OpenAI Admin API key (not a standard project key). Standard keys do not have access to the organization usage or costs endpoints. The UI must explain this distinction and link to OpenAI's documentation for generating admin keys.
-- ASSUMPTION: The Costs API returns organization-level daily totals. Per-model cost is estimated via token-fraction approximation: each model's share of total tokens × total daily cost = per-model cost estimate. Exact per-model billing data is not available from the OpenAI API. This approximation is acceptable for MVP. Flag this in the UI as "Estimated model cost breakdown."
+- ASSUMPTION: The Costs API returns organization-level daily totals. Per-model cost is estimated using a price-weighted approach: for each model, estimated cost = (input_tokens_m × input_cost_per_token_m) + (output_tokens_m × output_cost_per_token_m) using LiteLLM price map rates (§11); each model's share is its estimated cost as a fraction of total estimated cost across all models. See §7.6 for the authoritative formula.
 
 **Known limitations:** No per-request rows. No user or API key segmentation without additional `group_by` parameters (out of scope for MVP). Costs API has ~minutes of lag; Usage API may have similar lag.
 
@@ -275,9 +284,9 @@ User clicks export buttons to download files to local disk. When the user closes
 
 **Assumptions:**
 - ASSUMPTION: The user has an Anthropic Admin API key. Same friction as OpenAI; standard keys lack access to these endpoints. UI must explain this.
-- ASSUMPTION: Anthropic cost reports are daily-bucketed and may not align model-level token data directly with dollar totals. The same approximation method used for OpenAI applies.
+- ASSUMPTION: Anthropic cost reports are daily-bucketed and may not align model-level token data directly with dollar totals. The same price-weighted estimated cost method used for OpenAI applies. For Anthropic, `input_tokens` from the Usage API is the standard-input-only count; `cache_creation_input_tokens` and `cache_read_input_tokens` are billed additively at separate rates (see §7.6 for the full Anthropic formula). See §7.6 for the authoritative formula.
 
-**Unique feature:** Anthropic exposes `cache_creation_input_tokens` and `cache_read_input_tokens` separately. This enables a distinct insight: estimated savings from prompt caching (see Section 7).
+**Unique feature:** Anthropic exposes `cache_creation_input_tokens` and `cache_read_input_tokens` separately. This enables a two-sided cost signal: `cache_read_input_tokens` indicates savings (reads are ~90% cheaper than standard input tokens), while `cache_creation_input_tokens` indicates write overhead (creation is ~25% more expensive than standard input tokens). The net effect depends on cache reuse — see §7.8 for realized savings and §8 R1 for projected savings.
 
 ---
 
@@ -299,7 +308,7 @@ The adapter extracts only `session.shutdown` events. Each such event contains:
   - `usage.inputTokens`, `usage.outputTokens` — prompt and completion tokens
   - `usage.cacheReadTokens`, `usage.cacheWriteTokens` — cache read and write tokens
   - `usage.reasoningTokens` — reasoning tokens (where applicable)
-- `totalPremiumRequests` — total AI credit cost for the entire session (USD); used as a cross-check against summed `requests.cost` per model
+- `totalPremiumRequests` — total AI credit cost for the entire session (USD); used as a cross-check against summed `requests.cost` per model. Note: despite the name, this field is a float cost metric (AI credit units), not an integer request count. It equals `sum(requests.cost)` across all models in the session and is used as a cross-check against that sum.
 
 **Data returned:**
 - Per-model token breakdown (input/output/cache-read/cache-write/reasoning), aggregated daily from session timestamps
@@ -313,10 +322,16 @@ The adapter extracts only `session.shutdown` events. Each such event contains:
 - `requests.cost` reflects premium request AI credit billing only (Chat, CLI, cloud agent, Spaces). Code completions (which are unlimited on paid plans) are not tracked in these events and do not appear in any cost total.
 
 **Assumptions:**
-- ASSUMPTION: The `~/.copilot/session-state/` directory exists and is readable. If the directory is missing or contains no valid `session.shutdown` events, the card displays: "No Copilot session data found. Have you run GitHub Copilot at least once?"
-- ASSUMPTION: The adapter enumerates all subdirectories under `~/.copilot/session-state/`, reads each `events.jsonl` file, and filters for `session.shutdown` events. Events other than `session.shutdown` are skipped. Malformed lines are skipped with a warning.
+- ASSUMPTION: The `~/.copilot/session-state/` directory exists and is readable. If the directory is missing: the card displays "No Copilot session data found. Have you run GitHub Copilot at least once?" If the directory exists but contains no parseable `session.shutdown` events within the selected analysis period: the card displays "No Copilot session data found for the selected period. Try a wider date range."
+- ASSUMPTION: The adapter enumerates all subdirectories under `~/.copilot/session-state/`, reads each `events.jsonl` file, and filters for `session.shutdown` events. Events other than `session.shutdown` are skipped. Malformed lines are skipped with a warning. User-facing error string: "One or more Copilot session files could not be fully parsed. Sessions with malformed events are skipped; all valid session.shutdown events are still included."
 - ASSUMPTION: If `modelMetrics` is absent or empty in a `session.shutdown` event, the session contributes only to session count and not to token or cost aggregates.
-- ASSUMPTION: `sessionStartTime` is a Unix millisecond timestamp. The adapter converts it to a calendar date for daily bucketing.
+- ASSUMPTION: `sessionStartTime` is a Unix millisecond timestamp. The adapter converts it to a calendar date for daily bucketing. The adapter converts `sessionStartTime` to the local machine timezone for daily bucketing and all time-of-day classifications. Unix millisecond timestamps are stored and processed in UTC. For daily bucketing and all time-of-day classifications (§7, §8), timestamps are converted from UTC to the local machine timezone at display time (Node.js `Intl`/`Date` local timezone). For API sources (OpenAI, Anthropic), calendar-day boundaries are as returned by the provider API (UTC-based) and are converted to local machine timezone for display.
+- ASSUMPTION: The analysis period for GitHub Copilot defaults to the last 30 calendar days from the current date, matching the API source default. Sessions whose `sessionStartTime` predates this window are ignored.
+- The Copilot adapter uses the same analysis window as any connected API sources. When only local-file sources are connected, a global date range picker (default: last 30 days) is displayed at the top of the connection step and applies to all local-file sources.
+- If multiple API sources are connected with different date ranges, Copilot uses the union of those ranges (earliest start date to latest end date).
+- ASSUMPTION: The adapter MUST resolve the home directory using `os.homedir()` (Node.js built-in, cross-platform). The base path is `path.join(os.homedir(), '.copilot', 'session-state')`. Literal `~/` paths must not be passed to file system calls.
+- ASSUMPTION: `usage.reasoningTokens` is a subset of `usage.outputTokens` (already counted therein) and is not additive. If this assumption is incorrect, §7.2's Copilot formula must be updated to add `reasoningTokens` additively.
+- VERIFIED: `usage.inputTokens` is the TOTAL prompt token count — it includes all input tokens (cached and uncached). `cacheReadTokens` and `cacheWriteTokens` are subsets of `inputTokens`, not additive fields. This mirrors OpenAI's model, not Anthropic's. Confirmed empirically from real session file data: `inputTokens` (221,203) = `tokenDetails.input.tokenCount` (46,611, non-cached residual) + `cacheReadTokens` (174,592). The session file also contains a separate `tokenDetails` object with `input.tokenCount` (non-cached only) and `cache_read.tokenCount` for implementers who need the breakdown.
 
 ---
 
@@ -335,7 +350,7 @@ Tier A is defined in the system for architectural completeness but has no MVP da
 ### Tier detection
 
 Tier detection is automatic and per-source. When a source is processed, the adapter assigns the tier based on what fields are present in the returned data:
-- If `cost_usd` is non-null AND actual token fields (`input_tokens`, `output_tokens`) are non-null AND data is bucketed by day: Tier B
+- If `metrics.total_spend_usd` is non-null AND actual token fields (`input_tokens`, `output_tokens`) are non-null AND data is bucketed by day: Tier B
 - For GitHub Copilot: if `~/.copilot/session-state/` exists and contains at least one `events.jsonl` file with a `session.shutdown` event that includes a non-empty `modelMetrics` object: Tier B
 - If all token fields are estimated or only aggregate counts are available: Tier C
 - If the adapter fails to fetch data (network error, invalid credentials, HTTP 4xx/5xx): the source is marked as `error` with a null tier. The source card displays the error message and is excluded from all metric aggregations. The tier column for this source in the export shows `null`.
@@ -349,10 +364,13 @@ The tier label is displayed on each source card in the results dashboard.
 - Daily spend trend (line chart)
 - Model cost breakdown (pie or bar chart: % of total spend per model)
 - Input vs. output token ratio (per model and aggregate — all Tier B sources)
-- Cached token fraction (Anthropic and Claude Code: see §7.8 for source-specific formulas)
+- Cached token fraction (Anthropic, Claude Code, and GitHub Copilot: see §7.8 and §7.19 for source-specific formulas)
 - Average daily spend and 7-day rolling average
 - Peak spend day
 - All Tier B recommendations (see §8)
+- Month-over-month spend change (when ≥45 days of data available) — §7.12
+- Claude Code: session count and average tokens per session — §7.13–§7.14
+- GitHub Copilot: total cost, token breakdown by model, per-model cost breakdown, cached token fraction, average tokens per session — §7.15–§7.19
 
 **Tier C (no MVP sources — future P1 placeholder):**
 Tier C is defined for completeness and future P1 sources. When a Tier C source is connected in a future release, it will unlock:
@@ -370,7 +388,7 @@ The nudge does not suggest proxy/SDK instrumentation in MVP (that would be a Tie
 
 No source panel ever shows an empty state. If data is available but sparse (e.g., only 2 days in a 30-day window), the chart shows the 2 data points with a note: "Only [N] days of data available in this period." (Where `[N]` = count of calendar days with available data in the selected period.)
 
-If a connected API source returns zero events for the selected date range (valid credentials, but no usage in that period), the panel displays: "No usage found for [source_name] between [start_date] and [end_date]. Try a different date range." (Where `[source_name]` = same human-readable display name as above; `[start_date]` and `[end_date]` = the start and end of the user-selected analysis period in `YYYY-MM-DD` format.) The source remains "connected" and is not counted as an error.
+If a connected source returns zero events for the selected date range (source successfully connected with data available, but no usage events fall within the selected period), the panel displays: "No usage found for [source_name] between [start_date] and [end_date]. Try a different date range." (Where `[source_name]` = same human-readable display name as above; `[start_date]` and `[end_date]` = the start and end of the user-selected analysis period in `YYYY-MM-DD` format.) The source remains "connected" and is not counted as an error.
 
 
 ---
@@ -389,13 +407,18 @@ All metrics are defined below with their formula and the minimum tier at which t
 
 **7.2 Total tokens consumed**
 - Definition: Sum of actual tokens across all sources that expose token-level data. All four P0 MVP sources report per-model token counts.
-- Formula: `sum(input_tokens + output_tokens)` across all connected Tier B sources. For GitHub Copilot, uses `usage.inputTokens + usage.outputTokens` summed across all `modelMetrics` entries.
+- Formula (provider-aware):
+- **OpenAI:** `input_tokens + output_tokens` — `cached_input_tokens` is a subset of `input_tokens` and is already counted; do not add it separately.
+- **Anthropic:** `input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens` — cache fields are additive buckets (not subsets of `input_tokens`). Source: Anthropic API, confirmed in official Anthropic SDK (`message.py`): *"Total input tokens in a request is the summation of `input_tokens`, `cache_creation_input_tokens`, and `cache_read_input_tokens`."*
+- **Claude Code:** Same formula as Anthropic: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens`.
+- **GitHub Copilot:** `usage.inputTokens + usage.outputTokens` summed across all `modelMetrics` entries — `cacheReadTokens` and `cacheWriteTokens` are subsets of `inputTokens` (already counted). See §5 Source 4.
 - Display: Shows actual token counts from all token-reporting sources.
 - Tier: B
 
 **7.3 Analysis period**
 - Definition: Date range covered by the analysis, per source.
 - Display: "Showing data from [start date] to [end date] for [N] sources."
+- When sources have different date ranges, the displayed range is the union (earliest start date to latest end date). Individual source date ranges are shown on each source card.
 - Tier: B and C
 
 ### OpenAI and Anthropic metrics (Tier B)
@@ -414,8 +437,29 @@ All metrics are defined below with their formula and the minimum tier at which t
 
 **7.6 Model cost share**
 - Definition: For each model that appears in the Usage API data, its estimated percentage contribution to total spend.
-- Formula: `model_cost_share(m) = (model_tokens(m) * model_price_per_token(m)) / sum_over_all_models(model_tokens(x) * model_price_per_token(x))`
-- Note: The Costs API does not return per-model cost directly. Model-level cost is **estimated via token-fraction approximation**: each model's share of total tokens × total daily cost = per-model cost estimate. Exact per-model billing data is not available from the OpenAI API. The percentages are proportionally reliable; the absolute per-model dollar figures are estimates. The UI must label this chart as "Estimated model cost breakdown."
+- Formula:
+  ```
+  model_cost_estimate(m) = cost_estimate_input(m) + (output_tokens_m × output_cost_per_token_m)
+
+  Where cost_estimate_input(m) is provider-dependent:
+  - OpenAI: cost_estimate_input(m) = input_tokens_m × input_cost_per_token_m
+    (input_tokens already includes cached tokens — do not add cached_input_tokens separately)
+  - Anthropic: cost_estimate_input(m) = (input_tokens_m × input_cost_per_token_m)
+                                       + (cache_creation_input_tokens_m × cache_creation_input_token_cost_m)
+                                       + (cache_read_input_tokens_m × cache_read_input_token_cost_m)
+    (three additive billing buckets at separate rates — see §7.2)
+  - Claude Code: same as Anthropic (same SDK and billing model)
+  - GitHub Copilot: the entire outer formula is replaced — **`model_cost_estimate(m) = requests.cost(m)`** (taken from `requests.cost` in the `modelMetrics` entry directly; this value is pre-computed by the provider and is inclusive of all token billing). The output term `(output_tokens_m × output_cost_per_token_m)` is NOT applied separately — it is already captured within `requests.cost`. Do not add the output term.
+
+  model_cost_share(m) = model_cost_estimate(m) / Σ model_cost_estimate(x) for all models x
+  (If the denominator `Σ model_cost_estimate(x)` is zero for all models in a source, `model_cost_share` is undefined for that source; see §7.18 for the Copilot-specific zero-guard and display behavior.)
+  ```
+  Where:
+  - `input_tokens_m` and `output_tokens_m` are summed over the analysis period from the Usage API (for OpenAI), the Anthropic Usage Report API `/v1/organization/usage_report/messages` (for Anthropic), or Claude Code local session JSONL files under `~/.claude/projects/` (for Claude Code)
+  - `cache_creation_input_tokens_m` and `cache_read_input_tokens_m` are summed over the analysis period from the Anthropic Usage Report API (for Anthropic) or Claude Code local session JSONL files under `~/.claude/projects/` (for Claude Code); these fields are not present for OpenAI or GitHub Copilot
+  - `input_cost_per_token_m`, `output_cost_per_token_m`, `cache_creation_input_token_cost_m`, and `cache_read_input_token_cost_m` are from the LiteLLM price map (§11)
+  - If the LiteLLM cache price fields are absent for a model, fall back to the two-term formula for that model and note the estimate excludes cache costs
+- Note: This is a price-weighted estimated cost breakdown. For OpenAI and Anthropic/Claude Code, the chart is labeled "Estimated model cost breakdown." For GitHub Copilot, actual `requests.cost` values are used directly and the chart is labeled "Actual model cost breakdown."
 - Chart type: Pie chart or stacked bar chart.
 - Tier: B
 
@@ -423,6 +467,9 @@ All metrics are defined below with their formula and the minimum tier at which t
 - Definition: Ratio of total input tokens to total output tokens, per model and in aggregate.
 - Formula: `input_output_ratio = total_input_tokens / total_output_tokens`
 - Why it matters: A high ratio (many input tokens relative to output) indicates large prompts with short completions, which is the pattern R3 (Reduce Prompt Verbosity) watches for. A low ratio (output tokens approaching or exceeding input tokens) indicates verbose model responses.
+- **Note for Anthropic and Claude Code:** For this ratio, `total_input_tokens` = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (cache fields are additive — see §7.2). Using `input_tokens` alone would understate actual LLM input volume for sessions with active prompt caching.
+- **Note for GitHub Copilot:** `usage.inputTokens` already includes all prompt tokens (cached and uncached). For this ratio, use `usage.inputTokens` directly — do not add `cacheReadTokens` or `cacheWriteTokens` separately, as they are already counted within `inputTokens`. See §5 Source 4.
+- **Note for OpenAI:** use `input_tokens` as `total_input_tokens` directly — `cached_input_tokens` is already included in `input_tokens` and must not be added separately.
 - Tier: B
 
 **7.8 Cached token fraction (Anthropic and Claude Code)**
@@ -433,6 +480,7 @@ All metrics are defined below with their formula and the minimum tier at which t
   - Data source: Claude Code local session files (`~/.claude/`)
 - When both Anthropic and Claude Code are connected, the system computes `cache_fraction_anthropic` and `cache_fraction_claude_code` independently and displays each on its respective source card.
 - Why it matters: Cache reads are cheaper than standard input tokens. A low cache fraction on a high-volume source indicates a missed prompt-caching opportunity.
+- For GitHub Copilot cached token fraction, see §7.19.
 - Realized savings formula (backward-looking): `savings_[source] = cache_read_input_tokens_[source] * (standard_input_price_[source] - cache_read_price_[source])` where `[source]` ∈ {`anthropic`, `claude_code`} matching the source whose data is used; `cache_read_input_tokens_[source]` = sum of `cache_read_input_tokens` from the respective source's data, `standard_input_price_[source]` = `input_cost_per_token` and `cache_read_price_[source]` = `cache_read_input_token_cost` from the LiteLLM price map.
 
   **Note:** `standard_input_price_[source]` and `cache_read_price_[source]` are source-aggregate aliases (token-volume-weighted average across models for that source):
@@ -442,6 +490,8 @@ All metrics are defined below with their formula and the minimum tier at which t
   `cache_read_price_[source] = sum(cache_read_input_tokens_m * cache_read_input_token_cost_m) / sum(cache_read_input_tokens_m)`
 
   If `sum(cache_read_input_tokens_m) == 0` for the source, set `savings_[source] = 0` and suppress the realized savings display for that source. For the authoritative per-model `_m` contract using the same LiteLLM fields, see §8 R1 Estimated savings formula. For forward-looking savings potential, see §8 R1.
+
+  (Cache write overhead is not netted here — write costs are already sunk for tokens that have been cached. The forward-looking formula in §8 R1 nets write overhead because those costs have not yet been incurred.)
 - Tier: B (Anthropic and Claude Code)
 
 **7.9 Average daily spend**
@@ -484,7 +534,7 @@ Note: Cached token fraction for Claude Code is defined in §7.8 (alongside the A
 
 **7.14 Average tokens per session**
 - Definition: Mean total tokens (input + output) per Claude Code session over the analysis period.
-- Formula: `avg(input_tokens + output_tokens per session)`
+- Formula: `avg((input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens) per session)` — cache fields are additive for Claude Code (see §7.2).
 - Display: "~N tokens per session (average)"
 - Tier: B
 
@@ -511,13 +561,14 @@ Note: Cached token fraction for Claude Code is defined in §7.8 (alongside the A
 **7.18 Copilot model cost breakdown**
 - Definition: Percentage of total Copilot cost attributable to each model.
 - Formula: `model_cost_share(m) = sum(requests.cost for model m) / total_cost`
+- If `total_cost == 0` (e.g., the user has only used code completions with no premium interactions), suppress the model cost breakdown chart and display instead: "No premium interaction cost recorded for this period. Code completions are not tracked in cost data (see §5 Source 4)." When `total_cost == 0`, `model_cost_share(m)` is treated as undefined (not zero) for all models; the R2 trigger does not fire for Copilot in this state because `total_spend_premium_model_usd = 0 < $5.00`.
 - Chart type: Pie chart or bar chart.
 - Display: Model names with cost percentage and absolute cost. Sorted by cost descending.
 - Tier: B
 
 **7.19 Copilot cached token fraction**
-- Definition: Fraction of total input-equivalent tokens served from the cache, per model and in aggregate. Uses the same formula as the Claude Code cache fraction.
-- Formula: `cache_fraction_copilot(m) = cacheReadTokens_m / (inputTokens_m + cacheReadTokens_m + cacheWriteTokens_m)` for each model `m`; aggregate: same formula summed across all models.
+- Definition: Fraction of total input tokens served from the cache, per model and in aggregate. Because `inputTokens` already includes cached and non-cached prompt tokens, it is the full denominator.
+- Formula: `cache_fraction_copilot(m) = cacheReadTokens_m / inputTokens_m` for each model `m`; `cache_fraction_copilot(aggregate) = Σ(cacheReadTokens_m) / Σ(inputTokens_m)` where the sum runs over all models `m` in the analysis period.
 - Display: Percentage with raw token counts. Shown per model and as a weighted aggregate.
 - Tier: B
 
@@ -564,7 +615,8 @@ Where `[source_name]` is resolved at render time:
 **Estimated savings formula (per model, then summed):** For each model `m` used by the triggering source during the analysis period:
 
 ```
-savings_m = total_input_tokens_m * (1 - cache_fraction_m) * reuse_factor * (standard_input_price_m - cache_read_price_m)
+savings_m = total_input_tokens_m × (1 − cache_fraction_m) × reuse_factor
+           × [(standard_input_price_m − cache_read_price_m) − (cache_creation_price_m − standard_input_price_m)]
 ```
 
 Where (all variables are scoped to the triggering source — Anthropic Usage API for paths A/B; Claude Code local session files for path C):
@@ -572,17 +624,22 @@ Where (all variables are scoped to the triggering source — Anthropic Usage API
 - `cache_fraction_m` = `cache_read_input_tokens_m / total_input_tokens_m`
 - `standard_input_price_m` = `input_cost_per_token` for model `m` from the LiteLLM price map
 - `cache_read_price_m` = `cache_read_input_token_cost` for model `m` from the LiteLLM price map; if absent, exclude model `m` from the estimate
+- `cache_creation_price_m` = `cache_creation_input_token_cost` from the LiteLLM price map for model m (approximately 1.25× `standard_input_price_m` for 5-minute TTL). If `cache_creation_input_token_cost` is absent for model m, use `standard_input_price_m × 1.25` as a fallback approximation.
+- The second term `(cache_creation_price_m − standard_input_price_m)` represents the write overhead cost — the premium paid to write tokens into cache. This must be netted against the read savings to avoid overstating projected savings.
+- Net savings formula simplifies to: `total_input_tokens_m × (1 − cache_fraction_m) × reuse_factor × (2 × standard_input_price_m − cache_read_price_m − cache_creation_price_m)`
 - `reuse_factor` = 0.5 (label in the UI as "Estimated — assumes 50% of uncached tokens are cacheable")
 
 `[savings_estimate]` = sum of `savings_m` across all models with available `cache_read_input_token_cost`. If no models for the source have this entry, suppress the savings estimate and omit "could reduce costs by up to [savings_estimate]" from the body.
 
-**Tiers that can trigger this:** B (Anthropic and Claude Code only — prompt caching is a developer-controlled setting for these sources; OpenAI does not expose cache metrics, and GitHub Copilot caching is managed automatically by the provider)
+**Tiers that can trigger this:** B (Anthropic and Claude Code only — for the Anthropic API source, prompt caching is developer-controlled via explicit `cache_control` markers in API calls. For the Claude Code source, caching is managed internally by the CLI tool; users do not write `cache_control` markers, so the recommendation should be interpreted as encouraging caching-friendly usage patterns (long system prompts, repeated contexts) rather than enabling API flags. OpenAI exposes `cached_input_tokens` in its API response but its caching is fully automatic — it cannot be enabled or tuned by developers — so R1 is not actionable for OpenAI. GitHub Copilot caching is managed automatically by the provider.)
 
 ### R2: Downgrade Model
 
 **Category:** Model selection efficiency
 **Severity:** High
 **Trigger:** `model_cost_share(premium_model) > 0.3` AND `output_tokens_per_day(premium_model) < 500` AND `total_spend_premium_model_usd > 5.00` for any model in the following downgrade-candidate table:
+
+**Downgrade-candidate table (OpenAI and Anthropic sources)**
 
 | Premium model (detected) | Suggested cheaper alternative |
 |---|---|
@@ -591,7 +648,9 @@ Where (all variables are scoped to the triggering source — Anthropic Usage API
 | claude-3-5-sonnet-* | claude-3-haiku-* |
 | claude-3-opus-* | claude-3-5-sonnet-* |
 
-For GitHub Copilot: trigger fires when a single model accounts for >30% of total Copilot cost (derived from `requests.cost` summed across `modelMetrics`) AND `output_tokens_per_day(premium_model) < 500` AND total Copilot cost for the premium model exceeds $5.00. The $5.00 minimum total Copilot spend guard applies before this trigger is evaluated.
+Entries ending in `-*` match any model name beginning with the preceding prefix, case-insensitively.
+
+For GitHub Copilot: trigger fires when a single model accounts for >30% of total Copilot cost (derived from `requests.cost` summed across `modelMetrics`) AND `output_tokens_per_day(premium_model) < 500` AND total Copilot cost for the premium model exceeds $5.00.
 
 If a premium model is detected in usage data but does not appear in this table, the recommendation does not fire.
 
@@ -600,7 +659,7 @@ If a premium model is detected in usage data but does not appear in this table, 
 
 Where `[Model name]` and `[cheaper model]` are resolved at render time:
 - `[Model name]` = the name of the detected `premium_model` that fired the trigger, as returned by the source's usage data (API or local file)
-- `[cheaper model]` = the value in the "Suggested cheaper alternative" column of the downgrade-candidate table (non-Copilot) or the Copilot substitution table (Copilot) for the row matching the detected `premium_model`
+- `[cheaper model]` = the display name resolved from the §11 model display-name mapping table, using the Suggested alternative value as the lookup key. If the value ends in `-*`, strip the `-*` suffix before querying the table (e.g., `claude-3-haiku-*` → lookup key `claude-3-haiku-`). If no display name is found, the raw lookup key (with the `-*` suffix already stripped) is used as the fallback.
 - If the trigger fires for multiple premium models simultaneously, generate one R2 card per model, each resolving `[Model name]` and `[cheaper model]` independently
 
 **Savings estimate formula:** `savings_estimate = current_spend * model_cost_share(premium_model) * (1 - (cheaper_model_price / premium_model_price))`
@@ -624,15 +683,19 @@ Note: If `cheaper_model_price` is absent for a given model pair, suppress the sa
 
 **Copilot model substitution table**
 
-| Premium model (trigger if >30% of Copilot spend) | Suggested alternative | Rationale |
+| API model name prefix | Suggested alternative (API prefix) | Rationale |
 |---|---|---|
-| Claude Opus 4.5 / 4.6 / 4.7 / 4.8 | Claude Haiku 4.5 | 10–30x cheaper per token; suitable for straightforward Chat queries |
-| Claude Sonnet 4 / 4.5 / 4.6 | Claude Haiku 4.5 | 3–5x cheaper; appropriate for most coding assistance tasks |
-| GPT-5.4 / GPT-5.5 | GPT-5.4 mini or GPT-5.4 nano | 5–20x cheaper; equivalent quality for code completion and short queries |
-| Gemini 3.1 Pro | Gemini 3.5 Flash | 4–8x cheaper; comparable quality for standard tasks |
-| Claude Fable 5 | Claude Sonnet 4.6 | Significant cost reduction; Fable 5 reserved for complex multi-step tasks |
+| `claude-opus-4.5`, `claude-opus-4.6`, `claude-opus-4.7`, `claude-opus-4.8` | `claude-haiku-4.5` | 10–30× cheaper per token; suitable for straightforward chat queries |
+| `claude-sonnet-4` | `claude-haiku-4.5` | 3–5× cheaper; appropriate for most coding assistance tasks. Prefix `claude-sonnet-4` covers all claude-sonnet-4.x variants via prefix matching — no row update needed when new minor versions ship. |
+| `gpt-5.4`, `gpt-5.5` | `gpt-5.4-mini` | 5–20× cheaper; equivalent quality for code completion and short queries. `gpt-5.4-nano` is an alternative for even lighter workloads. |
+| `gemini-3.1-pro` | `gemini-3.5-flash` | 4–8× cheaper; comparable quality for standard tasks |
+| `claude-fable-5` *(upcoming)* | `claude-haiku-4.5` | Future model; rule pre-staged for when it becomes available |
+
+Model names in this table are matched case-insensitively against the API model name returned in `modelMetrics` using prefix matching (e.g., 'claude-opus-4.6' matches `claude-opus-4.6-1m`). If the model name detected in `modelMetrics` begins with the Suggested alternative prefix (case-insensitive prefix match), the R2 card is suppressed for that model — the user is already on the recommended alternative.
 
 **Note:** This table is derived from GitHub's published model pricing at `docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing`. Token prices vary; the 'cheaper' designation is based on input+output token blended cost. As GitHub adds new models, this table should be updated.
+
+If the triggering model does not appear in this table, the R2 recommendation does not fire for that model.
 
 ### R3: Reduce Prompt Verbosity
 
@@ -646,6 +709,12 @@ Where:
 - `[N]` = p90 value of daily input tokens across Tier B sources with token data over the analysis period (same quantity used in the trigger condition)
 - `[X]` = `total_input_tokens / total_output_tokens` across Tier B sources with token data over the analysis period, rounded to one decimal place (same ratio used in the trigger condition)
 
+For Anthropic and Claude Code, daily input tokens = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` summed across all models for that day (cache fields are additive — see §7.2).
+
+For GitHub Copilot, daily input tokens = `usage.inputTokens` summed across all `modelMetrics` entries for that session day — `cacheReadTokens` and `cacheWriteTokens` are already included in `inputTokens`.
+
+For OpenAI, daily input tokens = `input_tokens` for that day — `cached_input_tokens` is a subset of `input_tokens` and must NOT be added separately (see §7.2).
+
 **Tiers that can trigger this:** B (all Tier B sources including GitHub Copilot — requires per-day token counts; GitHub Copilot is included as it now exposes per-session token counts via `usage.inputTokens` in `modelMetrics`)
 
 ### R4: Use Off-Peak Hours
@@ -658,6 +727,8 @@ Where:
 
 Where:
 - `[X]` = `(count of sessions with start time between 08:00–18:00 on weekdays / total session count) * 100`, rounded to one decimal place, computed from Claude Code local session files (`~/.claude/`) over the analysis period
+
+**Timezone:** The 08:00–18:00 window and weekday classification are evaluated in the local timezone of the machine running the Express server (Node.js `Intl`/`Date` local timezone).
 
 **Note:** Promptly reports this pattern from session timestamps only. It does not have access to actual latency data; the recommendation is based on known provider latency patterns, not measured latency.
 **Tiers that can trigger this:** B (Claude Code only — requires session timestamp data)
@@ -705,7 +776,7 @@ The local Express server is a **stateless computation proxy**. Its responsibilit
 - Compute recommendation logic on metrics returned from all adapters
 - Return computed metrics to the frontend as JSON
 
-The server does not: store any data (beyond reading local Claude Code and GitHub Copilot files), maintain sessions, log user data, or make any network calls other than to the supported provider APIs.
+The server does not store any data, maintain sessions, log user data, or make any network calls other than to the supported provider APIs. It reads local Claude Code and GitHub Copilot session files into memory only for the duration of the analysis request; no file contents are persisted.
 
 ### What the frontend does
 
@@ -748,7 +819,7 @@ Sources connected: [list]
 
 --- Page 1: Summary ---
 Total actual spend: [actual USD from all Tier B sources]
-Total tokens analyzed: [N actual — from Anthropic, OpenAI, Claude Code]
+Total tokens analyzed: [N actual — from all connected Tier B sources with token data]
 Sources: [table: source name, tier, tokens (where available), cost]
 
 --- Page 2: Per-Source Insights ---
@@ -804,7 +875,7 @@ The JSON export contains the complete structured data produced by the analysis. 
         "daily_spend": [{"date": "2026-05-19", "spend_usd": 1.23}],
         "model_breakdown": [{"model": "gpt-4o", "estimated_cost_share": 0.72, "input_tokens": 1200000, "output_tokens": 340000}],
         "input_output_ratio": 3.53,
-        "avg_daily_spend_usd": 1.41,
+        "avg_daily_cost_usd": 1.41,
         "peak_spend_day": {"date": "2026-05-28", "spend_usd": 5.20}
         // Example for github_copilot:
         // "session_count": 42,
@@ -813,7 +884,8 @@ The JSON export contains the complete structured data produced by the analysis. 
         // "total_cost_usd": 4.67,
         // "input_output_ratio": 6.67,
         // "avg_daily_cost_usd": 0.156,
-        // "peak_cost_day": {"date": "2026-06-15", "cost_usd": 0.82}
+        // "peak_cost_day": {"date": "2026-06-15", "cost_usd": 0.82},
+        // "cache_fraction": {"aggregate": 0.31, "per_model": [{"model": "gpt-5.4-mini", "cache_fraction": 0.28}]}
       }
     }
   ],
@@ -838,6 +910,8 @@ The JSON export contains the complete structured data produced by the analysis. 
 }
 ```
 
+Note: `total_actual_tokens` is computed using the provider-aware formula from §7.2: for Anthropic and Claude Code, cache fields (`cache_creation_input_tokens`, `cache_read_input_tokens`) are included as additive buckets; for OpenAI, `cached_input_tokens` is a subset of `input_tokens` and is not added separately. For GitHub Copilot, `usage.inputTokens + usage.outputTokens` is used — `cacheReadTokens` and `cacheWriteTokens` are already included in `inputTokens` and must not be added separately.
+
 **What is NOT included in the JSON:**
 - API keys or tokens
 - Prompt or response text
@@ -861,10 +935,15 @@ The JSON export contains the complete structured data produced by the analysis. 
 **LiteLLM price map fields used by Promptly:** All cost calculations reference the following fields from each model's entry in `model_prices_and_context_window.json`:
 - `input_cost_per_token`: cost in USD per input (prompt) token
 - `output_cost_per_token`: cost in USD per output (completion) token
-- `cache_read_input_token_cost`: cost in USD per cached input token read (Anthropic models only; may be absent for other models)
+- `cache_read_input_token_cost`: cost in USD per cached input token read (present for Anthropic, Claude Code, OpenAI, and some other models in the LiteLLM price map; absent for GitHub Copilot and sources that do not use per-token pricing)
+- `cache_creation_input_token_cost`: Per-token price for writing tokens into the prompt cache (Anthropic and Claude Code only). Approximately 1.25× `input_cost_per_token` for 5-minute TTL cache writes. Present for all Anthropic models in the LiteLLM price map. Used when computing Claude Code session cost for `cache_creation_input_tokens`. If absent for a model, fall back to `input_cost_per_token` (will slightly underestimate cost for cache-write-heavy sessions).
 
 If a model name from the usage data does not appear in the price map, Promptly displays "price unavailable" for that model's cost estimates and excludes it from savings calculations.
 | File parsing | Built-in Node.js JSON parser | Standard; no additional dependency needed for JSON/JSONL |
+
+### Timezone model
+
+**Timezone model:** All timestamps are stored and processed in UTC. All time-based values displayed in the UI (dates, daily buckets, time-of-day windows) are rendered in the local timezone of the machine running the Express server using Node.js `Intl`/`Date`. This applies uniformly across all sources — API sources return UTC natively; local-file sources (Claude Code, GitHub Copilot) use Unix millisecond timestamps which are inherently UTC.
 
 ### Architecture diagram (text)
 
@@ -928,6 +1007,24 @@ Adding a new provider requires only: creating `adapters/newprovider.js` implemen
 
 **HTTP timeout policy:** All outbound HTTP requests from the Express server to provider APIs must have a 30-second timeout. If a request times out, the adapter returns `{ error: "Request timed out after 30s", tier: null, data: null }`. Pagination requests (fetching additional pages of results) share the same 30-second per-request timeout. The analysis waits for all source requests to settle before rendering any results (the per-source progress indicator shows which sources are still in flight).
 
+Per-source status indicators (spinners, progress states) update progressively as each source responds. Final insight panels, the summary bar, and recommendation cards render only after all sources and the `/analyze/recommendations` call have settled.
+
+### Model display-name mapping
+
+When rendering model names in recommendation card body text, the `[cheaper model]` template variable is resolved to a friendly display name using the following lookup table. If a model prefix is not found in this table, the raw API model name prefix is used as a fallback.
+
+| API model name prefix | Display name |
+|---|---|
+| `claude-haiku-4.5` | Claude Haiku 4.5 |
+| `claude-3-haiku-` | Claude 3 Haiku |
+| `claude-3-5-sonnet-` | Claude 3.5 Sonnet |
+| `gpt-5.4-mini` | GPT-5.4 mini |
+| `gpt-5.4-nano` | GPT-5.4 nano |
+| `gemini-3.5-flash` | Gemini 3.5 Flash |
+| `claude-fable-5` | Claude Fable 5 |
+
+Match is case-insensitive prefix match against the API model name returned in `modelMetrics`. The first matching entry wins.
+
 ### No one-way door rationale
 
 The following architectural choices are made explicitly to preserve optionality for a post-MVP persistent dashboard:
@@ -983,7 +1080,7 @@ The following items are explicitly post-MVP. They are listed here to prevent sco
 | Web app users on flat subscriptions (ChatGPT Plus, Claude.ai Pro) | No per-token billing data available; P1 account exports provide conversation text only |
 | Prompt content analysis | Privacy boundary — all P0 recommendations are designed to work without reading actual prompt or response content |
 | Background data collection or agent installation | Promptly is a reader, not a collector; it reads existing data with no background processes and no installed agents |
-| Diff or comparison of two time periods in the UI | Supported in export data only; interactive comparison view is post-MVP |
+| Diff or comparison of two time periods in the UI | Month-over-month spend change (§7.12) is in scope as a Tier B UI metric when ≥45 days of data are available. General interactive period-comparison views (arbitrary date range diff UI) remain post-MVP. |
 
 ---
 
@@ -992,7 +1089,7 @@ The following items are explicitly post-MVP. They are listed here to prevent sco
 The following questions require a stakeholder decision before engineering begins. Blocking questions are marked [BLOCKING].
 
 **OQ-1 [RESOLVED] OpenAI Costs API model-level granularity**
-Resolved. Token-fraction approximation is acceptable for MVP. Per-model cost is estimated by multiplying each model's share of total tokens (from the Usage API) by the total daily cost (from the Costs API). Exact per-model billing data is not available from the OpenAI API. The UI labels the model cost breakdown chart as "Estimated model cost breakdown." See §5 Source 2 (Assumptions) and §7.6 for implementation details.
+Resolved. Price-weighted estimated cost is used for MVP. Per-model cost is estimated by computing (input_tokens_m × input_cost_per_token_m) + (output_tokens_m × output_cost_per_token_m) per model using the LiteLLM price map, then computing each model's share as a fraction of total estimated cost across all models. For Anthropic, cache billing components are included separately (see §7.6). The UI labels the model cost breakdown chart as "Estimated model cost breakdown." See §5 Source 2 (Assumptions) and §7.6 for implementation details.
 
 **OQ-2 [SUPERSEDED] GitHub Copilot billing API — required OAuth scopes**
 Superseded by v1.7 source rewrite. The API-based approach (classic PAT + org billing endpoint) has been replaced by local file reads from `~/.copilot/session-state/`. No credentials or OAuth scopes are required. The original resolution details (PAT scopes, org vs. user endpoint fallback logic) are no longer applicable and have been removed from §5 Source 4.
