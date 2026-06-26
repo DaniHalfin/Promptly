@@ -1,9 +1,9 @@
 # Promptly Engineering Design v1.1
 
-**Version:** 1.1
-**Date:** 2026-06-23
+**Version:** 1.2
+**Date:** 2026-06-25
 **Author:** architect agent
-**Source spec:** spec.md
+**Source spec:** spec.md (amended per design amendment v1.2)
 **Status:** Canonical (current)
 **Supersedes:** v1.0 (2026-06-18)
 
@@ -343,7 +343,6 @@ Lightweight credential check before kicking off full analysis. `:sourceId` is on
   "endDate": "2026-06-18"
 }
 ```
-(Date range is optional for `github_copilot`.)
 
 **Response 200:**
 ```json
@@ -490,6 +489,28 @@ The registry maps `SourceId` → `SourceAdapter` so the orchestrator can iterate
 
 #### 3.3.3 `githubCopilot.ts`
 
+The following interfaces are **adapter-private** — defined inside `githubCopilot.ts` and not exported:
+
+```typescript
+interface CopilotModelMetrics {
+  requests: { count: number; cost: number };   // cost = AI credit units (USD float)
+  usage: {
+    inputTokens: number;       // TOTAL prompt tokens; cacheReadTokens/cacheWriteTokens are subsets
+    outputTokens: number;      // TOTAL completion tokens; reasoningTokens is a subset
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    reasoningTokens: number;
+  };
+}
+
+interface CopilotShutdownEvent {
+  type: 'session.shutdown';
+  sessionStartTime: number;                          // Unix ms timestamp
+  modelMetrics?: Record<string, CopilotModelMetrics>;
+  totalPremiumRequests: number;                      // float AI credit cost (cross-check)
+}
+```
+
 - **validate**: Call `GET /user` with `Authorization: token <pat>` and `X-GitHub-Api-Version: 2026-03-10` to confirm PAT validity and retrieve `{username}`.
   - 401 → `INVALID_KEY` immediately; stop.
   - Any other non-2xx → `{ valid: false, error: { code: 'UNKNOWN', message: 'GitHub /user returned unexpected status ${status}.' } }`
@@ -562,8 +583,7 @@ The registry maps `SourceId` → `SourceAdapter` so the orchestrator can iterate
      ```typescript
      {
        sourceId: 'github_copilot',
-       copilotBillingItems: NormalizedCopilotBillingItem[],  // from step 1
-       copilotEngagement: NormalizedCopilotEngagement[],     // from step 2 (may be empty)
+       copilotSessions: NormalizedCopilotSession[],   // one entry per session.shutdown event in window
        periodStart: string,
        periodEnd: string,
      }
@@ -733,11 +753,11 @@ Maps each spec §7 metric to a pure function. Organization:
 | 7.13 Claude Code session count | metrics/tierB.ts | `claudeCodeSessionCount(raw)` | `NormalizedSourceData` (claude_code) | number |
 | 7.14 Claude Code avg tokens/session | metrics/tierB.ts | `claudeCodeAvgTokensPerSession(raw)` | `NormalizedSourceData` (claude_code) | number |
 | 7.15a Claude Code peak-hour fraction | *(adapter pre-computed)* | — computed in `claudeCode.ts` step 4a | Per-session timestamps from `sessionFirstTimestamps` | `number \| undefined` in `NormalizedSourceData.claudeCodePeakHourFraction`; mapped 1:1 into `SourceMetrics.claudeCodePeakHourFraction`. No separate `tierB.ts` function needed. |
-| 7.15 Copilot total AI credit spend | metrics/tierB.ts | `copilotTotalSpend(items)` | `NormalizedCopilotBillingItem[]` | `{ grossUsd, discountUsd, netUsd }` |
-| 7.16 Copilot spend by model | metrics/tierB.ts | `copilotSpendByModel(items)` | `NormalizedCopilotBillingItem[]` | `{ model, netUsd, share }[]` |
-| 7.17 Copilot cost per interaction | metrics/tierB.ts | `copilotCostPerInteraction(items)` | `NormalizedCopilotBillingItem[]` | number (USD) |
-| 7.18 Copilot model distribution | metrics/tierB.ts | `copilotModelDistribution(items)` | `NormalizedCopilotBillingItem[]` | `{ model, share }[]` |
-| 7.19 Copilot acceptance rate | metrics/tierB.ts | `copilotAcceptanceRate(engagement)` | `NormalizedCopilotEngagement[]` | `number \| null` |
+| 7.15 Copilot total AI credit spend | metrics/tierB.ts | `copilotTotalSpend(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ grossUsd, discountUsd, netUsd }` |
+| 7.16 Copilot spend by model | metrics/tierB.ts | `copilotSpendByModel(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, netUsd, share }[]` |
+| 7.17 Copilot cost per interaction | metrics/tierB.ts | `copilotCostPerInteraction(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | number (USD) |
+| 7.18 Copilot model distribution | metrics/tierB.ts | `copilotModelDistribution(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, share }[]` |
+| 7.19 Copilot acceptance rate | metrics/tierB.ts | — | Not available from local JSONL source. Removed from Tier B metric set. | `number \| null` |
 
 **Note on §7.6 (OpenAI model cost share):** `modelCostShare()` returns **estimated** per-model cost for OpenAI sources. The Costs API returns only daily totals; per-model cost is approximated as each model's token fraction of the daily total multiplied by the daily cost. The function must attach `estimated: true` to each entry when `sourceId === 'openai'`. The UI must render these entries with the label "Estimated model cost breakdown" (not just "Model cost breakdown").
 
@@ -867,7 +887,7 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
 
 **Copilot trigger guard**: before evaluating any Copilot model entry, check `total_copilot_net_usd >= 5.00`. If total net Copilot spend is below $5.00, skip the entire Copilot branch of R2 (insufficient signal).
 
-**Copilot pricing source for savings estimate**: use `pricePerUnit` from the billing API response (`NormalizedCopilotBillingItem.pricePerUnit`) for the detected premium model. For the cheaper alternative, use `pricePerUnit` if the user has used that model in the billing data; otherwise suppress the savings estimate for that pair.
+**Copilot pricing source for savings estimate**: derive effective per-request cost from per-session `models[model].requestCost / requestCount` in `NormalizedCopilotSession` for the detected premium model. For the cheaper alternative, only estimate if that model appears in session data; otherwise suppress the savings estimate for that pair.
 
 **Copilot R2 body note**: omit "but generates an average of only [N] output tokens per day" (token counts not exposed by Copilot billing API). Replace with: "Consider switching to [cheaper model] for routine Chat and CLI interactions in Copilot settings."
 
@@ -993,8 +1013,8 @@ export function lookupPrice(map: PriceMap, model: string): PriceEntry | null {
  * - OpenAI: true — Costs API returns daily totals only; per-model cost is
  *   estimated by multiplying each model's token share by the daily total.
  * - All other sources: false — cost is either read directly from the billing
- *   API (Anthropic, Copilot) or computed directly from tokens × price map
- *   (Claude Code).
+ *   API (Anthropic) or computed from local data (Claude Code: tokens × price
+ *   map; GitHub Copilot: requests.cost from session JSONL).
  */
 export function isModelCostEstimated(sourceId: SourceId): boolean {
   return sourceId === 'openai';
@@ -1077,7 +1097,7 @@ interface SessionState {
   sources: {
     openai?: { credential: string; startDate: string; endDate: string; status: SourceStatus; error?: string };
     anthropic?: { credential: string; startDate: string; endDate: string; status: SourceStatus; error?: string };
-    github_copilot?: { credential: string; copilotPlanMonthlyUsd: number; status: SourceStatus; error?: string };
+    github_copilot?: { status: SourceStatus; error?: string };
     claude_code?: { status: SourceStatus; error?: string };
     chatgpt_export?: { file: File; status: SourceStatus; error?: string };
     claude_export?: { file: File; status: SourceStatus; error?: string };
@@ -1176,10 +1196,6 @@ export interface SourceConfig {
   /** Date range for API sources. Ignored for file sources (file content range is used). */
   startDate?: string;       // ISO date YYYY-MM-DD
   endDate?: string;
-  /** Source-specific options. */
-  options?: {
-    copilotPlanMonthlyUsd?: number;         // github_copilot, default 10
-  };
 }
 
 export interface AnalysisRequest {
@@ -1218,23 +1234,26 @@ export interface NormalizedConversation {
 
 // ====== Copilot-specific normalized shapes ======
 
-/** One billing line item from the Copilot AI credit billing API. */
-export interface NormalizedCopilotBillingItem {
-  date: string;             // ISO date YYYY-MM-DD (from billing API day bucket)
-  product: string;          // e.g. "copilot_chat", "copilot_cli"
-  model: string;            // e.g. "claude-sonnet-4-6", "gpt-5.4", "gemini-3-5-flash"
-  pricePerUnit: number;     // AI credits per interaction (from API)
-  grossQuantity: number;    // interactions billed
-  grossAmountUsd: number;   // grossAmount in USD (credits × 0.01)
-  discountAmountUsd: number;
-  netAmountUsd: number;     // netAmount in USD; use this for all cost calculations
-}
-
-/** Daily engagement metric from org/user NDJSON engagement reports. */
-export interface NormalizedCopilotEngagement {
-  date: string;             // ISO date YYYY-MM-DD
-  suggestionsCount: number;
-  acceptancesCount: number;
+/** Per-session data extracted from session.shutdown events in events.jsonl.
+ *  One entry per session file that contains at least one parseable session.shutdown event
+ *  within the analysis window. */
+export interface NormalizedCopilotSession {
+  /** ISO date string (local machine timezone) derived from sessionStartTime. Bucketing key. */
+  date: string;
+  /** Source file path for diagnostics, e.g. ".../.copilot/session-state/abc123/events.jsonl" */
+  sourceFile: string;
+  /** Per-model metrics for this session. Empty object if modelMetrics was absent in the event. */
+  models: Record<string, {
+    requestCount: number;      // requests.count
+    requestCost: number;       // requests.cost (AI credit units = USD float)
+    inputTokens: number;       // TOTAL; cacheReadTokens/cacheWriteTokens are subsets
+    outputTokens: number;      // TOTAL; reasoningTokens is a subset
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    reasoningTokens: number;
+  }>;
+  /** Cross-check value from event.totalPremiumRequests. Equals sum(requestCost) across models. */
+  totalCost: number;
 }
 
 // ====== NormalizedSourceData ======
@@ -1253,10 +1272,8 @@ export interface NormalizedSourceData {
   /** Claude Code only: fraction of sessions with first timestamp in 08:00–18:00 Mon–Fri local time.
    *  Pre-computed by the adapter. undefined if no session has a parseable timestamp. */
   claudeCodePeakHourFraction?: number;
-  /** Copilot Tier B: billing line items. Present for github_copilot. */
-  copilotBillingItems?: NormalizedCopilotBillingItem[];
-  /** Copilot Tier B: engagement data (may be empty if org metrics unavailable). */
-  copilotEngagement?: NormalizedCopilotEngagement[];
+  /** Copilot Tier B: per-session data from session.shutdown JSONL events. Present for github_copilot. */
+  copilotSessions?: NormalizedCopilotSession[];
   /** Derived analysis window. */
   periodStart: string;
   periodEnd: string;
@@ -1450,7 +1467,7 @@ export interface AnalysisReport {
 **Decision:** Run a small stateless Node + Express server alongside the React frontend.
 
 **Rationale:**
-1. **CORS**: provider APIs (OpenAI, Anthropic, GitHub) do not return `Access-Control-Allow-Origin: *`. Calls from a browser to `api.openai.com` fail. A local server bypasses CORS by being the client of those APIs.
+1. **CORS**: provider APIs (OpenAI, Anthropic) do not return `Access-Control-Allow-Origin: *`. Calls from a browser to `api.openai.com` fail. A local server bypasses CORS by being the client of those APIs.
 2. **tiktoken size**: the WASM build is ~1.5 MB; the Node binding is faster and avoids inflating the frontend bundle.
 3. **Future evolution (G8)**: the spec explicitly requires not foreclosing a persistent dashboard. Keeping the server in the architecture from day one means we never need to introduce one later.
 4. **Keys in headers**: server-side proxy lets us keep API keys out of any logged request URL and lets us mask them in error responses.
@@ -1691,16 +1708,15 @@ These are decisions the developer can make at implementation time without re-con
 1. **Chart library specifics** (within Recharts): exact color palette, axis tick formats, tooltip styling, responsive container heights. Recharts is decided; visuals are open.
 2. **PDF page break tuning**: the exact pixel heights at which `<PrintLayout>` breaks pages depend on chart sizes. Iterate on a real export.
 3. **html2canvas vs window.print()** (OQ-7): if html2canvas produces low-quality chart rasterization, fall back to a CSS `@media print` stylesheet with `window.print()`. Either is acceptable for MVP.
-4. **Copilot plan selector** (OQ-3): a dropdown with `Individual ($10/mo)`, `Business ($19/mo)`, `Enterprise ($39/mo)`, `Custom (enter amount)` is the recommended shape. Confirm before coding.
-5. **Date range picker** (OQ-4): preset chips (7d, 30d, 90d) plus a custom range. Recharts has no picker; use `react-day-picker` or any small library.
-6. **TypeScript strictness**: `strict: true` recommended for both packages; the developer may relax `noImplicitAny` for adapter code that touches loosely typed provider responses, using `unknown` + narrowing.
-7. **Multer file storage**: `multer.memoryStorage()` is the only acceptable option for §9 compliance. Confirm no disk-storage middleware sneaks in.
-8. **Test coverage**: spec does not mandate. Recommend Vitest for both packages; unit-test all pure functions in `engine/metrics/` and `engine/recommendations/`. Adapter tests can mock `httpClient`.
-9. **Print layout chart pre-render delay**: html2canvas needs charts already in the DOM. PrintLayout might need to `await new Promise(r => setTimeout(r, 200))` for Recharts to settle after mounting; tune empirically.
-10. **`shared/` package or duplication**: as noted in §2, the developer may either set up TypeScript project references with a `shared/` package, or duplicate types in both `client/src/types` and `server/src/types`. Duplication is faster for MVP; project references are cleaner long-term.
-11. **Beforeunload warning during analysis**: the in-progress analysis blocks navigation with `beforeunload`. After analysis completes, the warning is removed. Tune the wording.
-12. **Zero-data branch**: when `tier` is non-null but all metric values are zero/empty (e.g., Claude Code directory found but no parseable JSONL), render "$0.00 summary" per spec §6, not blank.
-13. **`allSourcesFailed` frontend handling**: `useAnalysis.ts` must implement an explicit branch for `allSourcesFailed: true` (spec §4: return to connection step when zero sources succeed).
+4. **Date range picker** (OQ-4): preset chips (7d, 30d, 90d) plus a custom range. Recharts has no picker; use `react-day-picker` or any small library.
+5. **TypeScript strictness**: `strict: true` recommended for both packages; the developer may relax `noImplicitAny` for adapter code that touches loosely typed provider responses, using `unknown` + narrowing.
+6. **Multer file storage**: `multer.memoryStorage()` is the only acceptable option for §9 compliance. Confirm no disk-storage middleware sneaks in.
+7. **Test coverage**: spec does not mandate. Recommend Vitest for both packages; unit-test all pure functions in `engine/metrics/` and `engine/recommendations/`. Adapter tests can mock `httpClient`.
+8. **Print layout chart pre-render delay**: html2canvas needs charts already in the DOM. PrintLayout might need to `await new Promise(r => setTimeout(r, 200))` for Recharts to settle after mounting; tune empirically.
+9. **`shared/` package or duplication**: as noted in §2, the developer may either set up TypeScript project references with a `shared/` package, or duplicate types in both `client/src/types` and `server/src/types`. Duplication is faster for MVP; project references are cleaner long-term.
+10. **Beforeunload warning during analysis**: the in-progress analysis blocks navigation with `beforeunload`. After analysis completes, the warning is removed. Tune the wording.
+11. **Zero-data branch**: when `tier` is non-null but all metric values are zero/empty (e.g., Claude Code directory found but no parseable JSONL), render "$0.00 summary" per spec §6, not blank.
+12. **`allSourcesFailed` frontend handling**: `useAnalysis.ts` must implement an explicit branch for `allSourcesFailed: true` (spec §4: return to connection step when zero sources succeed).
 
 ---
 
@@ -1711,8 +1727,7 @@ The following items were addressed during spec iteration and are fully resolved 
 | # | Topic | Affects component | Resolution |
 |---|---|---|---|
 | A1 | OpenAI per-model cost breakdown. | `engine/metrics/tierB.ts` `modelCostShare()` | Compute estimated shares from LiteLLM prices, normalize to actual total. UI labels as "estimated." `isModelCostEstimated('openai')` returns true. |
-| A2 | GitHub Copilot billing endpoint. | `adapters/githubCopilot.ts` | New AI credit billing API. Org probe first (auto-discover), individual fallback. PAT classic required. |
-| A3 | Copilot subscription cost input UX. | `Sources/GitHubCopilotSourceCard.tsx` | Plan selector dropdown with custom amount option. Default Individual ($10). |
+| A2 | GitHub Copilot billing endpoint. | `adapters/githubCopilot.ts` | Design amendment v1.2: local JSONL source. Reads ~/.copilot/session-state/<sessionId>/events.jsonl. No credentials. Parses session.shutdown events; extracts sessionStartTime + modelMetrics per model. Adapter emits copilotSessions: NormalizedCopilotSession[]. CopilotModelMetrics and CopilotShutdownEvent are adapter-private interfaces. Tier B. |
 | A4 | Date range UI. | `Sources/DateRangePicker.tsx` | Preset chips + custom range. Default 30 days. |
 | A5 | Claude Code data path and format. | `adapters/claudeCode.ts` | `~/.claude/projects/**/*.jsonl`. Cost computed from tokens × LiteLLM price map. Tier B. |
 | A6 | PDF library choice. | `Export/ExportButtons.tsx`, `Export/PrintLayout.tsx` | html2canvas + jsPDF per spec; `window.print()` fallback documented. |
@@ -1731,16 +1746,21 @@ The design review (2026-06-22) raised six non-blocking observations. The followi
 
 | Observation | Status |
 |---|---|
-| **#1 Zero-data tier classification ambiguity.** `classifyTier()` returns `null` when data arrays are empty; `AdapterResult.tier: null` + `error: null` triggers ambiguous zero-data case not explicitly handled in the panel render path. | **Open.** Developer must implement the zero-data branch: when `tier` is non-null but all metric values are zero/empty, render "$0.00 summary" per spec §6, not blank. (See §8 item 12.) |
-| **#2 `allSourcesFailed` frontend handling not explicit.** `useAnalysis.ts` lacks an explicit branch for `allSourcesFailed: true` (spec §4: return to connection step when zero sources succeed). | **Open.** Developer must add the branch. (See §8 item 13.) |
-| **#3 OQ-1 and OQ-2 resolved.** Both were previously blocking open questions. | **Resolved.** OQ-1 resolved in §3.7 (OpenAI approximation note + `isModelCostEstimated()`). OQ-2 resolved in §3.3.3 (org-first auto-discovery, correct PAT scopes). |
+| **#1 Zero-data tier classification ambiguity.** `classifyTier()` returns `null` when data arrays are empty; `AdapterResult.tier: null` + `error: null` triggers ambiguous zero-data case not explicitly handled in the panel render path. | **Open.** Developer must implement the zero-data branch: when `tier` is non-null but all metric values are zero/empty, render "$0.00 summary" per spec §6, not blank. (See §8 item 11.) |
+| **#2 `allSourcesFailed` frontend handling not explicit.** `useAnalysis.ts` lacks an explicit branch for `allSourcesFailed: true` (spec §4: return to connection step when zero sources succeed). | **Open.** Developer must add the branch. (See §8 item 12.) |
+| **#3 OQ-1 and OQ-2 resolved.** Both were previously blocking open questions. | **Resolved.** OQ-1 resolved in §3.7 (OpenAI approximation note + `isModelCostEstimated()`). OQ-2 resolved in §3.3.3 (local JSONL filesystem source; no PAT, no org-discovery, no network calls). |
 | **#4 Recommendation card chart thumbnails have no concrete rendering design.** `supportingChartRef` carries a `sourceId + chartId` reference but no chart registry or thumbnail-rendering pattern is designed. | **Open.** Developer must invent the wiring (chart registry keyed by `sourceId:chartId`). |
 | **#5 `serializeReport.ts` camelCase→snake_case boundary is mentioned but undesigned.** | **Open.** Small surface area; implementable from the TypeScript interfaces in §5. |
 | **#6 `lookupPrice()` prefix matching was order-dependent.** Two model keys where one is a prefix of the other could match ambiguously. | **Resolved.** §3.7 now includes longest-key-wins logic. |
 
 ---
 
+## 11. Changelog
+
+| Version | Date | Notes |
+|---|---|---|
+| v1.2 | 2026-06-25 | Amendment v1.2: replaced legacy Copilot billing/engagement normalized types with NormalizedCopilotSession; updated NormalizedSourceData (copilotSessions field); added CopilotModelMetrics and CopilotShutdownEvent adapter-private interfaces; removed the legacy Copilot plan-cost option from SourceConfig, SessionState, §8, §9; updated metrics table input types; updated isModelCostEstimated() comment; removed GitHub from ADR-1 CORS rationale; cleaned §9 A2/A3, §10 review note. |
+
 *Ready for design-review agent.*
 
-*End of Promptly Engineering Design v1.1*
-
+*End of Promptly Engineering Design v1.2*
