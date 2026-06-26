@@ -1,6 +1,22 @@
-import { describe, expect, it } from 'vitest';
-import { normalizeSession } from '../src/adapters/githubCopilot.js';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import githubCopilotAdapter, { normalizeSession } from '../src/adapters/githubCopilot.js';
 import type { ShutdownEvent } from '../src/adapters/githubCopilot.js';
+import type { PriceMap } from '../src/data/priceMap.js';
+
+let savedDir: string | undefined;
+let tempDirs: string[] = [];
+
+beforeEach(() => { savedDir = process.env.COPILOT_SESSION_STATE_DIR; });
+afterEach(() => {
+  if (savedDir === undefined) delete process.env.COPILOT_SESSION_STATE_DIR;
+  else process.env.COPILOT_SESSION_STATE_DIR = savedDir;
+  
+  Promise.all(tempDirs.map(dir => rm(dir, { recursive: true, force: true })));
+  tempDirs = [];
+});
 
 describe('githubCopilot adapter', () => {
   describe('normalizeSession()', () => {
@@ -87,6 +103,37 @@ describe('githubCopilot adapter', () => {
       };
       const result = normalizeSession(event, 'test-events.jsonl');
       expect(result.totalCost).toBe(0);
+    });
+  });
+
+  describe('run()', () => {
+    it('returns NOT_FOUND (not FETCH_ERROR) when session state dir is missing', async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-copilot-missing-'));
+      tempDirs.push(root);
+      process.env.COPILOT_SESSION_STATE_DIR = path.join(root, 'does-not-exist');
+
+      const priceMap: PriceMap = new Map([['gpt-5.4', { input_cost_per_token: 0.0001, output_cost_per_token: 0.0003 }]]);
+      const result = await githubCopilotAdapter.run({
+        priceMap,
+        startDate: new Date('2026-06-01'),
+        endDate: new Date('2026-06-30'),
+      });
+
+      expect(result.connected).toBe(false);
+      expect(result.error?.code).toBe('NOT_FOUND');
+      expect(result.error?.retriable).toBe(false);
+    });
+
+    it('validate() returns NOT_FOUND when session state dir is missing', async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-copilot-missing-'));
+      tempDirs.push(root);
+      process.env.COPILOT_SESSION_STATE_DIR = path.join(root, 'does-not-exist');
+
+      const priceMap: PriceMap = new Map([['gpt-5.4', { input_cost_per_token: 0.0001, output_cost_per_token: 0.0003 }]]);
+      const result = await githubCopilotAdapter.validate({ priceMap });
+
+      expect(result.valid).toBe(false);
+      expect(result.error?.code).toBe('NOT_FOUND');
     });
   });
 });

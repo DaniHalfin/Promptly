@@ -13,7 +13,6 @@ router.post('/:sourceId/validate', async (req: Request, res: Response, next) => 
     let credential: string | undefined;
     if (sourceId === 'openai') credential = req.headers['x-credential-openai'] as string;
     else if (sourceId === 'anthropic') credential = req.headers['x-credential-anthropic'] as string;
-    else if (sourceId === 'github_copilot') credential = req.headers['x-credential-github'] as string;
 
     const adapter = getAdapter(sourceId);
     if (!adapter) {

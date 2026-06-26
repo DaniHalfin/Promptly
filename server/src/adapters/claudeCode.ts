@@ -30,38 +30,17 @@ function getProjectsDir() {
     : path.join(os.homedir(), '.claude', 'projects');
 }
 
-async function directoryExists(dir: string) {
-  try {
-    const info = await stat(dir);
-    return info.isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-async function hasJsonlFile(dir: string): Promise<boolean> {
-  try {
-    const entries = await opendir(dir);
-    for await (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-        return true;
-      }
-      if (entry.isDirectory() && await hasJsonlFile(fullPath)) {
-        return true;
-      }
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
 async function collectJsonlFiles(dir: string): Promise<SessionFile[]> {
   const files: SessionFile[] = [];
 
   async function walk(currentDir: string) {
-    const entries = await opendir(currentDir);
+    let entries;
+    try {
+      entries = await opendir(currentDir);
+    } catch (err: any) {
+      if (err.code === 'ENOENT') return;
+      throw err;
+    }
     for await (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
@@ -194,7 +173,10 @@ const claudeCodeAdapter: SourceAdapter = {
 
   async validate() {
     const base = getProjectsDir();
-    if (!await directoryExists(base) || !await hasJsonlFile(base)) {
+    try {
+      const info = await stat(base);
+      if (!info.isDirectory()) throw new Error('not a directory');
+    } catch {
       return {
         valid: false,
         error: {
@@ -204,7 +186,6 @@ const claudeCodeAdapter: SourceAdapter = {
         },
       };
     }
-
     return { valid: true, error: null };
   },
 
@@ -213,21 +194,6 @@ const claudeCodeAdapter: SourceAdapter = {
 
     try {
       const base = getProjectsDir();
-      if (!await directoryExists(base)) {
-        return {
-          sourceId: SOURCE_ID,
-          tier: null,
-          connected: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'No Claude Code data found. Have you run Claude Code at least once?',
-            retriable: false,
-          },
-          raw: null,
-          warnings,
-        };
-      }
-
       const allFiles = await collectJsonlFiles(base);
       if (allFiles.length === 0) {
         return {

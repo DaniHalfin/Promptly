@@ -12,16 +12,8 @@ const DEFAULT_DAYS = 30;
 // Root directory for GitHub Copilot session state data.
 // Uses os.homedir() — never literal ~/ or process.env.HOME — for cross-platform safety.
 function getSessionStateRoot(): string {
+  if (process.env.COPILOT_SESSION_STATE_DIR) return process.env.COPILOT_SESSION_STATE_DIR;
   return path.join(os.homedir(), '.copilot', 'session-state');
-}
-
-async function directoryExists(dir: string): Promise<boolean> {
-  try {
-    const info = await stat(dir);
-    return info.isDirectory();
-  } catch {
-    return false;
-  }
 }
 
 /** Converts a Unix-ms timestamp to YYYY-MM-DD in the local system timezone. */
@@ -125,7 +117,10 @@ const githubCopilotAdapter: SourceAdapter = {
 
   async validate() {
     const root = getSessionStateRoot();
-    if (!await directoryExists(root)) {
+    try {
+      const info = await stat(root);
+      if (!info.isDirectory()) throw new Error('not a directory');
+    } catch {
       return {
         valid: false,
         error: {
@@ -143,21 +138,6 @@ const githubCopilotAdapter: SourceAdapter = {
 
     try {
       const root = getSessionStateRoot();
-
-      if (!await directoryExists(root)) {
-        return {
-          sourceId: SOURCE_ID,
-          tier: null,
-          connected: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'No Copilot session data found. Have you run GitHub Copilot at least once?',
-            retriable: false,
-          },
-          raw: null,
-          warnings,
-        };
-      }
 
       // Determine the analysis window (default: last 30 days in local timezone)
       const endDate = ctx.endDate ?? new Date();
@@ -177,7 +157,24 @@ const githubCopilotAdapter: SourceAdapter = {
       let hadDuplicateEvents = false;
 
       // Read all immediate subdirectories under root; each may contain events.jsonl
-      const rootDir = await opendir(root);
+      const rootDir = await opendir(root).catch((err: any) => {
+        if (err.code === 'ENOENT') return null;
+        throw err;
+      });
+      if (rootDir === null) {
+        return {
+          sourceId: SOURCE_ID,
+          tier: null,
+          connected: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'No Copilot session data found. Have you run GitHub Copilot at least once?',
+            retriable: false,
+          },
+          raw: null,
+          warnings,
+        };
+      }
       for await (const entry of rootDir) {
         if (!entry.isDirectory()) continue;
         hadSubdirs = true;

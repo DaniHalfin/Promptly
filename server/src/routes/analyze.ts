@@ -41,20 +41,6 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
           priceMap,
         };
 
-        if (src.sourceId === 'claude_code') {
-          const validation = await adapter.validate(ctx);
-          if (!validation.valid) {
-            return {
-              sourceId: src.sourceId,
-              tier: null,
-              connected: false,
-              error: validation.error,
-              raw: null,
-              warnings: [],
-            };
-          }
-        }
-
         return adapter.run(ctx);
       })
     );

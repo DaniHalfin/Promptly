@@ -63,5 +63,34 @@ describe('Claude Code adapter helpers', () => {
     expect(result.raw?.sessionCount).toBe(2);
     expect(result.raw?.claudeCodePeakHourFraction).toBe(0.5);
   });
+
+  it('run() returns NOT_FOUND (not FETCH_ERROR) when projects dir is missing', async () => {
+    previousClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+    const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-claude-code-'));
+    tempDirs.push(root);
+    process.env.CLAUDE_CONFIG_DIR = root;
+
+    const priceMap: PriceMap = new Map([['claude-test', { input_cost_per_token: 0.001, output_cost_per_token: 0.002 }]]);
+
+    const result = await claudeCodeAdapter.run({ priceMap });
+
+    expect(result.connected).toBe(false);
+    expect(result.error?.code).toBe('NOT_FOUND');
+    expect(result.error?.retriable).toBe(false);
+  });
+
+  it('validate() returns NOT_FOUND when projects dir is missing', async () => {
+    previousClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+    const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-claude-code-'));
+    tempDirs.push(root);
+    process.env.CLAUDE_CONFIG_DIR = root;
+
+    const priceMap: PriceMap = new Map([['claude-test', { input_cost_per_token: 0.001, output_cost_per_token: 0.002 }]]);
+
+    const result = await claudeCodeAdapter.validate({ priceMap });
+
+    expect(result.valid).toBe(false);
+    expect(result.error?.code).toBe('NOT_FOUND');
+  });
 });
 
