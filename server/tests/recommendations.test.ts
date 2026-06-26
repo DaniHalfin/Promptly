@@ -95,9 +95,9 @@ describe('recommendation rules', () => {
   describe('R2 model downgrade', () => {
     const copilot = (model: string, overrides: Partial<SourceMetrics> = {}) => source({
       sourceId: 'github_copilot',
-      copilotNetSpendUsd: 10,
-      copilotModelDistribution: [{ model, share: 0.5 }],
-      copilotSpendByModel: [{ model, netAmountUsd: 10, netSpendUsd: 10, spendShare: 0.5 }],
+      copilotTotalCostUsd: 10,
+      copilotModelCostBreakdown: [{ model, costUsd: 10, costShare: 0.5 }],
+      copilotTokenBreakdownByModel: [{ model, inputTokens: 100, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, requestCount: 1, requestCost: 10 }],
       ...overrides,
     });
 
@@ -114,17 +114,32 @@ describe('recommendation rules', () => {
     });
 
     it('does not fire when Copilot spend is below $5.00', () => {
-      expect(R2.evaluate(ctx([copilot('gpt-5.4', { copilotNetSpendUsd: 4.99 })]))).toHaveLength(0);
+      expect(R2.evaluate(ctx([copilot('gpt-5.4', { copilotTotalCostUsd: 4.99 })]))).toHaveLength(0);
     });
 
     it('does not fire when Copilot model share is below 0.30', () => {
-      expect(R2.evaluate(ctx([copilot('gpt-5.4', { copilotModelDistribution: [{ model: 'gpt-5.4', share: 0.29 }] })]))).toHaveLength(0);
+      expect(R2.evaluate(ctx([copilot('gpt-5.4', {
+        copilotModelCostBreakdown: [{ model: 'gpt-5.4', costUsd: 2.9, costShare: 0.29 }],
+        copilotTokenBreakdownByModel: [{ model: 'gpt-5.4', inputTokens: 100, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, requestCount: 1, requestCost: 2.9 }],
+      })]))).toHaveLength(0);
     });
 
     it('does not fire for gpt-5.5-mini — mini variant should not get downgrade card', () => {
       // gpt-5.5-mini IS the cheaper option; the regex must exclude -mini variants
-      // to avoid recommending a downgrade from a model that is already the budget choice
-      expect(R2.evaluate(ctx([copilot('gpt-5.5-mini', { copilotModelDistribution: [{ model: 'gpt-5.5-mini', share: 0.9 }] })]))).toHaveLength(0);
+      expect(R2.evaluate(ctx([copilot('gpt-5.5-mini', {
+        copilotModelCostBreakdown: [{ model: 'gpt-5.5-mini', costUsd: 9, costShare: 0.9 }],
+        copilotTokenBreakdownByModel: [{ model: 'gpt-5.5-mini', inputTokens: 100, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, requestCount: 1, requestCost: 9 }],
+      })]))).toHaveLength(0);
+    });
+
+    it('does not fire when token breakdown is absent for the model (MF-5 guard)', () => {
+      // copilotTokenBreakdownByModel is present but has no entry for this model
+      expect(R2.evaluate(ctx([source({
+        sourceId: 'github_copilot',
+        copilotTotalCostUsd: 10,
+        copilotModelCostBreakdown: [{ model: 'gpt-5.4', costUsd: 8, costShare: 0.8 }],
+        copilotTokenBreakdownByModel: [], // no matching entry
+      })]))).toHaveLength(0);
     });
 
     it('does not fire for a model with claude-3-5-sonnet in the middle of the name', () => {
@@ -153,7 +168,7 @@ describe('recommendation rules', () => {
   describe('R2 Copilot branch — NormalizedCopilotSession-derived metrics', () => {
     /** Build a minimal session with the given model → cost mapping. */
     const makeSession = (
-      models: Record<string, { requestCost: number }>,
+      models: Record<string, { requestCost: number; outputTokens?: number }>,
       totalCost: number,
     ): NormalizedCopilotSession => ({
       date: '2026-06-01',
@@ -165,7 +180,7 @@ describe('recommendation rules', () => {
             requestCount: 1,
             requestCost: v.requestCost,
             inputTokens: 100,
-            outputTokens: 50,
+            outputTokens: v.outputTokens ?? 10,
             cacheReadTokens: 0,
             cacheWriteTokens: 0,
             reasoningTokens: 0,
@@ -197,14 +212,14 @@ describe('recommendation rules', () => {
       expect(cards[0].sourceIds).toEqual(['github_copilot']);
     });
 
-    it('recommendation body references the correct model names from copilotSpendByModel', () => {
+    it('recommendation body references the correct model names from copilotModelCostBreakdown', () => {
       const metrics = metricsFromSessions([makeSession({ 'claude-opus-4-8': { requestCost: 12 } }, 12)]);
       const cards = R2.evaluate(ctx([metrics]));
       expect(cards[0].body).toContain('claude-opus-4-8');
       expect(cards[0].body).toContain('claude-haiku-4-5');
     });
 
-    it('computes savings estimate when cheaper model also has spend in copilotSpendByModel', () => {
+    it('computes savings estimate when cheaper model also has spend in copilotModelCostBreakdown', () => {
       // claude-opus-4-8 costs $10, claude-haiku-4-5 costs $1 → savings should be ~$9
       const metrics = metricsFromSessions([
         makeSession({ 'claude-opus-4-8': { requestCost: 10 }, 'claude-haiku-4-5': { requestCost: 1 } }, 11),
@@ -245,7 +260,7 @@ describe('recommendation rules', () => {
     });
 
     // Verifies aggregation: two sessions with same model must sum before threshold check
-    it('fires and sums copilotNetSpendUsd across two sessions when combined spend exceeds $5', () => {
+    it('fires and sums copilotTotalCostUsd across two sessions when combined spend exceeds $5', () => {
       const session1 = makeSession({ 'claude-opus-4-8': { requestCost: 3 } }, 3);
       const session2 = makeSession({ 'claude-opus-4-8': { requestCost: 3 } }, 3);
       const metrics = metricsFromSessions([session1, session2]);
@@ -255,8 +270,30 @@ describe('recommendation rules', () => {
       expect(cards.length).toBeGreaterThan(0);
       expect(cards[0].id).toBe('R2');
 
-      // Aggregation check: copilotNetSpendUsd must be the sum (6), not one session's value (3)
-      expect(metrics.copilotNetSpendUsd).toBe(6);
+      // Aggregation check: copilotTotalCostUsd must be the sum (6), not one session's value (3)
+      expect(metrics.copilotTotalCostUsd).toBe(6);
+    });
+
+    // MF-5 tests: avgOutputPerDay guard
+    it('MF-5: fires when avgOutputPerDay is below 500 (200 output / 8 days ≈ 25)', () => {
+      // periodStart/End: 8 days window, outputTokens: 200 → avgOutputPerDay ≈ 25
+      const metrics = metricsFromSessions([makeSession({ 'claude-opus-4-8': { requestCost: 12, outputTokens: 200 } }, 12)]);
+      const cards = R2.evaluate(ctx([metrics]));
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    it('MF-5: does not fire when avgOutputPerDay equals 500 (4000 output / 8 days = 500)', () => {
+      const metrics = metricsFromSessions([makeSession({ 'claude-opus-4-8': { requestCost: 12, outputTokens: 4000 } }, 12)]);
+      const cards = R2.evaluate(ctx([metrics]));
+      const opusCard = cards.find(c => c.body.includes('claude-opus-4-8'));
+      expect(opusCard).toBeUndefined();
+    });
+
+    it('MF-5: does not fire when avgOutputPerDay exceeds 500 (6000 output / 8 days = 750)', () => {
+      const metrics = metricsFromSessions([makeSession({ 'claude-opus-4-8': { requestCost: 12, outputTokens: 6000 } }, 12)]);
+      const cards = R2.evaluate(ctx([metrics]));
+      const opusCard = cards.find(c => c.body.includes('claude-opus-4-8'));
+      expect(opusCard).toBeUndefined();
     });
   });
 

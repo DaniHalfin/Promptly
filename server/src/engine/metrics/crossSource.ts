@@ -6,7 +6,7 @@ export function totalActualSpendUsd(sources: SourceReport[]): number {
     const metrics = source.metrics;
     if (!metrics) return sum;
 
-    return sum + (metrics.totalActualSpendUsd ?? 0) + (metrics.copilotNetSpendUsd ?? 0);
+    return sum + (metrics.totalActualSpendUsd ?? 0) + (metrics.copilotTotalCostUsd ?? 0);
   }, 0);
 }
 

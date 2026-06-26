@@ -7,6 +7,7 @@ import { CopilotPanel } from '../components/Results/panels/CopilotPanel.js';
 import { ClaudeCodePanel } from '../components/Results/panels/ClaudeCodePanel.js';
 import { FileExportPanel } from '../components/Results/panels/FileExportPanel.js';
 import { PrintLayout } from '../components/export/PrintLayout.js';
+import { transformReportForExport } from '../lib/exportTransform.js';
 import type { SourceId } from '../types/index.js';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -93,7 +94,7 @@ export function Results() {
   };
 
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(transformReportForExport(report), null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

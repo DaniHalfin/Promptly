@@ -19,14 +19,20 @@ const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData =>
   ...overrides,
 });
 
-const session = (model: string, requestCost: number): NormalizedCopilotSession => ({
+const session = (model: string, requestCost: number, extra?: Partial<{
+  inputTokens: number; outputTokens: number;
+  cacheReadTokens: number; cacheWriteTokens: number; reasoningTokens: number;
+}>): NormalizedCopilotSession => ({
   date: '2026-06-01',
   sourceFile: '/tmp/test/events.jsonl',
   models: {
     [model]: {
       requestCount: 1, requestCost,
-      inputTokens: 100, outputTokens: 50,
-      cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0,
+      inputTokens: extra?.inputTokens ?? 100,
+      outputTokens: extra?.outputTokens ?? 50,
+      cacheReadTokens: extra?.cacheReadTokens ?? 0,
+      cacheWriteTokens: extra?.cacheWriteTokens ?? 0,
+      reasoningTokens: extra?.reasoningTokens ?? 0,
     },
   },
   totalCost: requestCost,
@@ -43,20 +49,20 @@ const priceMap: PriceMap = new Map([[
 ]]);
 
 describe('computeTierBMetrics', () => {
-  it('sums Copilot net spend from sessions', () => {
+  it('sums Copilot total cost from sessions', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
       copilotSessions: [session('gpt-5.4', 3), session('gpt-5.4-mini', 4)],
     }), priceMap);
-    expect(metrics.copilotNetSpendUsd).toBe(7);
+    expect(metrics.copilotTotalCostUsd).toBe(7);
   });
 
-  it('sorts Copilot spend by model descending by net amount', () => {
+  it('sorts Copilot model cost breakdown descending by costUsd', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
       copilotSessions: [session('low', 1), session('high', 5), session('middle', 3)],
     }), priceMap);
-    expect(metrics.copilotSpendByModel?.map(r => r.model)).toEqual(['high', 'middle', 'low']);
+    expect(metrics.copilotModelCostBreakdown?.map(r => r.model)).toEqual(['high', 'middle', 'low']);
   });
 
   it('sets copilotSessionCount to the number of sessions', () => {
@@ -153,6 +159,96 @@ describe('computeTierBMetrics', () => {
     expect(claudeCode.totalInputTokensClaudeCode).toBe(150);
     expect(claudeCode.totalInputTokensAnthropic).toBeUndefined();
   });
+
+  // New MF-3 tests: copilotTokenBreakdownByModel
+  it('copilotTokenBreakdownByModel aggregates tokens across sessions', () => {
+    const s1: NormalizedCopilotSession = {
+      date: '2026-06-01', sourceFile: 'f.jsonl',
+      models: { 'model-x': { requestCount: 2, requestCost: 3, inputTokens: 200, outputTokens: 80, cacheReadTokens: 40, cacheWriteTokens: 20, reasoningTokens: 10 } },
+      totalCost: 3,
+    };
+    const s2: NormalizedCopilotSession = {
+      date: '2026-06-02', sourceFile: 'f.jsonl',
+      models: { 'model-x': { requestCount: 1, requestCost: 2, inputTokens: 100, outputTokens: 30, cacheReadTokens: 15, cacheWriteTokens: 5, reasoningTokens: 0 } },
+      totalCost: 2,
+    };
+    const result = copilotTokenBreakdownByModel([s1, s2]);
+    expect(result).toHaveLength(1);
+    expect(result[0].model).toBe('model-x');
+    expect(result[0].requestCount).toBe(3);
+    expect(result[0].requestCost).toBe(5);
+    expect(result[0].inputTokens).toBe(300);
+    expect(result[0].outputTokens).toBe(110);
+    expect(result[0].cacheReadTokens).toBe(55);
+    expect(result[0].cacheWriteTokens).toBe(25);
+    expect(result[0].reasoningTokens).toBe(10);
+  });
+
+  it('copilotTokenBreakdownByModel sorts descending by requestCost', () => {
+    const sessions = [
+      session('cheap', 1), session('expensive', 9), session('middle', 4),
+    ];
+    const result = copilotTokenBreakdownByModel(sessions);
+    expect(result.map(r => r.model)).toEqual(['expensive', 'middle', 'cheap']);
+  });
+
+  it('copilotTokenBreakdownByModel returns empty array for empty sessions', () => {
+    expect(copilotTokenBreakdownByModel([])).toEqual([]);
+  });
+
+  // New MF-3 tests: copilotCachedTokenFraction
+  it('copilotCachedTokenFraction computes per-model fractions correctly', () => {
+    const s: NormalizedCopilotSession = {
+      date: '2026-06-01', sourceFile: 'f.jsonl',
+      models: {
+        'model-a': { requestCount: 1, requestCost: 1, inputTokens: 1000, outputTokens: 100, cacheReadTokens: 300, cacheWriteTokens: 0, reasoningTokens: 0 },
+        'model-b': { requestCount: 1, requestCost: 2, inputTokens: 500, outputTokens: 50, cacheReadTokens: 100, cacheWriteTokens: 0, reasoningTokens: 0 },
+      },
+      totalCost: 3,
+    };
+    const result = copilotCachedTokenFraction([s]);
+    const ma = result.perModel.find(m => m.model === 'model-a');
+    const mb = result.perModel.find(m => m.model === 'model-b');
+    expect(ma?.fraction).toBeCloseTo(0.3);
+    expect(mb?.fraction).toBeCloseTo(0.2);
+    expect(result.aggregate).toBeCloseTo(400 / 1500);
+  });
+
+  it('copilotCachedTokenFraction aggregate is 0 when no input tokens', () => {
+    const result = copilotCachedTokenFraction([]);
+    expect(result.aggregate).toBe(0);
+    expect(result.perModel).toHaveLength(0);
+  });
+
+  it('copilotCachedTokenFraction handles division by zero per-model', () => {
+    const s: NormalizedCopilotSession = {
+      date: '2026-06-01', sourceFile: 'f.jsonl',
+      models: { 'model-z': { requestCount: 1, requestCost: 1, inputTokens: 0, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 } },
+      totalCost: 1,
+    };
+    const result = copilotCachedTokenFraction([s]);
+    expect(result.perModel[0].fraction).toBe(0);
+    expect(result.aggregate).toBe(0);
+  });
+
+  it('computeTierBMetrics populates copilotCachedTokenFraction on github_copilot', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [session('m', 5, { inputTokens: 400, cacheReadTokens: 100 })],
+    }), priceMap);
+    expect(metrics.copilotCachedTokenFraction).toBeDefined();
+    expect(metrics.copilotCachedTokenFraction?.aggregate).toBeCloseTo(0.25);
+  });
+
+  it('computeTierBMetrics populates copilotTokenBreakdownByModel on github_copilot', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [session('m', 5)],
+    }), priceMap);
+    expect(metrics.copilotTokenBreakdownByModel).toBeDefined();
+    expect(metrics.copilotTokenBreakdownByModel?.[0].model).toBe('m');
+    expect(metrics.copilotTokenBreakdownByModel?.[0].requestCost).toBe(5);
+  });
 });
 
 describe('Copilot pure metric functions', () => {
@@ -177,33 +273,25 @@ describe('Copilot pure metric functions', () => {
   });
 
   describe('copilotModelCostBreakdown', () => {
-    it('returns empty arrays for empty input', () => {
+    it('returns empty array for empty input', () => {
       const result = copilotModelCostBreakdown([]);
-      expect(result.copilotSpendByModel).toHaveLength(0);
-      expect(result.copilotModelDistribution).toHaveLength(0);
+      expect(result.copilotModelCostBreakdown).toHaveLength(0);
       expect(result.copilotTotalInputTokens).toBe(0);
       expect(result.copilotTotalOutputTokens).toBe(0);
     });
     it('computes correct spend share for each model', () => {
       const result = copilotModelCostBreakdown(sessions);
-      const modelA = result.copilotSpendByModel.find(r => r.model === 'model-a');
-      const modelB = result.copilotSpendByModel.find(r => r.model === 'model-b');
-      expect(modelA?.netSpendUsd).toBe(5);
-      expect(modelA?.spendShare).toBeCloseTo(0.5);
-      expect(modelB?.netSpendUsd).toBe(5);
-      expect(modelB?.spendShare).toBeCloseTo(0.5);
+      const modelA = result.copilotModelCostBreakdown.find(r => r.model === 'model-a');
+      const modelB = result.copilotModelCostBreakdown.find(r => r.model === 'model-b');
+      expect(modelA?.costUsd).toBe(5);
+      expect(modelA?.costShare).toBeCloseTo(0.5);
+      expect(modelB?.costUsd).toBe(5);
+      expect(modelB?.costShare).toBeCloseTo(0.5);
     });
-    it('sorts copilotSpendByModel descending by netSpendUsd', () => {
+    it('sorts copilotModelCostBreakdown descending by costUsd', () => {
       const uneven = [session('cheap', 1), session('expensive', 9)];
       const result = copilotModelCostBreakdown(uneven);
-      expect(result.copilotSpendByModel[0].model).toBe('expensive');
-    });
-    it('copilotModelDistribution mirrors copilotSpendByModel share', () => {
-      const result = copilotModelCostBreakdown(sessions);
-      for (const row of result.copilotSpendByModel) {
-        const dist = result.copilotModelDistribution.find(d => d.model === row.model);
-        expect(dist?.share).toBeCloseTo(row.spendShare);
-      }
+      expect(result.copilotModelCostBreakdown[0].model).toBe('expensive');
     });
     it('aggregates input and output tokens across sessions', () => {
       const result = copilotModelCostBreakdown(sessions);
@@ -212,15 +300,28 @@ describe('Copilot pure metric functions', () => {
     });
   });
 
-  describe('copilotTokenBreakdownByModel (stub)', () => {
-    it('returns undefined — not yet implemented (MF-1)', () => {
-      expect(copilotTokenBreakdownByModel(sessions)).toBeUndefined();
+  describe('copilotTokenBreakdownByModel', () => {
+    it('returns array sorted descending by requestCost', () => {
+      const result = copilotTokenBreakdownByModel(sessions);
+      expect(result).toBeInstanceOf(Array);
+      // model-a: 3+2=5, model-b: 5 — tie; both appear
+      expect(result.length).toBe(2);
+    });
+    it('returns empty array for empty sessions', () => {
+      expect(copilotTokenBreakdownByModel([])).toEqual([]);
     });
   });
 
-  describe('copilotCachedTokenFraction (stub)', () => {
-    it('returns undefined — not yet implemented (MF-2)', () => {
-      expect(copilotCachedTokenFraction(sessions)).toBeUndefined();
+  describe('copilotCachedTokenFraction', () => {
+    it('returns object with perModel and aggregate', () => {
+      const result = copilotCachedTokenFraction(sessions);
+      expect(result).toHaveProperty('perModel');
+      expect(result).toHaveProperty('aggregate');
+    });
+    it('returns aggregate 0 for empty sessions', () => {
+      const result = copilotCachedTokenFraction([]);
+      expect(result.aggregate).toBe(0);
+      expect(result.perModel).toHaveLength(0);
     });
   });
 });

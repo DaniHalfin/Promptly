@@ -19,11 +19,11 @@ test.describe('analysis results', () => {
     await expect(page.getByText('64.0%')).toBeVisible();
   });
 
-  test('CopilotPanel renders net spend and model table', async ({ page }) => {
+  test('CopilotPanel renders total cost and model table', async ({ page }) => {
     await navigateToMockResults(page);
 
     await expect(page.getByRole('heading', { name: 'GitHub Copilot' })).toBeVisible();
-    await expect(page.getByText('Net Spend', { exact: true })).toBeVisible();
+    await expect(page.getByText('Total Cost', { exact: true })).toBeVisible();
     await expect(page.getByText('$85.25')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Model spend' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'gpt-5.3-codex' })).toBeVisible();

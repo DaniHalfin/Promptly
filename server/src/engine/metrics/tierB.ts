@@ -180,11 +180,10 @@ export function copilotTotalCost(sessions: NormalizedCopilotSession[]): number {
 }
 
 /**
- * §7.18 — Per-model spend breakdown, distribution share, and token totals.
+ * §7.18 — Per-model spend breakdown with full token detail.
  */
 export function copilotModelCostBreakdown(sessions: NormalizedCopilotSession[]): {
-  copilotSpendByModel: Array<{ model: string; netAmountUsd: number; netSpendUsd: number; spendShare: number }>;
-  copilotModelDistribution: Array<{ model: string; share: number }>;
+  copilotModelCostBreakdown: Array<{ model: string; costUsd: number; costShare: number }>;
   copilotTotalInputTokens: number;
   copilotTotalOutputTokens: number;
 } {
@@ -205,48 +204,148 @@ export function copilotModelCostBreakdown(sessions: NormalizedCopilotSession[]):
     }
   }
 
-  const copilotSpendByModel = Object.entries(modelAgg)
+  const breakdown = Object.entries(modelAgg)
     .map(([model, agg]) => ({
       model,
-      netAmountUsd: agg.requestCost,
-      netSpendUsd: agg.requestCost,
-      spendShare: totalNetSpend > 0 ? agg.requestCost / totalNetSpend : 0,
+      costUsd: agg.requestCost,
+      costShare: totalNetSpend > 0 ? agg.requestCost / totalNetSpend : 0,
     }))
-    .sort((a, b) => b.netSpendUsd - a.netSpendUsd);
+    .sort((a, b) => b.costUsd - a.costUsd);
 
-  const copilotModelDistribution = copilotSpendByModel.map(row => ({
-    model: row.model,
-    share: row.spendShare,
+  return { copilotModelCostBreakdown: breakdown, copilotTotalInputTokens: totalInputTokens, copilotTotalOutputTokens: totalOutputTokens };
+}
+
+/** §7.19 — Token breakdown by model, sorted desc by requestCost. */
+export function copilotTokenBreakdownByModel(sessions: NormalizedCopilotSession[]): Array<{
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  reasoningTokens: number;
+  requestCount: number;
+  requestCost: number;
+}> {
+  const modelAgg: Record<string, {
+    requestCount: number; requestCost: number;
+    inputTokens: number; outputTokens: number;
+    cacheReadTokens: number; cacheWriteTokens: number; reasoningTokens: number;
+  }> = {};
+
+  for (const session of sessions) {
+    for (const [model, m] of Object.entries(session.models)) {
+      if (!modelAgg[model]) {
+        modelAgg[model] = { requestCount: 0, requestCost: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 };
+      }
+      modelAgg[model].requestCount += m.requestCount;
+      modelAgg[model].requestCost += m.requestCost;
+      modelAgg[model].inputTokens += m.inputTokens;
+      modelAgg[model].outputTokens += m.outputTokens;
+      modelAgg[model].cacheReadTokens += m.cacheReadTokens;
+      modelAgg[model].cacheWriteTokens += m.cacheWriteTokens;
+      modelAgg[model].reasoningTokens += m.reasoningTokens;
+    }
+  }
+
+  return Object.entries(modelAgg)
+    .map(([model, agg]) => ({
+      model,
+      inputTokens: agg.inputTokens, outputTokens: agg.outputTokens,
+      cacheReadTokens: agg.cacheReadTokens, cacheWriteTokens: agg.cacheWriteTokens,
+      reasoningTokens: agg.reasoningTokens, requestCount: agg.requestCount, requestCost: agg.requestCost,
+    }))
+    .sort((a, b) => b.requestCost - a.requestCost);
+}
+
+/** §7.20 — Cache-read fraction per model and aggregate. */
+export function copilotCachedTokenFraction(sessions: NormalizedCopilotSession[]): {
+  perModel: { model: string; fraction: number }[];
+  aggregate: number;
+} {
+  const modelAgg: Record<string, { inputTokens: number; cacheReadTokens: number }> = {};
+
+  for (const session of sessions) {
+    for (const [model, m] of Object.entries(session.models)) {
+      if (!modelAgg[model]) modelAgg[model] = { inputTokens: 0, cacheReadTokens: 0 };
+      modelAgg[model].inputTokens += m.inputTokens;
+      modelAgg[model].cacheReadTokens += m.cacheReadTokens;
+    }
+  }
+
+  const perModel = Object.entries(modelAgg).map(([model, agg]) => ({
+    model,
+    fraction: agg.inputTokens > 0 ? agg.cacheReadTokens / agg.inputTokens : 0,
   }));
 
-  return { copilotSpendByModel, copilotModelDistribution, copilotTotalInputTokens: totalInputTokens, copilotTotalOutputTokens: totalOutputTokens };
-}
+  const totalInput = Object.values(modelAgg).reduce((sum, m) => sum + m.inputTokens, 0);
+  const totalCacheRead = Object.values(modelAgg).reduce((sum, m) => sum + m.cacheReadTokens, 0);
+  const aggregate = totalInput > 0 ? totalCacheRead / totalInput : 0;
 
-/** §7.19 — Token breakdown by model. Stub — implemented in MF-1. */
-export function copilotTokenBreakdownByModel(_sessions: NormalizedCopilotSession[]): undefined {
-  return undefined; // TODO: implement in MF-1
-}
-
-/** §7.20 — Cache-read fraction. Stub — implemented in MF-2. */
-export function copilotCachedTokenFraction(_sessions: NormalizedCopilotSession[]): undefined {
-  return undefined; // TODO: implement in MF-2
+  return { perModel, aggregate };
 }
 
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceMetrics> {
   const sessions = data.copilotSessions ?? [];
-  if (sessions.length === 0) return { copilotNetSpendUsd: 0, copilotSessionCount: 0 };
+  if (sessions.length === 0) return { copilotTotalCostUsd: 0, copilotSessionCount: 0 };
 
-  const { copilotSpendByModel, copilotModelDistribution, copilotTotalInputTokens, copilotTotalOutputTokens } =
-    copilotModelCostBreakdown(sessions);
+  const modelAgg: Record<string, {
+    requestCount: number; requestCost: number;
+    inputTokens: number; outputTokens: number;
+    cacheReadTokens: number; cacheWriteTokens: number; reasoningTokens: number;
+  }> = {};
+  let totalNetSpend = 0;
+
+  for (const session of sessions) {
+    totalNetSpend += session.totalCost;
+    for (const [model, m] of Object.entries(session.models)) {
+      if (!modelAgg[model]) {
+        modelAgg[model] = { requestCount: 0, requestCost: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 };
+      }
+      modelAgg[model].requestCount += m.requestCount;
+      modelAgg[model].requestCost += m.requestCost;
+      modelAgg[model].inputTokens += m.inputTokens;       // TOTAL — cache subsets are NOT additive
+      modelAgg[model].outputTokens += m.outputTokens;     // TOTAL — reasoning is NOT additive
+      modelAgg[model].cacheReadTokens += m.cacheReadTokens;
+      modelAgg[model].cacheWriteTokens += m.cacheWriteTokens;
+      modelAgg[model].reasoningTokens += m.reasoningTokens;
+    }
+  }
+
+  // §7.16 token breakdown table — sorted desc by requestCost
+  const tokenBreakdownByModel = Object.entries(modelAgg)
+    .map(([model, agg]) => ({
+      model,
+      inputTokens: agg.inputTokens, outputTokens: agg.outputTokens,
+      cacheReadTokens: agg.cacheReadTokens, cacheWriteTokens: agg.cacheWriteTokens,
+      reasoningTokens: agg.reasoningTokens, requestCount: agg.requestCount, requestCost: agg.requestCost,
+    }))
+    .sort((a, b) => b.requestCost - a.requestCost);
+
+  // §3.5 model cost breakdown
+  const modelCostBreakdown = Object.entries(modelAgg)
+    .map(([model, agg]) => ({
+      model, costUsd: agg.requestCost,
+      costShare: totalNetSpend > 0 ? agg.requestCost / totalNetSpend : 0,
+    }))
+    .sort((a, b) => b.costUsd - a.costUsd);
+
+  // §7.19 cached token fraction
+  const totalInputTokens = Object.values(modelAgg).reduce((sum, m) => sum + m.inputTokens, 0);
+  const totalCacheRead = Object.values(modelAgg).reduce((sum, m) => sum + m.cacheReadTokens, 0);
+  const cachedFraction = {
+    perModel: Object.entries(modelAgg).map(([model, agg]) => ({
+      model, fraction: agg.inputTokens > 0 ? agg.cacheReadTokens / agg.inputTokens : 0,
+    })),
+    aggregate: totalInputTokens > 0 ? totalCacheRead / totalInputTokens : 0,
+  };
 
   return {
-    copilotNetSpendUsd: copilotTotalCost(sessions),
-    copilotSpendByModel,
-    copilotModelDistribution,
-    copilotTotalInputTokens,
-    copilotTotalOutputTokens,
-    copilotSessionCount: copilotSessionCount(sessions),
+    copilotTotalCostUsd: totalNetSpend,
+    copilotModelCostBreakdown: modelCostBreakdown,
+    copilotTokenBreakdownByModel: tokenBreakdownByModel,
+    copilotCachedTokenFraction: cachedFraction,
+    copilotSessionCount: sessions.length,
   };
 }

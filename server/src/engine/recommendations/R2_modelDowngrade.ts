@@ -75,48 +75,51 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
 
 function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
   const copilot = ctx.sources.find(source => source.sourceId === 'github_copilot');
-  if (!copilot || (copilot.copilotNetSpendUsd ?? 0) < 5 || !copilot.copilotModelDistribution) return [];
+  if (!copilot || (copilot.copilotTotalCostUsd ?? 0) < 5 || !copilot.copilotModelCostBreakdown) return [];
 
-  return copilot.copilotModelDistribution.flatMap(model => {
-    if (model.share <= 0.3) return [];
+  const periodDays = computeDataWindowDays(copilot.periodStart, copilot.periodEnd);
+
+  return copilot.copilotModelCostBreakdown.flatMap(model => {
+    if (model.costShare <= 0.3) return [];
 
     const downgrade = COPILOT_DOWNGRADE_MAP.find(entry => entry.pattern.test(model.model));
     if (!downgrade) return [];
     if (model.model === downgrade.cheaper) return [];
 
+    // §3.6 MF-5: skip models where avgOutputPerDay >= 500
+    const breakdownEntry = (copilot.copilotTokenBreakdownByModel ?? []).find(b => b.model === model.model);
+    if (!breakdownEntry) return [];
+    const avgOutputPerDay = breakdownEntry.outputTokens / periodDays;
+    if (avgOutputPerDay >= 500) return [];
+
     const estimatedSavingsUsd = estimateCopilotSavings(copilot, model.model, downgrade.cheaper);
 
-    return [
-      {
-        id: 'R2',
-        severity: 'High',
-        title: 'Premium Copilot model drives most AI credit spend',
-        body:
-          `${model.model} accounts for ${(model.share * 100).toFixed(1)}% of Copilot AI credit spend. ` +
-          `${downgrade.cheaper} is ${downgrade.rationale}. Consider switching to ${downgrade.cheaper} for routine Chat and CLI interactions in Copilot settings.`,
-        triggeringMetric: 'Copilot model cost share',
-        triggeringValue: `${(model.share * 100).toFixed(1)}%`,
-        estimatedSavingsUsd,
-        sourceIds: ['github_copilot'],
-      } satisfies RecommendationResult,
-    ];
+    return [{
+      id: 'R2',
+      severity: 'High',
+      title: 'Premium Copilot model drives most AI credit spend',
+      body:
+        `${model.model} accounts for ${(model.costShare * 100).toFixed(1)}% of Copilot AI credit spend. ` +
+        `${downgrade.cheaper} is ${downgrade.rationale}. Consider switching to ${downgrade.cheaper} for routine Chat and CLI interactions in Copilot settings.`,
+      triggeringMetric: 'Copilot model cost share',
+      triggeringValue: `${(model.costShare * 100).toFixed(1)}%`,
+      estimatedSavingsUsd,
+      sourceIds: ['github_copilot'],
+    } satisfies RecommendationResult];
   });
 }
 
 function estimateCopilotSavings(source: SourceMetrics, modelName: string, cheaperName: string): number | undefined {
-  const spendRows = source.copilotSpendByModel ?? [];
-  const currentSpend = spendRows.find(row => row.model === modelName)?.netSpendUsd;
+  const spendRows = source.copilotModelCostBreakdown ?? [];
+  const currentSpend = spendRows.find(row => row.model === modelName)?.costUsd;
   if (currentSpend === undefined) return undefined;
-
-  // SourceMetrics does not carry Copilot pricePerUnit, so only emit a conservative estimate
-  // when the cheaper model already appears in the observed billing distribution.
-  const cheaperSpend = spendRows.find(row => row.model === cheaperName)?.netSpendUsd;
+  const cheaperSpend = spendRows.find(row => row.model === cheaperName)?.costUsd;
   if (cheaperSpend === undefined) return undefined;
-
   return Math.max(0, currentSpend - cheaperSpend);
 }
 
-function computeDataWindowDays(start: string, end: string): number {
+function computeDataWindowDays(start?: string, end?: string): number {
+  if (!start || !end) return 30; // default fallback
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) return 1;

@@ -69,17 +69,22 @@
         "periodStart": "2026-05-23",
         "periodEnd": "2026-06-22",
         "warnings": ["Acceptance metrics require GitHub org admin access."],
-        "copilotNetSpendUsd": 85.25,
-        "copilotSpendByModel": [
-          { "model": "gpt-5.3-codex", "netAmountUsd": 55.41, "netSpendUsd": 55.41, "spendShare": 0.65 },
-          { "model": "claude-sonnet-4.5", "netAmountUsd": 29.84, "netSpendUsd": 29.84, "spendShare": 0.35 }
+        "copilotTotalCostUsd": 85.25,
+        "copilotModelCostBreakdown": [
+          { "model": "gpt-5.3-codex", "costUsd": 55.41, "costShare": 0.65 },
+          { "model": "claude-sonnet-4.5", "costUsd": 29.84, "costShare": 0.35 }
         ],
-        "copilotModelDistribution": [
-          { "model": "gpt-5.3-codex", "share": 0.65 },
-          { "model": "claude-sonnet-4.5", "share": 0.35 }
+        "copilotTokenBreakdownByModel": [
+          { "model": "gpt-5.3-codex", "inputTokens": 1400000, "outputTokens": 240000, "cacheReadTokens": 420000, "cacheWriteTokens": 110000, "reasoningTokens": 0, "requestCount": 1820, "requestCost": 55.41 },
+          { "model": "claude-sonnet-4.5", "inputTokens": 750000, "outputTokens": 140000, "cacheReadTokens": 180000, "cacheWriteTokens": 60000, "reasoningTokens": 12000, "requestCount": 940, "requestCost": 29.84 }
         ],
-        "copilotTotalInputTokens": 2150000,
-        "copilotTotalOutputTokens": 380000,
+        "copilotCachedTokenFraction": {
+          "aggregate": 0.277,
+          "perModel": [
+            { "model": "gpt-5.3-codex", "fraction": 0.300 },
+            { "model": "claude-sonnet-4.5", "fraction": 0.240 }
+          ]
+        },
         "copilotSessionCount": 89
       }
     },

@@ -277,13 +277,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                   </p>
                 </div>
               )}
-              {metrics.copilotNetSpendUsd !== undefined && (
+              {metrics.copilotTotalCostUsd !== undefined && (
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    NET SPEND
+                    TOTAL COST
                   </p>
                   <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold', color: '#0066cc' }}>
-                    ${metrics.copilotNetSpendUsd.toFixed(2)}
+                    ${metrics.copilotTotalCostUsd.toFixed(2)}
                   </p>
                 </div>
               )}
