@@ -1,4 +1,4 @@
-# Promptly Engineering Design v1.1
+# Promptly Engineering Design v1.2
 
 **Version:** 1.2
 **Date:** 2026-06-25
@@ -6,6 +6,8 @@
 **Source spec:** spec.md (amended per design amendment v1.2)
 **Status:** Canonical (current)
 **Supersedes:** v1.0 (2026-06-18)
+
+> **Note:** Design Amendment v1.2 (GitHub Copilot adapter: credential-based API → local JSONL file) has been merged into this document. The amendment source document is [`engineering-design-amendment-v1.2.md`](./engineering-design-amendment-v1.2.md) (retained as historical reference).
 
 ---
 
@@ -51,20 +53,27 @@ graph TB
     subgraph External["External Provider APIs"]
         OAI[api.openai.com]
         ANT[api.anthropic.com]
-        GH[api.github.com]
+    end
+
+    subgraph LocalFS["Local Filesystem"]
+        CC["~/.claude/projects/**/*.jsonl<br/>(Claude Code sessions)"]
+        GHC["~/.copilot/session-state/*/events.jsonl<br/>(GitHub Copilot sessions)"]
     end
 
     UI -->|HTTP loopback<br/>credentials in headers| API
     ADP -->|HTTPS| OAI
     ADP -->|HTTPS| ANT
-    ADP -->|HTTPS| GH
+    ADP -->|reads| CC
+    ADP -->|reads| GHC
 
     classDef browser fill:#e1f5ff,stroke:#0288d1
     classDef local fill:#fff4e1,stroke:#f57c00
     classDef external fill:#f5e1ff,stroke:#7b1fa2
+    classDef localfs fill:#e8f5e9,stroke:#388e3c
     class UI,Mem browser
     class API,ADP,ENG,PRICE,TT local
-    class OAI,ANT,GH external
+    class OAI,ANT external
+    class CC,GHC localfs
 ```
 
 ### 1.2 Data Flow per Source
@@ -76,11 +85,11 @@ flowchart LR
         V --> F[POST /api/analyze fans out]
         F --> A1[OpenAI Adapter: Usage + Costs APIs]
         F --> A2[Anthropic Adapter: Usage + Cost Report APIs]
-        F --> A3[GitHub Copilot Adapter: billing/ai_credit/usage + engagement reports]
     end
 
     subgraph Local_Sources["Local File Sources (Tier B)"]
         EN[Card enabled by user] --> FS[POST /api/analyze]
+        FS --> A3[GitHub Copilot Adapter: enumerate ~/.copilot/session-state/*/events.jsonl, parse JSONL, extract session.shutdown events]
         FS --> A4[Claude Code Adapter: enumerate ~/.claude/projects/**/*.jsonl, parse JSONL, compute cost from tokens × price map]
     end
 
@@ -133,8 +142,7 @@ sequenceDiagram
         ADP->>PROV: paginate /v1/organization/usage_report/messages
         ADP->>PROV: paginate /v1/organization/cost_report
     and GitHub Copilot
-        ADP->>PROV: GET /organizations/{org}/settings/billing/ai_credit/usage (org plan)<br/>or GET /users/{username}/settings/billing/ai_credit/usage (individual plan)<br/>Header: X-GitHub-Api-Version: 2026-03-10
-        ADP->>PROV: GET /orgs/{org}/copilot/metrics/reports/organization-1-day (engagement NDJSON)
+        Note over ADP: enumerate ~/.copilot/session-state/*/events.jsonl (no network call)<br/>parse JSONL, filter session.shutdown events<br/>extract modelMetrics (per-model tokens + requestCost) + totalPremiumRequests
     and Claude Code
         Note over ADP: enumerate ~/.claude/projects/**/*.jsonl (no network call)<br/>parse JSONL per-message token counts<br/>compute cost = tokens × LiteLLM price map
     end
@@ -331,7 +339,7 @@ Returns metadata about the LiteLLM price map currently loaded. Used for the "Ass
 
 #### `POST /api/sources/:sourceId/validate`
 
-Lightweight credential check before kicking off full analysis. `:sourceId` is one of `openai | anthropic | github_copilot`. (File sources are validated client-side.)
+Lightweight credential check before kicking off full analysis. `:sourceId` is one of `openai | anthropic | github_copilot`. For API sources (`openai`, `anthropic`) this requires an `X-Source-Credential` header. For `github_copilot`, no credential header is required — the server performs a filesystem probe of `~/.copilot/session-state/`. (Claude Code is validated the same way; its sourceId is not routed through this endpoint but uses the same pattern.)
 
 **Headers:**
 - `X-Source-Credential`: the API key or token (raw value)
@@ -373,7 +381,8 @@ The main workhorse. Accepts a multipart form with:
 **Headers (one per configured API source):**
 - `X-Credential-OpenAI`: `<openai admin key>` (if OpenAI configured)
 - `X-Credential-Anthropic`: `<anthropic admin key>` (if Anthropic configured)
-- `X-Credential-GitHub`: `<github PAT>` (if Copilot configured)
+
+GitHub Copilot and Claude Code do not send credential headers — they are local-file sources and require no authentication.
 
 **Why headers, not body**: keys are scoped to the request and easy to scrub from any future logging without touching body parsing.
 
@@ -511,87 +520,59 @@ interface CopilotShutdownEvent {
 }
 ```
 
-- **validate**: Call `GET /user` with `Authorization: token <pat>` and `X-GitHub-Api-Version: 2026-03-10` to confirm PAT validity and retrieve `{username}`.
-  - 401 → `INVALID_KEY` immediately; stop.
-  - Any other non-2xx → `{ valid: false, error: { code: 'UNKNOWN', message: 'GitHub /user returned unexpected status ${status}.' } }`
-
-  Then **auto-discover org membership** and probe in the following order:
-
-  1. **Org probe (first):** Call `GET /user/memberships/orgs?state=active` (no additional scope needed beyond the PAT being authenticated). Collect all orgs where `role` is `"member"` or `"admin"`. For each discovered org (in order returned by the API), attempt:
-     ```
-     GET /organizations/{org}/settings/billing/ai_credit/usage?per_page=1
-     Header: X-GitHub-Api-Version: 2026-03-10
-     ```
-     Use the first org that returns **200**. Record `resolvedOrg: orgLogin` in `ctx.options` for use by `run`. If `GET /user/memberships/orgs` itself returns 404 or the user has zero active org memberships, skip to step 2 without error.
-
-  2. **Individual fallback (second):** If no org returned 200 (or no orgs were found), attempt:
-     ```
-     GET /users/{username}/settings/billing/ai_credit/usage?per_page=1
-     Header: X-GitHub-Api-Version: 2026-03-10
-     ```
-     If 200 → record `resolvedOrg: null` in `ctx.options`.
-
-  3. **Both failed:** If all org probes returned 403/404 **and** the individual probe returned 403/404:
-     - If `GET /user/memberships/orgs` found at least one org → `NOT_FOUND` with message: `"This GitHub token does not have the required permissions to access Copilot billing data. For org-licensed Copilot, your token needs 'repo' scope and the account must be an org admin or billing manager."`
-     - If no orgs were found → `NOT_FOUND` with message: `"No GitHub organization memberships found and the individual billing endpoint returned 403/404. Ensure you have an active Copilot plan (individual or org) and that the token has the required scopes."`
-
-  **Either org or individual 200 → `{ valid: true }`**
-
-  **Token scope notes:**
-  - Org endpoint: classic PAT with `repo` scope (recommended) or `admin:org`; caller must be org admin or billing manager.
-  - Individual endpoint: classic PAT with `user` scope; user must have a self-purchased Copilot plan (Free/Pro/Pro+/Max).
-  - `GET /user/memberships/orgs` requires only that the PAT is authenticated (no extra scope); it enumerates orgs the authenticated user belongs to.
-  - Fine-grained PATs are **not** supported by the billing endpoints.
-  - `orgSlug` is **not** a supported `ctx.options` field and must not be referenced anywhere in this adapter.
-
-  **`run` endpoint resolution:** During `run`, read `ctx.options.resolvedOrg`. If non-null, use the org billing endpoint for that org login. If null, use the individual endpoint. If `ctx.options.resolvedOrg` is absent (e.g., run called without a prior validate), repeat the org-discovery probe inline before fetching data.
+- **validate**: Filesystem probe — no network call, no credentials required.
+  ```
+  root = path.join(os.homedir(), '.copilot', 'session-state')
+  ```
+  - If `root` does not exist (`fs.access` throws): `{ valid: false, error: { code: 'NOT_FOUND', message: 'No Copilot session data found. Have you run GitHub Copilot at least once?' } }`
+  - Otherwise: `{ valid: true }`
 
 - **run**:
 
-  1. **Billing data (cost-denominated, Tier B):**
-     ```
-     GET /organizations/{org}/settings/billing/ai_credit/usage
-       ?startDate=<YYYY-MM-DD>&endDate=<YYYY-MM-DD>&per_page=100&page=<cursor>
-     Header: X-GitHub-Api-Version: 2026-03-10
-     ```
-     For individual plans, substitute `/users/{username}/settings/billing/ai_credit/usage`.
-     Paginate until exhausted. Each page returns `{ usageItems: [...] }` where each item has:
-     ```typescript
-     {
-       product: string;         // e.g. "copilot_chat"
-       sku: string;
-       model: string;           // e.g. "claude-sonnet-4-6", "gpt-5.4", "gemini-3-5-flash"
-       pricePerUnit: number;    // AI credits per unit
-       grossQuantity: number;   // interactions billed
-       grossAmount: number;     // AI credits (gross)
-       discountAmount: number;  // AI credits discounted
-       netAmount: number;       // AI credits net (grossAmount - discountAmount)
-     }
-     ```
-     1 AI credit = $0.01 USD. Convert all amounts: `usd = credits * 0.01`.
+  **Phase 1:** Discover session directories.
+  ```
+  subdirs = fs.readdirSync(SESSION_STATE_ROOT, { withFileTypes: true })
+              .filter(d => d.isDirectory())
+  ```
+  If empty, return `{ copilotSessions: [] }`.
 
-  2. **Engagement metrics (acceptance rate, completion counts):**
-     ```
-     GET /orgs/{org}/copilot/metrics/reports/organization-1-day   → NDJSON download URL
-     GET /orgs/{org}/copilot/metrics/reports/users-1-day          → NDJSON download URL
-     ```
-     Follow the redirect to the NDJSON file. Parse line-by-line. Fields needed per day:
-     `total_suggestions_count`, `total_acceptances_count`.
-     Skip if 404 (user may lack org scope; engagement data is non-blocking).
+  **Phase 2:** Read and parse each `events.jsonl`.
+  For each subdir, read `<subdir>/events.jsonl`. Skip if the file does not exist. For each line, parse JSON and filter for `event.type === 'session.shutdown'`. Skip events whose `sessionStartTime` falls outside the analysis window. For qualifying events, call `buildNormalizedSession(event, toLocalDateString(event.sessionStartTime), filePath)`. Parse errors on individual lines are caught; malformed files are accumulated in `malformedFiles[]` (deduplicated — one entry per file).
 
-  3. **Normalize to `NormalizedSourceData`:**
-     ```typescript
-     {
-       sourceId: 'github_copilot',
-       copilotSessions: NormalizedCopilotSession[],   // one entry per session.shutdown event in window
-       periodStart: string,
-       periodEnd: string,
-     }
-     ```
+  **Phase 3:** Emit warning if any files could not be fully parsed:
+  `"One or more Copilot session files could not be fully parsed. Sessions with malformed events are skipped; all valid session.shutdown events are still included."`
 
-- **Tier output**: `'B'` (actual AI credit costs per model, model attribution).
-- **Error on completions endpoint 404**: Log warning `"Engagement data unavailable (org metrics endpoint returned 404). Acceptance rate will not be shown."` in `AdapterResult.warnings`. Do not fail the adapter.
-- **Timeout/retry**: same policy as `openai.ts` (30s/call, 3 attempts exp. backoff, 90s soft cap).
+  **Phase 4:** If `sessions` is empty but `subdirs` were found, emit warning:
+  `"No Copilot session data found for the selected period. Try a wider date range."`
+
+  **Phase 5:** Return `{ data: { copilotSessions }, metadata: { sessionCount, totalCost, dateRange } }`.
+
+  **`buildNormalizedSession(event, date, filePath)`:** If `event.modelMetrics` is absent or empty, return `{ date, sourceFile: filePath, models: {}, totalCost: event.totalPremiumRequests ?? 0 }`. Otherwise, build the `models` map from each `[modelName, metrics]` entry in `modelMetrics`:
+  ```typescript
+  models[modelName] = {
+    requestCount: metrics.requests.count,
+    requestCost:  metrics.requests.cost,
+    inputTokens:       metrics.usage.inputTokens,
+    outputTokens:      metrics.usage.outputTokens,
+    cacheReadTokens:   metrics.usage.cacheReadTokens,
+    cacheWriteTokens:  metrics.usage.cacheWriteTokens,
+    reasoningTokens:   metrics.usage.reasoningTokens,
+  };
+  ```
+  Returns `{ date, sourceFile: filePath, models, totalCost: event.totalPremiumRequests ?? 0 }`.
+
+- **Normalized output** (`NormalizedSourceData`):
+  ```typescript
+  {
+    sourceId: 'github_copilot',
+    copilotSessions: NormalizedCopilotSession[],   // one entry per qualifying session.shutdown event
+    periodStart: string,
+    periodEnd: string,
+  }
+  ```
+
+- **Tier output**: `'B'` (token counts + premium request costs per model, per session).
+- **Timeout/retry**: N/A — local filesystem reads; no network calls.
 
 #### 3.3.4 `chatgptExport.ts`
 
@@ -737,7 +718,7 @@ Maps each spec §7 metric to a pure function. Organization:
 | Spec metric | Module | Function | Inputs | Output |
 |---|---|---|---|---|
 | 7.1 Total actual spend | metrics/crossSource.ts | `totalActualSpendUsd(sources)` | `NormalizedSourceData[]` + priceMap | `{ actualUsd, totalUsd }` |
-| 7.2 Total tokens | metrics/crossSource.ts | `totalTokens(sources)` | sources | `{ actualTokens }` (Copilot excluded) |
+| 7.2 Total tokens | metrics/crossSource.ts | `totalTokens(sources)` | sources | `{ actualTokens }` (all four P0 sources: OpenAI, Anthropic, Claude Code, GitHub Copilot) |
 | 7.3 Analysis period | metrics/crossSource.ts | `analysisPeriod(sources, req)` | sources + req | `{ start, end, perSource: {...} }` |
 | 7.4 Total spend actual | metrics/tierB.ts | `totalActualSpendUsd(daily)` | `dailyCostUsd[]` | number |
 | 7.5 Daily spend trend | metrics/tierB.ts | `dailySpendTrend(daily)` | `dailyCostUsd[]` | `{ date, costUsd }[]` |
@@ -753,11 +734,11 @@ Maps each spec §7 metric to a pure function. Organization:
 | 7.13 Claude Code session count | metrics/tierB.ts | `claudeCodeSessionCount(raw)` | `NormalizedSourceData` (claude_code) | number |
 | 7.14 Claude Code avg tokens/session | metrics/tierB.ts | `claudeCodeAvgTokensPerSession(raw)` | `NormalizedSourceData` (claude_code) | number |
 | 7.15a Claude Code peak-hour fraction | *(adapter pre-computed)* | — computed in `claudeCode.ts` step 4a | Per-session timestamps from `sessionFirstTimestamps` | `number \| undefined` in `NormalizedSourceData.claudeCodePeakHourFraction`; mapped 1:1 into `SourceMetrics.claudeCodePeakHourFraction`. No separate `tierB.ts` function needed. |
-| 7.15 Copilot total AI credit spend | metrics/tierB.ts | `copilotTotalSpend(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ grossUsd, discountUsd, netUsd }` |
-| 7.16 Copilot spend by model | metrics/tierB.ts | `copilotSpendByModel(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, netUsd, share }[]` |
-| 7.17 Copilot cost per interaction | metrics/tierB.ts | `copilotCostPerInteraction(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | number (USD) |
-| 7.18 Copilot model distribution | metrics/tierB.ts | `copilotModelDistribution(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, share }[]` |
-| 7.19 Copilot acceptance rate | metrics/tierB.ts | — | Not available from local JSONL source. Removed from Tier B metric set. | `number \| null` |
+| 7.15 Copilot session count | metrics/tierB.ts | `copilotSessionCount(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `number` |
+| 7.16 Copilot token breakdown by model | metrics/tierB.ts | `copilotTokenBreakdownByModel(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, requestCount, requestCost }[]` |
+| 7.17 Copilot total cost | metrics/tierB.ts | `copilotTotalCost(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `number` (USD — sum of `requests.cost` across all models and sessions) |
+| 7.18 Copilot model cost breakdown | metrics/tierB.ts | `copilotModelCostBreakdown(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, costUsd, costShare }[]` |
+| 7.19 Copilot cached token fraction | metrics/tierB.ts | `copilotCachedTokenFraction(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ perModel: { model: string; fraction: number }[]; aggregate: number }` |
 
 **Note on §7.6 (OpenAI model cost share):** `modelCostShare()` returns **estimated** per-model cost for OpenAI sources. The Costs API returns only daily totals; per-model cost is approximated as each model's token fraction of the daily total multiplied by the daily cost. The function must attach `estimated: true` to each entry when `sourceId === 'openai'`. The UI must render these entries with the label "Estimated model cost breakdown" (not just "Model cost breakdown").
 
@@ -789,7 +770,7 @@ Rules return an empty array when their trigger does not fire (one rule may retur
 | Rule | File | Trigger (spec §8) | Inputs needed | Output fields |
 |---|---|---|---|---|
 | R1 Prompt Caching | `R1_promptCaching.ts` | **Path A (Anthropic):** `cache_creation_input_tokens_anthropic == 0 AND total_input_tokens_anthropic > 100000`<br>**Path B (Anthropic):** `cache_fraction_anthropic < 0.1 AND total_input_tokens_anthropic > 100000`<br>**Path C (Claude Code):** `(cache_creation_input_tokens_claude_code == 0 OR cache_fraction_claude_code < 0.1) AND total_input_tokens_claude_code > 100000` | Anthropic and/or Claude Code source metrics, priceMap | `{ id, severity:'Medium', title, body, triggeringMetric, triggeringValue, estimatedSavingsUsd, sourceIds }`; **one card per triggering source** |
-| R2 Model Downgrade | `R2_modelDowngrade.ts` | `model_cost_share(m) > 0.3 AND output_tokens_per_day(m) < 500 AND spend(m) > $5 AND m in DOWNGRADE_MAP` (non-Copilot)<br>OR `copilot_model_cost_share(m) > 0.3 AND total_copilot_net_usd > $5 AND m in COPILOT_DOWNGRADE_MAP` (Copilot) | All Tier B source metrics, priceMap | `{ id, severity:'High', ... }` one card per triggering model |
+| R2 Model Downgrade | `R2_modelDowngrade.ts` | `model_cost_share(m) > 0.3 AND output_tokens_per_day(m) < 500 AND spend(m) > $5 AND m in DOWNGRADE_MAP` (non-Copilot)<br>OR `copilot_model_cost_share(m) > 0.3 AND output_tokens_per_day(m) < 500 AND total_copilot_cost_usd > $5 AND m in COPILOT_DOWNGRADE_MAP` (Copilot) | All Tier B source metrics, priceMap | `{ id, severity:'High', ... }` one card per triggering model |
 | R3 Reduce Verbosity | `R3_verbosity.ts` | `p90_daily_input_tokens > 50000 AND aggregate_input_output_ratio > 8` across Tier B token sources | Tier B token source metrics | `{ id, severity:'Medium', ... }` |
 | R4 Off-Peak Hours | `R4_offPeak.ts` | Claude Code connected AND `>70% sessions 08:00–18:00 weekdays` AND `session_count >= 20` AND `data_window_days >= 7` | Claude Code source metrics | `{ id, severity:'Low', ... }` |
 
@@ -847,7 +828,7 @@ const DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string }> = [
 **Copilot substitution table** (static const in `R2_modelDowngrade.ts`):
 
 ```typescript
-// Copilot model names are returned by the billing API as:
+// Copilot model names appear in events.jsonl modelMetrics keys as:
 //   GPT:    "gpt-5.4", "gpt-5.5", "gpt-5.4-mini"  (dots as version separator)
 //   Claude: "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-fable-5"  (hyphens)
 //   Gemini: "gemini-3-1-pro-preview", "gemini-3-5-flash"  (hyphens)
@@ -885,11 +866,11 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
 ];
 ```
 
-**Copilot trigger guard**: before evaluating any Copilot model entry, check `total_copilot_net_usd >= 5.00`. If total net Copilot spend is below $5.00, skip the entire Copilot branch of R2 (insufficient signal).
+**Copilot trigger guard**: before evaluating any Copilot model entry, check `total_copilot_cost_usd >= 5.00`. If total Copilot cost is below $5.00, skip the entire Copilot branch of R2 (insufficient signal).
 
 **Copilot pricing source for savings estimate**: derive effective per-request cost from per-session `models[model].requestCost / requestCount` in `NormalizedCopilotSession` for the detected premium model. For the cheaper alternative, only estimate if that model appears in session data; otherwise suppress the savings estimate for that pair.
 
-**Copilot R2 body note**: omit "but generates an average of only [N] output tokens per day" (token counts not exposed by Copilot billing API). Replace with: "Consider switching to [cheaper model] for routine Chat and CLI interactions in Copilot settings."
+**Copilot R2 body note**: Include `output_tokens_per_day` in the recommendation body (token data is available from JSONL `usage.outputTokens`): "… but generates an average of only [N] output tokens per day — switching to [cheaper model] for routine Chat and CLI interactions could reduce your Copilot cost."
 
 #### R4 off-peak trigger implementation (`R4_offPeak.ts`)
 
@@ -1133,16 +1114,16 @@ A single full-page or center-page component renders `<Spinner />` with the messa
 `ResultsPage.tsx` composition (top-to-bottom):
 
 1. **`<SummaryBar />`**: renders 7.1, 7.2, 7.3. Three-line layout. Left: total spend (Actual + Estimated split). Center: total tokens (Actual + Estimated). Right: analysis period (split into API range / file range if both present).
-2. **`<SourcesProcessedRow />`**: compact strip, one mini-pill per source: `✓ OpenAI (Tier B)`, `✓ Anthropic (Tier B)`, `✗ GitHub Copilot (this key lacks Copilot scope)`. Click expands to show warning array.
+2. **`<SourcesProcessedRow />`**: compact strip, one mini-pill per source: `✓ OpenAI (Tier B)`, `✓ Anthropic (Tier B)`, `✗ GitHub Copilot (no session data found in ~/.copilot/session-state/)`. Click expands to show warning array.
 3. **Source panels** (one per `connected: true && error: null` source):
    - **`<OpenAIPanel />`** renders: 7.4 actual spend (big number), 7.5 daily spend line chart, 7.6 model cost share pie, 7.7 input/output ratio bar, 7.9 avg daily, 7.10 peak day, 7.11 7d rolling, 7.12 MoM badge (if applicable).
    - **`<AnthropicPanel />`** renders: same as OpenAI plus 7.8 cached fraction donut + savings callout.
    - **`<CopilotPanel />`** renders (in order):
-     1. **§7.15** Copilot total AI credit spend: gross, discounts, and net amounts in USD (three KPI tiles). Labeled: "Covers Chat, CLI, cloud agent, and Spaces. Code completions are unlimited and not billed here."
-     2. **§7.16** Copilot spend by model: table with columns `Model | Net spend (USD) | % of total`. Sorted descending by net spend.
-     3. **§7.17** Copilot cost per interaction: single KPI tile. Labeled: "Average net cost per interaction (Chat, CLI, cloud agent, Spaces)."
-     4. **§7.18** Copilot model distribution: `<ModelCostSharePie />` chart (reused from existing chart component, driven by Copilot billing data).
-     5. **§7.19** Copilot acceptance rate (completions): displayed if engagement data is available. Prominently labeled: **"Code completions only — not billed in AI credits. Reflects coding productivity, not cost efficiency."** If engagement data is unavailable (403/404 on metrics endpoint), show inline notice: "Acceptance rate unavailable — the metrics endpoint requires org admin access."
+     1. **§7.15** Copilot session count: single KPI tile showing the number of `session.shutdown` events found in the analysis window. Labeled: "Copilot sessions recorded locally in ~/.copilot/session-state/."
+     2. **§7.16** Copilot token breakdown by model: table with columns `Model | Input tokens | Output tokens | Cache read | Cache write | Reasoning | Requests | Cost (USD)`. Sorted descending by `requestCost`. Note: `inputTokens` is total (cache tokens are subsets); `reasoningTokens` is a subset of `outputTokens`.
+     3. **§7.17** Copilot total cost: single KPI tile showing sum of `requests.cost` across all models and sessions in USD. Labeled: "Total premium request cost (USD) — based on session.shutdown modelMetrics."
+     4. **§7.18** Copilot model cost breakdown: `<ModelCostSharePie />` chart driven by `copilotModelCostBreakdown` (reuses existing chart component).
+     5. **§7.19** Copilot cached token fraction: bar chart (per-model fraction) + aggregate KPI tile showing percentage of input tokens served from cache. Labeled: "Higher cache-read fraction = lower effective cost per token."
    - **`<FileExportPanel sourceId="chatgpt_export"|"claude_export" />`** renders: 7.13–7.19. Histogram via `ConversationLengthBar`.
    - **`<UpgradeNudge />`** appears at the bottom of any Tier C panel where a Tier B alternative exists.
 4. **`<RecommendationsList />`**: maps `report.recommendations` to `<RecommendationCard />` instances, sorted by severity. Each card shows: severity badge, title, body, triggering metric value, and (where the spec calls for it) a chart thumbnail reused from the source panel charts.
@@ -1337,22 +1318,27 @@ export interface SourceMetrics {
   cacheCreationInputTokensAnthropic?: number;
 
   // GitHub Copilot Tier B fields
-  copilotGrossSpendUsd?: number;                  // 7.15
-  copilotDiscountUsd?: number;                    // 7.15
-  copilotNetSpendUsd?: number;                    // 7.15
-  copilotSpendByModel?: {                         // 7.16
+  copilotSessionCount?: number;                   // 7.15
+  copilotTokenBreakdownByModel?: {                // 7.16
     model: string;
-    netSpendUsd: number;
-    spendShare: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    reasoningTokens: number;
+    requestCount: number;
+    requestCost: number;
   }[];
-  copilotCostPerInteractionUsd?: number;          // 7.17
-  copilotModelDistribution?: {                    // 7.18
+  copilotTotalCostUsd?: number;                   // 7.17
+  copilotModelCostBreakdown?: {                   // 7.18
     model: string;
-    share: number;
+    costUsd: number;
+    costShare: number;
   }[];
-  copilotAcceptanceRate?: number | null;          // 7.19 (null if engagement data unavailable)
-  copilotTotalSuggestions?: number;
-  copilotTotalAcceptances?: number;
+  copilotCachedTokenFraction?: {                  // 7.19
+    perModel: { model: string; fraction: number }[];
+    aggregate: number;
+  };
 
   // Tier C (file exports) fields
   estimatedTotalTokens?: number;
@@ -1442,16 +1428,27 @@ export interface AnalysisReport {
   "connected": true,
   "error": null,
   "metrics": {
-    "total_gross_spend_usd": 12.40,
-    "total_discount_usd": 0.60,
-    "total_net_spend_usd": 11.80,
+    "session_count": 47,
+    "total_cost_usd": 11.80,
     "model_breakdown": [
-      { "model": "claude-sonnet-4-6", "net_spend_usd": 7.10, "spend_share": 0.60, "gross_quantity": 710 }
+      {
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 820000,
+        "output_tokens": 41000,
+        "cache_read_tokens": 310000,
+        "cache_write_tokens": 98000,
+        "reasoning_tokens": 5200,
+        "request_count": 710,
+        "request_cost": 7.10,
+        "cost_share": 0.60
+      }
     ],
-    "cost_per_interaction_usd": 0.0166,
-    "acceptance_rate": 0.34,
-    "total_suggestions": 4200,
-    "total_acceptances": 1428
+    "cached_token_fraction": {
+      "aggregate": 0.38,
+      "per_model": [
+        { "model": "claude-sonnet-4-6", "fraction": 0.38 }
+      ]
+    }
   }
 }
 ```

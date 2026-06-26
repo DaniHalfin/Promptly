@@ -87,6 +87,7 @@ For amendments: loop scoped to changed sections only
 
 - `docs/engineering-design.md` -- canonical merged design (base + all amendments + errata applied)
 - `docs/engineering-design-amendment-v1.0-v1.1.md` -- amendment delta (historical reference)
+- `docs/engineering-design-amendment-v1.2.md` -- amendment delta for GitHub Copilot adapter redesign (v1.2)
 - `docs/engineering-design-errata.md` -- blocker fixes record
 
 ---
@@ -169,7 +170,7 @@ tests authored -> full suite run -> failures diagnosed -> fixes applied -> re-ru
 
 ## Human in the Loop
 
-The developer (Dani) acts as the directing intelligence throughout the entire workflow.
+The developer acts as the directing intelligence throughout the entire workflow.
 
 Approval gates:
 - Approves the spec before design begins

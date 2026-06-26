@@ -5,6 +5,20 @@ source_type: sub-agent
 tags: [research, copilot, promptly, api]
 created_at: 2026-06-19T05:49:18.098Z
 ---
+
+> **⚠️ SUPERSEDED — Historical Reference Only**
+>
+> This Phase 0 research document recommended a PAT-token + GitHub REST API approach
+> (`api.github.com/organizations/{org}/settings/billing/ai_credit/usage` + engagement NDJSON endpoints).
+> That approach was **not adopted**.
+>
+> **Effective v1.2 (2026-06-24), the GitHub Copilot adapter reads local JSONL session files
+> (`~/.copilot/session-state/*/events.jsonl`) — no credentials, no network calls.**
+>
+> See [`engineering-design-amendment-v1.2.md`](../engineering-design-amendment-v1.2.md) for the
+> authoritative v1.2 design, and [`../engineering-design.md`](../engineering-design.md) §3.3.3
+> for the current adapter implementation spec.
+
 # Individual GitHub Copilot Usage Data Access — Research Report
 
 ## Summary

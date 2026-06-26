@@ -89,6 +89,7 @@ Project documentation lives in [`docs/`](./docs/):
 | [`spec-changelog.md`](./docs/spec-changelog.md) | Spec revision history (reference, load on demand) |
 | [`engineering-design.md`](./docs/engineering-design.md) | Engineering design — current canonical |
 | [`engineering-design-amendment-v1.0-v1.1.md`](./docs/engineering-design-amendment-v1.0-v1.1.md) | Amendment reference (v1.0 → v1.1 delta) |
+| [`engineering-design-amendment-v1.2.md`](./docs/engineering-design-amendment-v1.2.md) | Amendment reference (v1.2 — GitHub Copilot adapter redesign) |
 | [`engineering-design-errata.md`](./docs/engineering-design-errata.md) | Blocker fixes applied to v1.1 |
 | [`agentic-dev-flow.md`](./docs/agentic-dev-flow.md) | End-to-end agentic development workflow used to build this project |
 | [`research/llm-analytics-landscape.md`](./docs/research/llm-analytics-landscape.md) | Phase 0 research — LLM usage analytics landscape and competitive tools |
