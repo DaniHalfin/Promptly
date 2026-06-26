@@ -338,3 +338,4 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
 ---
 
 Amendment v1.1 is complete when these three errata are applied. Ready for design-review.
+

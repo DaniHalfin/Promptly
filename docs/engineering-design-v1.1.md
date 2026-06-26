@@ -3,7 +3,7 @@
 **Version:** 1.1
 **Date:** 2026-06-23
 **Author:** architect agent
-**Source spec:** promptly-product-spec-v1.6.md
+**Source spec:** spec.md
 **Status:** Canonical (current)
 **Supersedes:** v1.0 (2026-06-18)
 
@@ -1743,3 +1743,4 @@ The design review (2026-06-22) raised six non-blocking observations. The followi
 *Ready for design-review agent.*
 
 *End of Promptly Engineering Design v1.1*
+

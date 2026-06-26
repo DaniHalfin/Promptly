@@ -2,7 +2,7 @@
 
 > **Reference file.** This document tracks the revision history of the Promptly product spec.
 > It is extracted here so that AI models and readers can load it on demand rather than as default context.
-> The canonical spec is spec-v1.6.md.
+> The canonical spec is spec.md.
 
 
 
@@ -66,3 +66,5 @@
 Initial release. Passed spec-critique gates (B1-B8 resolved); manual doc-consistency review complete.
 
 ---
+
+

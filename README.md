@@ -85,7 +85,7 @@ Project documentation lives in [`docs/`](./docs/):
 
 | File | Purpose |
 |---|---|
-| [`spec-v1.6.md`](./docs/spec-v1.6.md) | Product spec — current canonical |
+| [`spec.md`](./docs/spec.md) | Product spec — current canonical |
 | [`spec-changelog.md`](./docs/spec-changelog.md) | Spec revision history (reference, load on demand) |
 | [`engineering-design-v1.1.md`](./docs/engineering-design-v1.1.md) | Engineering design — current canonical |
 | [`engineering-design-amendment-v1.0-v1.1.md`](./docs/engineering-design-amendment-v1.0-v1.1.md) | Amendment reference (v1.0 → v1.1 delta) |
@@ -98,6 +98,8 @@ Project documentation lives in [`docs/`](./docs/):
 ## License
 
 MIT
+
+
 
 
 

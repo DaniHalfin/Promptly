@@ -56,7 +56,7 @@ Spec is done when both pass clean
 
 ### Output
 
-- `docs/spec-v1.6.md` -- versioned specification
+- `docs/spec.md` -- versioned specification
 - `docs/spec-changelog.md` -- revision history
 
 ---
@@ -178,4 +178,6 @@ Approval gates:
 - Sees each task result as it completes and can redirect at any point
 
 Agents never make product decisions autonomously. They execute within a defined scope and surface any ambiguity for human resolution. All architectural decisions belong to the human -- agents propose, the human decides.
+
+
 
