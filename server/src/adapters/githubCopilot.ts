@@ -97,7 +97,6 @@ async function parseEventsFile(filePath: string): Promise<ShutdownEvent[]> {
 export function normalizeSession(event: ShutdownEvent, sourceFile: string): NormalizedCopilotSession {
   const date = localDateString(event.sessionStartTime);
   const models: NormalizedCopilotSession['models'] = {};
-  let totalCost = 0;
 
   for (const [modelName, metrics] of Object.entries(event.modelMetrics ?? {})) {
     // requestCost: USD float (AI credit units) — not a request count
@@ -116,11 +115,9 @@ export function normalizeSession(event: ShutdownEvent, sourceFile: string): Norm
       cacheWriteTokens: asNumber(metrics.usage?.cacheWriteTokens),
       reasoningTokens: asNumber(metrics.usage?.reasoningTokens),
     };
-
-    totalCost += requestCost;
   }
 
-  return { date, sourceFile, models, totalCost };
+  return { date, sourceFile, models, totalCost: event.totalPremiumRequests ?? 0 };
 }
 
 const githubCopilotAdapter: SourceAdapter = {

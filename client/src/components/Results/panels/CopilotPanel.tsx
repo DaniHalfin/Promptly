@@ -57,11 +57,11 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Net Spend</p>
+          <p className="text-sm text-slate-600">Total premium request cost (USD) — based on session.shutdown modelMetrics.</p>
           <p className="text-2xl font-bold text-blue-600">${netSpend.toFixed(2)}</p>
         </div>
         <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Sessions</p>
+          <p className="text-sm text-slate-600">Copilot sessions recorded locally in ~/.copilot/session-state/.</p>
           <p className="text-2xl font-bold text-slate-900">{sessionCount.toLocaleString()}</p>
         </div>
         <div className="bg-slate-50 rounded p-4">

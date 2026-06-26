@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { PriceMap } from '../src/data/priceMap.js';
 import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
+import {
+  copilotSessionCount,
+  copilotTotalCost,
+  copilotModelCostBreakdown,
+  copilotTokenBreakdownByModel,
+  copilotCachedTokenFraction,
+} from '../src/engine/metrics/tierB.js';
 import type { NormalizedCopilotSession, NormalizedSourceData } from '../src/types/index.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
@@ -148,3 +155,72 @@ describe('computeTierBMetrics', () => {
   });
 });
 
+describe('Copilot pure metric functions', () => {
+  const sessions = [
+    session('model-a', 3),
+    session('model-b', 5),
+    session('model-a', 2),
+  ];
+
+  describe('copilotSessionCount', () => {
+    it('returns 0 for empty array', () => { expect(copilotSessionCount([])).toBe(0); });
+    it('returns the session array length', () => { expect(copilotSessionCount(sessions)).toBe(3); });
+  });
+
+  describe('copilotTotalCost', () => {
+    it('returns 0 for empty array', () => { expect(copilotTotalCost([])).toBe(0); });
+    it('sums totalCost across all sessions', () => { expect(copilotTotalCost(sessions)).toBe(10); });
+    it('sums correctly when all sessions use the same model', () => {
+      const same = [session('gpt-5.4', 4), session('gpt-5.4', 6)];
+      expect(copilotTotalCost(same)).toBe(10);
+    });
+  });
+
+  describe('copilotModelCostBreakdown', () => {
+    it('returns empty arrays for empty input', () => {
+      const result = copilotModelCostBreakdown([]);
+      expect(result.copilotSpendByModel).toHaveLength(0);
+      expect(result.copilotModelDistribution).toHaveLength(0);
+      expect(result.copilotTotalInputTokens).toBe(0);
+      expect(result.copilotTotalOutputTokens).toBe(0);
+    });
+    it('computes correct spend share for each model', () => {
+      const result = copilotModelCostBreakdown(sessions);
+      const modelA = result.copilotSpendByModel.find(r => r.model === 'model-a');
+      const modelB = result.copilotSpendByModel.find(r => r.model === 'model-b');
+      expect(modelA?.netSpendUsd).toBe(5);
+      expect(modelA?.spendShare).toBeCloseTo(0.5);
+      expect(modelB?.netSpendUsd).toBe(5);
+      expect(modelB?.spendShare).toBeCloseTo(0.5);
+    });
+    it('sorts copilotSpendByModel descending by netSpendUsd', () => {
+      const uneven = [session('cheap', 1), session('expensive', 9)];
+      const result = copilotModelCostBreakdown(uneven);
+      expect(result.copilotSpendByModel[0].model).toBe('expensive');
+    });
+    it('copilotModelDistribution mirrors copilotSpendByModel share', () => {
+      const result = copilotModelCostBreakdown(sessions);
+      for (const row of result.copilotSpendByModel) {
+        const dist = result.copilotModelDistribution.find(d => d.model === row.model);
+        expect(dist?.share).toBeCloseTo(row.spendShare);
+      }
+    });
+    it('aggregates input and output tokens across sessions', () => {
+      const result = copilotModelCostBreakdown(sessions);
+      expect(result.copilotTotalInputTokens).toBe(300);
+      expect(result.copilotTotalOutputTokens).toBe(150);
+    });
+  });
+
+  describe('copilotTokenBreakdownByModel (stub)', () => {
+    it('returns undefined — not yet implemented (MF-1)', () => {
+      expect(copilotTokenBreakdownByModel(sessions)).toBeUndefined();
+    });
+  });
+
+  describe('copilotCachedTokenFraction (stub)', () => {
+    it('returns undefined — not yet implemented (MF-2)', () => {
+      expect(copilotCachedTokenFraction(sessions)).toBeUndefined();
+    });
+  });
+});

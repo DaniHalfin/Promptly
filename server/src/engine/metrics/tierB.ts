@@ -1,4 +1,4 @@
-import { SourceMetrics, NormalizedSourceData, ModelBreakdownEntry } from '../../types/index.js';
+import { SourceMetrics, NormalizedSourceData, NormalizedCopilotSession, ModelBreakdownEntry } from '../../types/index.js';
 import { PriceMap, lookupPrice } from '../../data/priceMap.js';
 
 export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceMap): Partial<SourceMetrics> {
@@ -164,10 +164,30 @@ function daysInPeriod(periodStart: string, periodEnd: string): number | null {
   return Math.max(1, Math.floor((end.getTime() - start.getTime()) / millisecondsPerDay) + 1);
 }
 
-function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceMetrics> {
-  const sessions = data.copilotSessions ?? [];
-  if (sessions.length === 0) return { copilotNetSpendUsd: 0, copilotSessionCount: 0 };
+// ─── Copilot pure metric functions (§3.5) ────────────────────────────────────
 
+/** §7.15 — Number of session.shutdown events in the analysis window. */
+export function copilotSessionCount(sessions: NormalizedCopilotSession[]): number {
+  return sessions.length;
+}
+
+/**
+ * §7.17 — Sum of session.totalCost across all sessions.
+ * totalCost is the raw totalPremiumRequests field — not a recomputed per-model sum.
+ */
+export function copilotTotalCost(sessions: NormalizedCopilotSession[]): number {
+  return sessions.reduce((sum, s) => sum + s.totalCost, 0);
+}
+
+/**
+ * §7.18 — Per-model spend breakdown, distribution share, and token totals.
+ */
+export function copilotModelCostBreakdown(sessions: NormalizedCopilotSession[]): {
+  copilotSpendByModel: Array<{ model: string; netAmountUsd: number; netSpendUsd: number; spendShare: number }>;
+  copilotModelDistribution: Array<{ model: string; share: number }>;
+  copilotTotalInputTokens: number;
+  copilotTotalOutputTokens: number;
+} {
   const modelAgg: Record<string, { requestCost: number; inputTokens: number; outputTokens: number }> = {};
   let totalNetSpend = 0;
   let totalInputTokens = 0;
@@ -188,7 +208,7 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
   const copilotSpendByModel = Object.entries(modelAgg)
     .map(([model, agg]) => ({
       model,
-      netAmountUsd: agg.requestCost,   // kept for R2 backward compat
+      netAmountUsd: agg.requestCost,
       netSpendUsd: agg.requestCost,
       spendShare: totalNetSpend > 0 ? agg.requestCost / totalNetSpend : 0,
     }))
@@ -199,13 +219,34 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     share: row.spendShare,
   }));
 
-  // TODO: add dailySpend aggregation when a Copilot trend chart is added (R4)
+  return { copilotSpendByModel, copilotModelDistribution, copilotTotalInputTokens: totalInputTokens, copilotTotalOutputTokens: totalOutputTokens };
+}
+
+/** §7.19 — Token breakdown by model. Stub — implemented in MF-1. */
+export function copilotTokenBreakdownByModel(_sessions: NormalizedCopilotSession[]): undefined {
+  return undefined; // TODO: implement in MF-1
+}
+
+/** §7.20 — Cache-read fraction. Stub — implemented in MF-2. */
+export function copilotCachedTokenFraction(_sessions: NormalizedCopilotSession[]): undefined {
+  return undefined; // TODO: implement in MF-2
+}
+
+// ─── Orchestrator ─────────────────────────────────────────────────────────────
+
+function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceMetrics> {
+  const sessions = data.copilotSessions ?? [];
+  if (sessions.length === 0) return { copilotNetSpendUsd: 0, copilotSessionCount: 0 };
+
+  const { copilotSpendByModel, copilotModelDistribution, copilotTotalInputTokens, copilotTotalOutputTokens } =
+    copilotModelCostBreakdown(sessions);
+
   return {
-    copilotNetSpendUsd: totalNetSpend,
+    copilotNetSpendUsd: copilotTotalCost(sessions),
     copilotSpendByModel,
     copilotModelDistribution,
-    copilotTotalInputTokens: totalInputTokens,
-    copilotTotalOutputTokens: totalOutputTokens,
-    copilotSessionCount: sessions.length,
+    copilotTotalInputTokens,
+    copilotTotalOutputTokens,
+    copilotSessionCount: copilotSessionCount(sessions),
   };
 }

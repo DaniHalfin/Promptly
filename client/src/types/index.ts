@@ -133,19 +133,22 @@ export interface SourceMetrics {
   cacheCreationInputTokensAnthropic?: number;
 
   // GitHub Copilot Tier B
-  copilotNetSpendUsd?: number;
-  copilotSpendByModel?: {
+  copilotTotalCostUsd?: number;
+  copilotModelCostBreakdown?: { model: string; costUsd: number; costShare: number; }[];
+  copilotTokenBreakdownByModel?: {
     model: string;
-    netAmountUsd: number;
-    netSpendUsd: number;
-    spendShare: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    reasoningTokens: number;
+    requestCount: number;
+    requestCost: number;
   }[];
-  copilotModelDistribution?: {
-    model: string;
-    share: number;
-  }[];
-  copilotTotalInputTokens?: number;
-  copilotTotalOutputTokens?: number;
+  copilotCachedTokenFraction?: {
+    perModel: { model: string; fraction: number }[];
+    aggregate: number;
+  };
   copilotSessionCount?: number;
 
   // Tier C (file exports)

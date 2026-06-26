@@ -126,6 +126,28 @@ describe('recommendation rules', () => {
       // to avoid recommending a downgrade from a model that is already the budget choice
       expect(R2.evaluate(ctx([copilot('gpt-5.5-mini', { copilotModelDistribution: [{ model: 'gpt-5.5-mini', share: 0.9 }] })]))).toHaveLength(0);
     });
+
+    it('does not fire for a model with claude-3-5-sonnet in the middle of the name', () => {
+      // ^ anchor prevents matching 'my-claude-3-5-sonnet-custom'
+      const anthropicSource = source({
+        sourceId: 'anthropic', tier: 'B',
+        modelBreakdown: [{ model: 'my-claude-3-5-sonnet-custom', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 100_000, outputTokens: 200, inputOutputRatio: 500 }],
+        periodStart: '2026-06-01T00:00:00Z', periodEnd: '2026-06-08T00:00:00Z',
+      });
+      const cards = R2.evaluate(ctx([anthropicSource]));
+      expect(cards.filter(c => c.body.includes('my-claude-3-5-sonnet-custom'))).toHaveLength(0);
+    });
+
+    it('does fire for claude-3-5-sonnet-20241022 and recommends versioned cheaper model', () => {
+      const anthropicSource = source({
+        sourceId: 'anthropic', tier: 'B',
+        modelBreakdown: [{ model: 'claude-3-5-sonnet-20241022', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 100_000, outputTokens: 200, inputOutputRatio: 500 }],
+        periodStart: '2026-06-01T00:00:00Z', periodEnd: '2026-06-08T00:00:00Z',
+      });
+      const cards = R2.evaluate(ctx([anthropicSource]));
+      expect(cards.length).toBeGreaterThan(0);
+      expect(cards[0].body).toContain('claude-3-haiku-20240307');
+    });
   });
 
   describe('R2 Copilot branch — NormalizedCopilotSession-derived metrics', () => {

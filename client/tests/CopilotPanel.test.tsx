@@ -44,9 +44,9 @@ describe('CopilotPanel', () => {
   it('renders net spend, session count, and total tokens KPI tiles', () => {
     render(<CopilotPanel report={report()} />);
 
-    expect(screen.getByText('Net Spend')).toBeInTheDocument();
+    expect(screen.getByText('Total premium request cost (USD) — based on session.shutdown modelMetrics.')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
-    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Copilot sessions recorded locally in ~/.copilot/session-state/.')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText('Total Tokens')).toBeInTheDocument();
   });

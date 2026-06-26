@@ -2,11 +2,11 @@ import { lookupPrice } from '../../data/priceMap.js';
 import { RecommendationResult, SourceMetrics } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
-const DOWNGRADE_MAP: Array<{ pattern: string; cheaper: string }> = [
-  { pattern: 'gpt-4o', cheaper: 'gpt-4o-mini' },
-  { pattern: 'gpt-4-turbo', cheaper: 'gpt-4o-mini' },
-  { pattern: 'claude-3-5-sonnet', cheaper: 'claude-3-haiku' },
-  { pattern: 'claude-3-opus', cheaper: 'claude-3-5-sonnet' },
+const DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string }> = [
+  { pattern: /^gpt-4o/i,             cheaper: 'gpt-4o-mini' },
+  { pattern: /^gpt-4-turbo/i,        cheaper: 'gpt-4o-mini' },
+  { pattern: /^claude-3-5-sonnet/i,  cheaper: 'claude-3-haiku-20240307' },
+  { pattern: /^claude-3-opus/i,      cheaper: 'claude-3-5-sonnet-20241022' },
 ];
 
 const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale: string }> = [
@@ -34,7 +34,7 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
     const periodDays = computeDataWindowDays(source.periodStart, source.periodEnd);
 
     for (const model of source.modelBreakdown) {
-      const downgrade = DOWNGRADE_MAP.find(entry => model.model.includes(entry.pattern));
+      const downgrade = DOWNGRADE_MAP.find(entry => entry.pattern.test(model.model));
       if (!downgrade) continue;
       if (model.estimatedCostUsd < 5) continue;
       if (model.estimatedCostShare <= 0.3) continue;
