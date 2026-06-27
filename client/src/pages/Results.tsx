@@ -203,7 +203,7 @@ export function Results() {
         )}
 
         {/* Source panels */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 24 }}>
           {report.sources.map(source => {
             const PanelComponent = renderSourcePanel(source.source_id);
             if (source.error) {
