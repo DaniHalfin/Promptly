@@ -237,7 +237,7 @@ const githubCopilotAdapter: SourceAdapter = {
 
       if (hadDuplicateEvents) {
         warnings.push(
-          'Duplicate session.shutdown events were detected and skipped. This can occur after a crash/recovery cycle; totals reflect deduplicated data.',
+          'Some Copilot session records appeared more than once and were automatically deduplicated. Your totals are accurate.',
         );
       }
 

@@ -335,6 +335,143 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               </div>
             )}
 
+            {/* Copilot: Token Breakdown by Model */}
+            {metrics.copilotTokenBreakdownByModel && metrics.copilotTokenBreakdownByModel.length > 0 && (
+              <div style={{
+                padding: '16px',
+                borderTop: '1px solid #d1d5db',
+                backgroundColor: '#fafafa'
+              }}>
+                <p style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  textTransform: 'uppercase'
+                }}>
+                  Token Breakdown by Model
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f3f4f6' }}>
+                      {(['Model', 'Input Tokens', 'Output Tokens', 'Cache Read', 'Cache Write', 'Reasoning', 'Requests', 'Cost'] as const).map((col, i) => (
+                        <th key={col} style={{
+                          textAlign: i === 0 ? 'left' : 'right',
+                          padding: '6px 8px',
+                          fontWeight: '600',
+                          color: '#6b7280',
+                          textTransform: 'uppercase',
+                          fontSize: '11px',
+                          borderBottom: '1px solid #e2e8f0',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.copilotTokenBreakdownByModel.map((row, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{row.model}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.inputTokens.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.outputTokens.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.cacheReadTokens.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.cacheWriteTokens.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.reasoningTokens.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.requestCount.toLocaleString()}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>${row.requestCost.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Copilot: Model Spend */}
+            {metrics.copilotModelCostBreakdown && metrics.copilotModelCostBreakdown.length > 0 && (
+              <div style={{
+                padding: '16px',
+                borderTop: '1px solid #d1d5db',
+                backgroundColor: '#fafafa'
+              }}>
+                <p style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  textTransform: 'uppercase'
+                }}>
+                  Model Spend
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f3f4f6' }}>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Model</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Net Spend ($)</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>% of Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...metrics.copilotModelCostBreakdown]
+                      .sort((a, b) => b.costUsd - a.costUsd)
+                      .map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{row.model}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>${row.costUsd.toFixed(2)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{(row.costShare * 100).toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Copilot: Cache Read Fraction by Model */}
+            {metrics.copilotCachedTokenFraction && metrics.copilotCachedTokenFraction.perModel.length > 0 && (
+              <div style={{
+                padding: '16px',
+                borderTop: '1px solid #d1d5db',
+                backgroundColor: '#fafafa'
+              }}>
+                <p style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  textTransform: 'uppercase'
+                }}>
+                  Cache Read Fraction by Model
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f3f4f6' }}>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Model</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Cache Read %</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Cache Read Tokens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.copilotCachedTokenFraction.perModel.map((entry, idx) => {
+                      const tokenRow = metrics.copilotTokenBreakdownByModel?.find(r => r.model === entry.model);
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{entry.model}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{(entry.fraction * 100).toFixed(1)}%</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>
+                            {tokenRow ? tokenRow.cacheReadTokens.toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#9ca3af' }}>
+                  Aggregate cache-read fraction: {(metrics.copilotCachedTokenFraction.aggregate * 100).toFixed(1)}%
+                </p>
+              </div>
+            )}
+
             {/* Warnings */}
             {metrics.warnings && metrics.warnings.length > 0 && (
               <div style={{
