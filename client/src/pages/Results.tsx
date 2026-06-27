@@ -187,7 +187,7 @@ export function Results() {
               { label: 'Cache Hit', value: cacheHitPct },
               { label: 'Top Model', value: topModel ? friendlyModelName(topModel.model) : '—' },
             ].map(tile => (
-              <div key={tile.label} className="card" style={{ padding: '12px 20px', minWidth: 120, maxWidth: 180, flex: '1 1 120px', textAlign: 'center' }}>
+              <div key={tile.label} className="card" style={{ padding: '12px 20px', minWidth: 120, maxWidth: 180, flex: '1 1 120px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
                 <div className="num" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{tile.value}</div>
                 <div style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>{tile.label}</div>
               </div>

@@ -108,18 +108,18 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model spend</h3>
           <div className="table-scroll">
-            <table className="text-sm" style={{ width: 'auto' }}>
+            <table className="text-sm" style={{ width: '100%', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160 }}>Model</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 100 }}>Net spend</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>% of total</th>
+                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '55%' }}>Model</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '25%' }}>Net spend</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '20%' }}>% of total</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedModelCostBreakdown.map(model => (
                   <tr key={model.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
-                    <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0', textAlign: 'left' }}>{friendlyModelName(model.model)}</td>
+                    <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{friendlyModelName(model.model)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>${model.costUsd.toFixed(2)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{(model.costShare * 100).toFixed(1)}%</td>
                   </tr>

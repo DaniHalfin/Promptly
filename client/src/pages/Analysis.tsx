@@ -18,7 +18,10 @@ export function Analysis() {
   const { state, dispatch, abortControllerRef } = useSession();
   const [elapsed, setElapsed] = useState(0);
 
-  const enabledIds = Object.keys(state.sources) as SourceId[];
+  const enabledIds = (Object.keys(state.sources) as SourceId[]).filter(id => {
+    const s = state.sources[id];
+    return s?.status === 'connected' || s?.status === 'ready';
+  });
   const sourceSteps = enabledIds.map(id => SOURCE_LABELS[id] ?? id);
   const allSteps = [...sourceSteps.map(s => `Reading ${s} data`), 'Calculating token costs', 'Building recommendations', 'Generating report'];
   const totalSteps = allSteps.length;

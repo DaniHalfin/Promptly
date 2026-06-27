@@ -97,7 +97,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const checkboxRef = useRef<HTMLInputElement>(null);
 
-  const isConnected = source?.status === 'connected' || source?.status === 'ready' || source?.enabled;
+  const isConnected = source?.status === 'connected' || source?.status === 'ready';
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -177,6 +177,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         cursor: info.disabled ? 'default' : 'pointer',
         border: cardBorder,
         background: cardBg,
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
       }}
     >
       {/* Header row */}
