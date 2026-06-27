@@ -143,10 +143,10 @@ export function AnthropicPanel({ report }: AnthropicPanelProps) {
                         <td className="py-2" style={{ color: 'var(--text-primary)' }}>
                           {friendlyModelName(m.model)}
                         </td>
-                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="text-right" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
                           ${m.estimatedCostUsd.toFixed(2)}
                         </td>
-                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="text-right" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
                           {totalSpend > 0 ? ((m.estimatedCostUsd / totalSpend) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>

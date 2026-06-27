@@ -88,13 +88,13 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
                 {tokenBreakdown.map(row => (
                   <tr key={row.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
                     <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0' }}>{friendlyModelName(row.model)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.inputTokens)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.outputTokens)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.cacheReadTokens)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.cacheWriteTokens)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.reasoningTokens)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.requestCount.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>${row.requestCost.toFixed(4)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.inputTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.outputTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.cacheReadTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.cacheWriteTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.reasoningTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{row.requestCount.toLocaleString()}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>${row.requestCost.toFixed(4)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -120,8 +120,8 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
                 {sortedModelCostBreakdown.map(model => (
                   <tr key={model.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
                     <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{friendlyModelName(model.model)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>${model.costUsd.toFixed(2)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{(model.costShare * 100).toFixed(1)}%</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>${model.costUsd.toFixed(2)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{(model.costShare * 100).toFixed(1)}%</td>
                   </tr>
                 ))}
               </tbody>

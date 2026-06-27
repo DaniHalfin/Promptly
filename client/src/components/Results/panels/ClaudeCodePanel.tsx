@@ -112,8 +112,8 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
                   {modelBreakdown.map(model => (
                     <tr key={model.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
                       <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0' }}>{friendlyModelName(model.model)}</td>
-                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatUsd(model.estimatedCostUsd)}</td>
-                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>
+                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatUsd(model.estimatedCostUsd)}</td>
+                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>
                         {totalSpend > 0 ? ((model.estimatedCostUsd / totalSpend) * 100).toFixed(1) : '0.0'}%
                       </td>
                     </tr>

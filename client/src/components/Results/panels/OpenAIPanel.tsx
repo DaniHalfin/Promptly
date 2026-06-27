@@ -157,10 +157,10 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
                             </span>
                           )}
                         </td>
-                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="text-right" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
                           ${m.estimatedCostUsd.toFixed(2)}
                         </td>
-                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="text-right" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
                           {totalSpend > 0 ? ((m.estimatedCostUsd / totalSpend) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>
