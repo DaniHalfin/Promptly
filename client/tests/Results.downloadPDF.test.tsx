@@ -107,6 +107,20 @@ describe('Results - downloadPDF', () => {
     expect(capturedContainer!.style.visibility).not.toBe('hidden');
   });
 
+  it('sets PDF export CSS variables to html2canvas-safe sRGB values', async () => {
+    render(<Results />);
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+    await waitFor(() => {
+      expect(capturedContainer).not.toBeNull();
+    });
+
+    expect(capturedContainer!.style.getPropertyValue('--text-primary')).toBe('#dfe6eb');
+    expect(capturedContainer!.style.getPropertyValue('--color-accent')).toBe('#7281fb');
+    expect(capturedContainer!.style.color).toBe('rgb(223, 230, 235)');
+    expect(capturedContainer!.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(capturedContainer!.getAttribute('style')).not.toContain('oklch');
+  });
+
   it('calls pdf.save() with a filename matching the promptly-analysis-YYYY-MM-DD.pdf pattern', async () => {
     render(<Results />);
     fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));

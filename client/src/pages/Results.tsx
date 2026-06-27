@@ -14,6 +14,37 @@ import type { SourceId } from '../types/index.js';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+const PDF_EXPORT_COLOR_OVERRIDES = {
+  '--color-accent': '#7281fb',
+  '--color-accent-muted': 'rgba(122, 136, 216, 0.15)',
+  '--color-accent-border': 'rgba(118, 133, 233, 0.35)',
+  '--color-accent-light': '#a7b7ff',
+  '--color-positive': '#20b46b',
+  '--color-positive-muted': 'rgba(98, 171, 125, 0.15)',
+  '--color-positive-text': '#6cd092',
+  '--color-warning': '#eb8a00',
+  '--color-warning-muted': 'rgba(208, 151, 95, 0.15)',
+  '--color-warning-text': '#ffb059',
+  '--color-critical': '#e64343',
+  '--color-critical-muted': 'rgba(196, 103, 97, 0.15)',
+  '--color-critical-text': '#ff8179',
+  '--color-info': '#00a7dd',
+  '--color-info-muted': 'rgba(97, 162, 192, 0.15)',
+  '--text-primary': '#dfe6eb',
+  '--text-secondary': '#839caf',
+  '--text-muted': '#4f6778',
+  '--text-disabled': '#344551',
+  '--text-on-accent': '#ffffff',
+} as const;
+
+function applyPdfExportColorOverrides(container: HTMLElement) {
+  for (const [name, value] of Object.entries(PDF_EXPORT_COLOR_OVERRIDES)) {
+    container.style.setProperty(name, value);
+  }
+  container.style.color = PDF_EXPORT_COLOR_OVERRIDES['--text-primary'];
+  container.style.backgroundColor = '#ffffff';
+}
+
 export function Results() {
   const { state, dispatch } = useSession();
   const report = state.report;
@@ -30,6 +61,7 @@ export function Results() {
       container.style.left = '-9999px';
       container.style.width = '210mm';
       container.style.zIndex = '-1';
+      applyPdfExportColorOverrides(container);
       document.body.appendChild(container);
 
       root = ReactDOM.createRoot(container);
