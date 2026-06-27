@@ -94,7 +94,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.cacheWriteTokens)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{formatTokenCount(row.reasoningTokens)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>{row.requestCount.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>${row.requestCost.toFixed(4)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', textAlign: 'right' }}>${row.requestCost.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
