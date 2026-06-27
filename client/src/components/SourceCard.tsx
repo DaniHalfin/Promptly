@@ -177,6 +177,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         cursor: info.disabled ? 'default' : 'pointer',
         border: cardBorder,
         background: cardBg,
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
       }}
     >
       {/* Header row */}

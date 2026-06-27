@@ -9,7 +9,7 @@ interface CopilotPanelProps {
 }
 
 export function CopilotPanel({ report }: CopilotPanelProps) {
-  const { metrics, tier } = report;
+  const { metrics } = report;
 
   if (!metrics) {
     return (
@@ -17,7 +17,6 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="flex items-center mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-blue-600 rounded-full mr-3" />
           <h2 className="text-lg font-semibold">GitHub Copilot</h2>
-          <span style={{ marginLeft: 8, padding: '2px 6px', background: 'var(--color-accent-muted)', color: 'var(--color-accent-light)', fontSize: 'var(--text-note)', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>{tier || 'N/A'}</span>
         </div>
         <p style={{ color: 'var(--text-secondary)' }}>No data available</p>
       </div>
@@ -44,9 +43,6 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="flex items-center">
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-blue-600 rounded-full mr-3" />
           <h2 className="text-lg font-semibold">GitHub Copilot</h2>
-          {(tier === 'A' || tier === 'B') && (
-            <span style={{ marginLeft: 8, padding: '2px 6px', background: 'var(--color-accent-muted)', color: 'var(--color-accent-light)', fontSize: 'var(--text-note)', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>{tier || 'N/A'}</span>
-          )}
         </div>
       </div>
 
@@ -55,7 +51,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       </p>
 
       {/* 1: KPI tiles */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Cost</p>
           <p className="kpi-large num" style={{ color: 'var(--color-accent-light)' }}>${totalCost.toFixed(2)}</p>
@@ -115,15 +111,15 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Model</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Net spend</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>% of total</th>
+                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160 }}>Model</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 100 }}>Net spend</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>% of total</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedModelCostBreakdown.map(model => (
                   <tr key={model.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
-                    <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0' }}>{friendlyModelName(model.model)}</td>
+                    <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0', textAlign: 'left' }}>{friendlyModelName(model.model)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>${model.costUsd.toFixed(2)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{(model.costShare * 100).toFixed(1)}%</td>
                   </tr>
@@ -135,7 +131,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       )}
 
       {/* 4: Input / output token tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 24, marginBottom: 24 }}>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Input tokens</p>
           <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{formatTokenCount(totalInputTokens)}</p>
@@ -162,7 +158,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
               <div className="space-y-2" data-testid="cache-fraction-bars">
                 {cachedFraction.perModel.map(({ model, fraction }) => (
                   <div key={model}>
-                    <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-note)', marginBottom: 4, color: 'var(--text-secondary)' }}>
                       <span>{friendlyModelName(model)}</span>
                       <span>{(fraction * 100).toFixed(1)}%</span>
                     </div>
