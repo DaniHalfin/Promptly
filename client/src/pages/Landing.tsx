@@ -1,32 +1,174 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSession } from '../context/SessionContext.js';
+import { SourceCard } from '../components/SourceCard.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
+import { apiClient } from '../api/client.js';
+import type { SourceConfig, SourceId } from '../types/index.js';
 
 export function Landing() {
-  const { dispatch } = useSession();
+  const { state, dispatch, abortControllerRef } = useSession();
+  const [dateRange] = useState({
+    start: new Date(Date.now() - 86400000 * 30).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0],
+  });
+
+  const hasAnyEnabled = Object.values(state.sources).some(
+    s => s?.enabled || s?.status === 'connected' || s?.status === 'ready'
+  );
+
+  const isActive = (sourceId: SourceId) => {
+    const source = state.sources[sourceId];
+    return source?.status === 'connected' || source?.status === 'ready';
+  };
+
+  const sourceConfig = (sourceId: SourceId, hasCredential: boolean): SourceConfig => ({
+    sourceId,
+    hasCredential,
+    startDate: dateRange.start,
+    endDate: dateRange.end,
+  });
+
+  const handleAnalyze = async () => {
+    try {
+      const config: { sources: SourceConfig[] } = {
+        sources: [
+          isActive('openai') ? sourceConfig('openai', true) : null,
+          isActive('anthropic') ? sourceConfig('anthropic', true) : null,
+          (isActive('github_copilot') || state.sources.github_copilot?.enabled) ? sourceConfig('github_copilot', false) : null,
+          isActive('chatgpt_export') ? sourceConfig('chatgpt_export', false) : null,
+          (isActive('claude_code') || state.sources.claude_code?.enabled) ? sourceConfig('claude_code', false) : null,
+        ].filter((source): source is SourceConfig => source !== null),
+      };
+
+      dispatch({ phase: 'analyzing' });
+
+      const credentials = {
+        openai: state.sources.openai?.credential,
+        anthropic: state.sources.anthropic?.credential,
+      };
+
+      const files = {
+        chatgpt_export: state.sources.chatgpt_export?.file,
+      };
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const report = await apiClient.analyze(config, credentials, files, controller.signal);
+        if (!controller.signal.aborted) {
+          dispatch(report.cross_source_summary.allSourcesFailed ? { phase: 'connection', report } : { phase: 'results', report });
+        }
+      } finally {
+        abortControllerRef.current = null;
+      }
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
+      dispatch({ phase: 'error', analysisError: (err as Error).message });
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-2xl w-full text-center">
-        <h1 className="text-5xl font-bold mb-4 text-slate-900">Promptly</h1>
-        <p className="text-xl text-slate-600 mb-6">Local-first AI token economy analysis. No data persistence. No external servers.</p>
-
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-4 text-slate-900">Privacy First</h2>
-          <p className="text-slate-700 mb-4">
-            All analysis happens on your device. Your API credentials and files never leave your browser. Promptly is completely local—zero data is stored on any external server.
-          </p>
-          <ul className="text-left text-slate-600 space-y-2 mb-6">
-            <li className="flex items-center"><span className="text-green-500 mr-2">✓</span> Connect to OpenAI, Anthropic, GitHub Copilot</li>
-            <li className="flex items-center"><span className="text-green-500 mr-2">✓</span> Upload ChatGPT or Claude export files</li>
-            <li className="flex items-center"><span className="text-green-500 mr-2">✓</span> Analyze token usage and costs</li>
-            <li className="flex items-center"><span className="text-green-500 mr-2">✓</span> Get personalized recommendations</li>
-            <li className="flex items-center"><span className="text-green-500 mr-2">✓</span> Export results as PDF or JSON</li>
-          </ul>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--color-bg-base)',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* Top bar */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '16px 24px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28">
+            <rect width="32" height="32" rx="6" fill="var(--color-bg-elevated)"/>
+            <rect x="6" y="10" width="20" height="4" rx="2" fill="var(--color-accent)"/>
+            <rect x="8" y="16" width="16" height="4" rx="2" fill="var(--color-accent)"/>
+            <rect x="10" y="22" width="12" height="4" rx="2" fill="var(--color-accent)"/>
+            <path d="M 23,4 L 24.2,7.8 L 28,9 L 24.2,10.2 L 23,14 L 21.8,10.2 L 18,9 L 21.8,7.8 Z" fill="var(--color-accent-light)"/>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+            Promptly
+          </span>
         </div>
+        <ThemeToggle />
+      </div>
 
-        <button className="primary text-lg px-8 py-3" onClick={() => { localStorage.setItem('promptly_welcomed', 'true'); dispatch({ phase: 'connection' }); }}>
-          Start Analysis
-        </button>
+      {/* Main content */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '48px 24px 32px',
+      }}>
+        <div style={{ width: '100%', maxWidth: 520 }}>
+          {/* Hero text */}
+          <h1 style={{
+            fontSize: '2.25rem',
+            fontWeight: 700,
+            letterSpacing: '-0.025em',
+            color: 'var(--text-primary)',
+            marginBottom: 8,
+            lineHeight: 1.2,
+          }}>
+            AI Token Analytics
+          </h1>
+          <p style={{
+            fontSize: '1rem',
+            color: 'var(--text-secondary)',
+            marginBottom: 40,
+            lineHeight: 1.6,
+          }}>
+            Understand exactly what you spend on AI tokens — locally, with no data leaving your machine.
+          </p>
+
+          {/* Source cards */}
+          <p style={{
+            fontSize: '0.6875rem',
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            marginBottom: 12,
+          }}>
+            Connect your AI sources
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <SourceCard sourceId="github_copilot" />
+            <SourceCard sourceId="claude_code" />
+            <SourceCard sourceId="openai" />
+            <SourceCard sourceId="anthropic" />
+            <SourceCard sourceId="chatgpt_export" />
+          </div>
+
+          {/* Analyze button */}
+          <div style={{ marginTop: 32 }}>
+            <button
+              className="primary"
+              style={{ width: '100%' }}
+              disabled={!hasAnyEnabled}
+              onClick={handleAnalyze}
+            >
+              Run Analysis →
+            </button>
+          </div>
+
+          {/* Privacy note */}
+          <p style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+            marginTop: 16,
+            lineHeight: 1.5,
+          }}>
+            All analysis happens on your device. No credentials or files leave this machine.
+          </p>
+        </div>
       </div>
     </div>
   );

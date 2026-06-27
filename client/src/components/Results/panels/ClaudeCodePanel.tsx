@@ -19,15 +19,15 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
 
   if (!metrics) {
     return (
-      <div className="border rounded-lg p-6 bg-slate-50">
+      <div className="card">
         <div className="flex items-center mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full mr-3" />
           <h2 className="text-lg font-semibold">Claude Code</h2>
-          <span className="ml-2 px-2 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded">
+          <span style={{ marginLeft: 8, padding: '2px 8px', background: 'var(--color-accent-muted)', color: 'var(--color-accent-light)', fontSize: '0.75rem', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>
             {tier || 'N/A'}
           </span>
         </div>
-        <p className="text-slate-600">No data available</p>
+        <p style={{ color: 'var(--text-secondary)' }}>No data available</p>
       </div>
     );
   }
@@ -48,71 +48,71 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
   const peakHourFraction = metrics.claudeCodePeakHourFraction;
 
   return (
-    <div className="border rounded-lg p-6 bg-white">
+    <div className="card">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full mr-3" />
           <h2 className="text-lg font-semibold">Claude Code</h2>
-          <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+          <span style={{ marginLeft: 8, padding: '2px 8px', background: 'var(--color-accent-muted)', color: 'var(--color-accent-light)', fontSize: '0.75rem', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>
             Tier {tier || 'N/A'}
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Total spend</p>
-          <p className="text-2xl font-bold text-purple-600">{formatUsd(totalSpend)}</p>
+        <div className="card-inset">
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Total spend</p>
+          <p className="kpi-large num" style={{ color: 'var(--color-positive-text)' }}>{formatUsd(totalSpend)}</p>
         </div>
-        <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Sessions</p>
-          <p className="text-2xl font-bold text-slate-900">
+        <div className="card-inset">
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Sessions</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>
             {(metrics.claudeCodeSessionCount ?? 0).toLocaleString()}
           </p>
         </div>
-        <div className="bg-slate-50 rounded p-4">
-          <p className="text-sm text-slate-600">Avg tokens per session</p>
-          <p className="text-2xl font-bold text-indigo-600">
+        <div className="card-inset">
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Avg tokens per session</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>
             {formatTokens(metrics.claudeCodeAvgTokensPerSession)}
           </p>
         </div>
       </div>
 
       {peakHourFraction !== undefined && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded p-4">
-          <p className="text-sm font-semibold text-blue-900">Peak hour sessions</p>
-          <p className="text-2xl font-bold text-blue-700 mt-1">{(peakHourFraction * 100).toFixed(1)}%</p>
-          <p className="text-sm text-blue-800 mt-1">of sessions occurred during peak hours.</p>
+        <div className="card-inset mb-6">
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Peak hour sessions</p>
+          <p className="kpi-large num" style={{ color: 'var(--color-accent-light)' }}>{(peakHourFraction * 100).toFixed(1)}%</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 4 }}>of sessions occurred during peak hours.</p>
         </div>
       )}
 
       {dailySpendData.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-4">Daily Spend Trend</h3>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Daily Spend Trend</h3>
           <DailySpendLine data={dailySpendData} />
         </div>
       )}
 
       {modelBreakdown.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-4">Model cost breakdown</h3>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model cost breakdown</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ModelCostSharePie data={pieData} />
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 font-semibold">Model</th>
-                    <th className="text-right py-2 font-semibold">Cost</th>
-                    <th className="text-right py-2 font-semibold">%</th>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                    <th className="text-left" style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Model</th>
+                    <th className="text-right" style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Cost</th>
+                    <th className="text-right" style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>%</th>
                   </tr>
                 </thead>
                 <tbody>
                   {modelBreakdown.map(model => (
-                    <tr key={model.model} className="border-b hover:bg-slate-50">
-                      <td className="py-2">{model.model}</td>
-                      <td className="text-right">{formatUsd(model.estimatedCostUsd)}</td>
-                      <td className="text-right">
+                    <tr key={model.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
+                      <td style={{ color: 'var(--text-primary)', fontSize: '0.875rem', padding: '8px 0' }}>{model.model}</td>
+                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>{formatUsd(model.estimatedCostUsd)}</td>
+                      <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>
                         {totalSpend > 0 ? ((model.estimatedCostUsd / totalSpend) * 100).toFixed(1) : '0.0'}%
                       </td>
                     </tr>
@@ -125,9 +125,9 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
       )}
 
       {cachedTokenFraction !== undefined && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded">
-          <p className="text-sm font-semibold text-green-900">Prompt cache impact</p>
-          <p className="text-sm text-green-800 mt-1">
+        <div className="card-inset mb-6">
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-positive-text)', marginBottom: 4 }}>Prompt cache impact</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             {(cachedTokenFraction * 100).toFixed(1)}% of input tokens were served from cache, saving approximately{' '}
             {formatUsd(cachedTokenSavingsUsd)}.
           </p>

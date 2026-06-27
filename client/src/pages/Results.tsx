@@ -8,6 +8,7 @@ import { ClaudeCodePanel } from '../components/Results/panels/ClaudeCodePanel.js
 import { FileExportPanel } from '../components/Results/panels/FileExportPanel.js';
 import { PrintLayout } from '../components/export/PrintLayout.js';
 import { transformReportForExport } from '../lib/exportTransform.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 import type { SourceId } from '../types/index.js';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -22,7 +23,6 @@ export function Results() {
     let container: HTMLDivElement | null = null;
     let root: any = null;
     try {
-      // 1. Create a hidden container for rendering the print layout
       container = document.createElement('div');
       container.style.position = 'fixed';
       container.style.top = '-9999px';
@@ -32,14 +32,11 @@ export function Results() {
       container.style.zIndex = '-1';
       document.body.appendChild(container);
 
-      // 2. Render PrintLayout component into the container using React 18 API
       root = ReactDOM.createRoot(container);
       root.render(<PrintLayout report={report} />);
 
-      // Wait for React to render the component
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 3. Capture the rendered content with html2canvas
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
@@ -47,21 +44,17 @@ export function Results() {
         backgroundColor: '#ffffff'
       });
 
-      // 4. Create a PDF document (A4 size)
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
         format: 'a4'
       });
 
-      // 5. Calculate dimensions to fit A4
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
       const imgWidth = pdfWidth;
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      // 6. Add canvas image to PDF
       const imgData = canvas.toDataURL('image/png');
       let heightLeft = imgHeight;
       let position = 0;
@@ -76,14 +69,12 @@ export function Results() {
         heightLeft -= pdfHeight;
       }
 
-      // 7. Save the PDF
       const fileName = `promptly-analysis-${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
-      // 8. Clean up the hidden container and root (runs regardless of success/error)
       try {
         if (root) root.unmount();
         if (container && document.body.contains(container)) {
@@ -121,99 +112,122 @@ export function Results() {
     }
   };
 
+  const hasData = report.sources.some(s => s.metrics !== null && s.connected === true);
   const totalSpend = report.cross_source_summary.total_actual_spend_usd;
   const sourceCount = report.sources.filter(s => !s.error).length;
-  const hasData = report.sources.some(s => s.metrics !== null && s.connected === true);
+
+  // Hero mini-tile values
+  const totalTokens = report.sources.reduce((sum, s) => {
+    const t = (s.metrics as any)?.estimatedTotalTokens ?? (s.metrics as any)?.copilotTokenBreakdownByModel?.reduce((a: number, m: any) => a + m.inputTokens + m.outputTokens, 0) ?? 0;
+    return sum + t;
+  }, 0);
+
+  const copilotCacheMetrics = report.sources.find(s => s.source_id === 'github_copilot')?.metrics as any;
+  const cacheHitPct = copilotCacheMetrics?.copilotCachedTokenFraction?.aggregate != null
+    ? (copilotCacheMetrics.copilotCachedTokenFraction.aggregate * 100).toFixed(1) + '%'
+    : '—';
+
+  const allModels: Array<{ model: string; costUsd: number }> = [];
+  report.sources.forEach(s => {
+    const m = s.metrics as any;
+    if (m?.copilotModelCostBreakdown) {
+      m.copilotModelCostBreakdown.forEach((r: any) => allModels.push({ model: r.model, costUsd: r.costUsd }));
+    }
+  });
+  const topModel = allModels.sort((a, b) => b.costUsd - a.costUsd)[0];
+
+  const recColor = (rec: any) => {
+    if ((rec.estimatedSavingsUsd ?? 0) > 0) return 'var(--color-warning)';
+    const text = (rec.title + rec.body).toLowerCase();
+    if (text.includes('critical') || text.includes('act now')) return 'var(--color-critical)';
+    return 'var(--color-info)';
+  };
 
   return (
-    <div className="min-h-screen p-8 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <button
-              onClick={() => dispatch({ phase: 'connection' })}
-              className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-sm mb-3 bg-transparent border-0 cursor-pointer p-0"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M19 12H5" />
-                <path d="M12 5l-7 7 7 7" />
-              </svg>
-              Back
-            </button>
-            <h1 className="text-4xl font-bold mb-2">Analysis Results</h1>
-            <p className="text-slate-600">
-              {new Date(report.metadata.generated_at).toLocaleDateString()} • {sourceCount} sources analyzed
-            </p>
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <button onClick={() => dispatch({ phase: 'connection' })} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', padding: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/>
+          </svg>
+          Back
+        </button>
+        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-muted)', letterSpacing: '-0.01em' }}>Promptly</span>
+        <ThemeToggle />
+      </div>
+
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
+        {/* Hero */}
+        <div style={{ marginBottom: 32, textAlign: 'center' }}>
+          <div className="kpi-hero num" style={{ color: 'var(--color-accent)', marginBottom: 4 }}>
+            ${totalSpend != null ? totalSpend.toFixed(2) : '0.00'}
           </div>
-          <div className="text-right">
-            <div className="text-4xl font-bold text-blue-600">${totalSpend ? totalSpend.toFixed(2) : '0.00'}</div>
-            <p className="text-slate-600">Total spend</p>
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Total AI Spend · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {new Date(report.metadata.generated_at).toLocaleDateString()}
+          </p>
+
+          {/* Mini tiles row */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Total Tokens', value: totalTokens > 0 ? totalTokens.toLocaleString() : '—' },
+              { label: 'Cache Hit', value: cacheHitPct },
+              { label: 'Top Model', value: topModel?.model ?? '—' },
+            ].map(tile => (
+              <div key={tile.label} className="card" style={{ padding: '12px 20px', minWidth: 120, maxWidth: 180, flex: '1 1 120px', textAlign: 'center' }}>
+                <div className="num" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tile.value}</div>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>{tile.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
+        {/* Error banner */}
         {report.cross_source_summary.allSourcesFailed && (
-          <div className="bg-red-50 border border-red-200 rounded p-4 mb-8">
-            <p className="text-red-900">All sources failed. Please check your credentials and try again.</p>
+          <div style={{ background: 'var(--color-critical-muted)', border: '1px solid var(--color-critical)', borderRadius: 'var(--radius-lg)', padding: 16, marginBottom: 24 }}>
+            <p style={{ color: 'var(--color-critical-text)', margin: 0, fontSize: '0.875rem' }}>All sources failed. Please check your credentials and try again.</p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Source panels */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 16, marginBottom: 24 }}>
           {report.sources.map(source => {
             const PanelComponent = renderSourcePanel(source.source_id);
-            
-            // Error state
             if (source.error) {
               return (
-                <div key={source.source_id} className="border rounded-lg p-6 bg-red-50">
-                  <h3 className="font-semibold mb-2 text-lg">{source.source_id}</h3>
-                  <p className="text-red-600 text-sm">{source.error}</p>
+                <div key={source.source_id} className="card" style={{ borderColor: 'var(--color-critical-muted)' }}>
+                  <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{source.source_id}</h3>
+                  <p style={{ margin: 0, color: 'var(--color-critical-text)', fontSize: '0.875rem' }}>{source.error}</p>
                 </div>
               );
             }
-
-            // Use panel component if available, otherwise show generic view
-            if (PanelComponent) {
-              return <PanelComponent key={source.source_id} report={source} />;
-            }
-
-            // Fallback generic view
+            if (PanelComponent) return <PanelComponent key={source.source_id} report={source} />;
             return (
-              <div key={source.source_id} className="border rounded-lg p-6 bg-slate-50">
-                <h3 className="font-semibold mb-2 text-lg">{source.source_id}</h3>
-                <p className="text-sm text-slate-600">Tier: {source.tier || 'N/A'}</p>
-                {source.metrics && (
-                  <div className="mt-4 space-y-1 text-sm">
-                    {source.metrics.totalActualSpendUsd && <p>Spend: ${source.metrics.totalActualSpendUsd.toFixed(2)}</p>}
-                    {source.metrics.estimatedTotalTokens && <p>Tokens: {source.metrics.estimatedTotalTokens.toLocaleString()}</p>}
-                  </div>
-                )}
+              <div key={source.source_id} className="card">
+                <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600 }}>{source.source_id}</h3>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>Tier: {source.tier ?? '—'}</p>
               </div>
             );
           })}
         </div>
 
+        {/* Recommendations */}
         {report.recommendations.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
-            <div className="space-y-4">
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Recommendations</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {report.recommendations.slice(0, 5).map((rec, idx) => (
-                <div key={idx} className="bg-white p-4 rounded border-l-4 border-blue-500">
-                  <div className="flex items-start justify-between">
+                <div key={idx} className="card" style={{ borderLeft: `4px solid ${recColor(rec)}`, paddingLeft: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                     <div>
-                      <h3 className="font-semibold">{rec.title}</h3>
-                      <p className="text-sm text-slate-600">{rec.body}</p>
+                      <h3 style={{ margin: '0 0 4px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{rec.title}</h3>
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{rec.body}</p>
                     </div>
-                    {rec.estimatedSavingsUsd && <p className="text-green-600 font-semibold">Save ${rec.estimatedSavingsUsd.toFixed(2)}/mo</p>}
+                    {rec.estimatedSavingsUsd != null && (
+                      <span className="num" style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--color-positive-text)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        Save ${rec.estimatedSavingsUsd.toFixed(2)}/mo
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -221,16 +235,13 @@ export function Results() {
           </div>
         )}
 
-        <div className="flex gap-4 items-center">
-          <button className="primary" onClick={downloadJSON} disabled={!hasData}>
-            Export JSON
-          </button>
-          <button className="primary" onClick={downloadPDF} disabled={!hasData}>
-            Export PDF
-          </button>
+        {/* Action bar */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
+          <button className="primary" onClick={downloadJSON} disabled={!hasData}>Export JSON</button>
+          <button className="primary" onClick={downloadPDF} disabled={!hasData}>Export PDF</button>
           <button
-            className="text-sm text-slate-500 hover:text-slate-700 underline bg-transparent border-0 cursor-pointer"
             onClick={() => dispatch({ phase: 'landing', sources: {} })}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'underline', padding: '0 8px' }}
           >
             Start Over
           </button>
@@ -239,3 +250,4 @@ export function Results() {
     </div>
   );
 }
+

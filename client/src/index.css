@@ -1,45 +1,219 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ─── Google Fonts ──────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
 
-body {
-  @apply bg-white text-gray-900;
+/* ─── Design tokens (dark mode default) ─────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --color-bg-base:      hsl(226, 22%, 7%);
+  --color-bg-surface:   hsl(228, 18%, 11%);
+  --color-bg-elevated:  hsl(226, 15%, 15%);
+  --color-bg-inset:     hsl(230, 20%, 9%);
+
+  /* Accent — iris/violet */
+  --color-accent:        oklch(65% 0.18 275);
+  --color-accent-muted:  oklch(65% 0.12 275 / 0.15);
+  --color-accent-border: oklch(65% 0.15 275 / 0.35);
+  --color-accent-light:  oklch(80% 0.12 275);
+
+  /* Semantic */
+  --color-positive:       oklch(68% 0.16 155);
+  --color-positive-muted: oklch(68% 0.10 155 / 0.15);
+  --color-positive-text:  oklch(78% 0.13 155);
+  --color-warning:        oklch(72% 0.17 65);
+  --color-warning-muted:  oklch(72% 0.10 65 / 0.15);
+  --color-warning-text:   oklch(82% 0.14 65);
+  --color-critical:       oklch(62% 0.20 25);
+  --color-critical-muted: oklch(62% 0.12 25 / 0.15);
+  --color-critical-text:  oklch(75% 0.16 25);
+  --color-info:           oklch(68% 0.14 230);
+  --color-info-muted:     oklch(68% 0.08 230 / 0.15);
+
+  /* Text */
+  --text-primary:   oklch(92% 0.01 240);
+  --text-secondary: oklch(68% 0.04 240);
+  --text-muted:     oklch(50% 0.04 240);
+  --text-disabled:  oklch(38% 0.03 240);
+  --text-on-accent: oklch(100% 0 0);
+
+  /* Radius */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 999px;
 }
 
-input[type='date'],
-input[type='text'],
-input[type='password'],
-input[type='email'],
-select,
-textarea {
-  @apply border border-gray-300 rounded px-3 py-2 w-full;
+/* ─── Light mode overrides ───────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg-base:     hsl(220, 20%, 97%);
+  --color-bg-surface:  hsl(0, 0%, 100%);
+  --color-bg-elevated: hsl(220, 18%, 96%);
+  --color-bg-inset:    hsl(220, 15%, 94%);
+  --text-primary:      oklch(20% 0.02 250);
+  --text-secondary:    oklch(45% 0.04 245);
+  --text-muted:        oklch(62% 0.03 245);
 }
 
-input[type='date']:focus,
-input[type='text']:focus,
-input[type='password']:focus,
-input[type='email']:focus,
-select:focus,
-textarea:focus {
-  @apply outline-none ring-2 ring-blue-500 border-transparent;
+/* ─── Reset + base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--color-bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-button {
-  @apply px-4 py-2 rounded font-semibold;
+/* ─── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-lg);
+  padding: 20px;
 }
 
-button.primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700;
+.card:hover,
+.card:focus-within {
+  background: var(--color-bg-elevated);
+  border-color: rgba(255, 255, 255, 0.12);
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
-button.secondary {
-  @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
+.card-inset {
+  background: var(--color-bg-inset);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 16px;
 }
 
-button.danger {
-  @apply bg-red-600 text-white hover:bg-red-700;
+/* ─── Light mode surface overrides ──────────────────────────────────────── */
+[data-theme="light"] .card                           { border-color: rgba(0, 0, 0, 0.08); }
+[data-theme="light"] .card:hover,
+[data-theme="light"] .card:focus-within              { border-color: rgba(0, 0, 0, 0.15); background: var(--color-bg-elevated); }
+[data-theme="light"] .card-inset                     { border-color: rgba(0, 0, 0, 0.07); }
+[data-theme="light"] tr                              { border-bottom-color: rgba(0, 0, 0, 0.07); }
+[data-theme="light"] tr:hover                        { background: var(--color-bg-inset); }
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 24px;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  min-width: 120px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--text-on-accent);
+  border: none;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+  text-decoration: none;
+}
+.primary:hover   { opacity: 0.88; }
+.primary:active  { opacity: 0.76; }
+.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 20px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.secondary:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--text-primary); }
+[data-theme="light"] .secondary { border-color: rgba(0,0,0,0.18); }
+[data-theme="light"] .secondary:hover { border-color: rgba(0,0,0,0.35); }
+
+.danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 20px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--color-critical);
+  color: var(--color-critical-text);
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+.danger:hover { opacity: 0.8; }
+
+/* ─── Numeric / tabular ──────────────────────────────────────────────────── */
+.kpi-value, .num {
+  font-feature-settings: 'tnum' 1, 'ss01' 1;
+  font-variant-numeric: tabular-nums;
 }
 
-button:disabled {
-  @apply opacity-50 cursor-not-allowed;
+/* ─── KPI hero number ────────────────────────────────────────────────────── */
+.kpi-hero {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.kpi-large {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Progress step animation ────────────────────────────────────────────── */
+@keyframes stepPulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+@keyframes checkIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Scrollable table wrapper ───────────────────────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
+}
+
+@media (max-width: 640px) {
+  .table-col-sticky {
+    position: sticky;
+    left: 0;
+    background: var(--color-bg-surface);
+    z-index: 1;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  [data-theme="light"] .table-col-sticky {
+    background: var(--color-bg-surface);
+    border-right-color: rgba(0, 0, 0, 0.1);
+  }
 }

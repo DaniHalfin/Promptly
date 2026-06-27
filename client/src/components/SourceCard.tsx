@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSession } from '../context/SessionContext.js';
 import { SourceId } from '../types/index.js';
 import { apiClient } from '../api/client.js';
@@ -93,6 +93,24 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
   const source = state.sources[sourceId];
   const [validating, setValidating] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const credInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  const isConnected = source?.status === 'connected' || source?.status === 'ready' || source?.enabled;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input, button, a, label')) return;
+    if (info.disabled) return;
+    if (info.type === 'local') {
+      checkboxRef.current?.click();
+    } else if (info.type === 'api') {
+      credInputRef.current?.focus();
+    } else if (info.type === 'file') {
+      fileInputRef.current?.focus();
+    }
+  };
 
   const handleCredentialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateSource(sourceId, { credential: e.target.value, status: 'pending' });
@@ -143,10 +161,44 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     error: 'bg-red-100 border-red-300',
   };
 
+  const cardBorder = isConnected
+    ? '2px solid var(--color-accent-border)'
+    : source?.status === 'error'
+    ? '1px solid var(--color-critical)'
+    : '1px solid rgba(255,255,255,0.07)';
+
+  const cardBg = isConnected
+    ? 'color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-surface))'
+    : 'var(--color-bg-surface)';
+
   return (
-    <div className={`border-2 rounded-lg p-6 transition-colors ${statusColor[source?.status || 'pending']}`}>
-      <h3 className="text-lg font-semibold mb-2">{info.label}</h3>
-      <p className="text-sm text-slate-600 mb-4">{info.description}</p>
+    <div
+      onClick={handleCardClick}
+      style={{
+        borderRadius: 'var(--radius-lg)',
+        padding: '16px 20px',
+        transition: 'all 150ms ease',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+        cursor: info.disabled ? 'default' : 'pointer',
+        border: cardBorder,
+        background: cardBg,
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
+        {isConnected && (
+          <span style={{
+            color: 'var(--color-accent-light)',
+            fontSize: '1rem',
+            animation: 'checkIn 120ms ease-out',
+            flexShrink: 0,
+          }}>✓</span>
+        )}
+      </div>
+      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{info.description}</p>
 
       {!info.disabled && info.setupInstructions && (
         <div className="mb-4">
@@ -195,12 +247,23 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         <div>
           <label htmlFor={`${sourceId}-credential`} className="block text-sm font-medium mb-2">API Key</label>
           <input
+            ref={credInputRef}
             id={`${sourceId}-credential`}
             type="password"
             placeholder="Paste your API key here"
             value={source?.credential || ''}
             onChange={handleCredentialChange}
-            className="mb-3"
+            style={{
+              width: '100%',
+              background: 'var(--color-bg-inset)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '8px 12px',
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              fontFamily: 'monospace',
+              marginBottom: 8,
+            }}
           />
           <button className="secondary w-full" onClick={handleValidate} disabled={validating || !source?.credential}>
             {validating ? 'Validating...' : 'Validate'}
@@ -209,7 +272,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       ) : info.type === 'local' ? (
         <div>
           <label className="flex items-center gap-3 text-sm font-medium mb-2">
-            <input type="checkbox" checked={Boolean(source?.enabled)} onChange={handleLocalToggle} disabled={validating} />
+            <input ref={checkboxRef} type="checkbox" checked={Boolean(source?.enabled)} onChange={handleLocalToggle} disabled={validating} />
             Enable local {info.label} analysis
           </label>
           <p className="text-xs text-slate-500">
@@ -220,7 +283,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       ) : (
         <div>
           <label htmlFor={`${sourceId}-file`} className="block text-sm font-medium mb-2">Upload File</label>
-          <input id={`${sourceId}-file`} type="file" accept=".json,.jsonl" onChange={handleFileChange} className="mb-3" />
+          <input ref={fileInputRef} id={`${sourceId}-file`} type="file" accept=".json,.jsonl" onChange={handleFileChange} className="mb-3" />
           {source?.file && <p className="text-sm text-green-600">✓ {source.file.name} selected</p>}
         </div>
       )}
