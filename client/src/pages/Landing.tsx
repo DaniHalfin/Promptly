@@ -104,7 +104,7 @@ export function Landing() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '48px 24px 32px',
+        padding: '48px 24px 120px',
       }}>
         <div style={{ width: '100%', maxWidth: 520 }}>
           {/* Hero text */}
@@ -145,25 +145,36 @@ export function Landing() {
             <SourceCard sourceId="anthropic" />
             <SourceCard sourceId="chatgpt_export" />
           </div>
+        </div>
+      </div>
 
-          {/* Analyze button */}
-          <div style={{ marginTop: 32 }}>
-            <button
-              className="primary"
-              style={{ width: '100%' }}
-              disabled={!hasAnyEnabled}
-              onClick={handleAnalyze}
-            >
-              Run Analysis →
-            </button>
-          </div>
-
-          {/* Privacy note */}
+      {/* Sticky action footer — always visible regardless of scroll position */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        padding: '12px 24px 16px',
+        background: 'var(--color-bg-elevated)',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}>
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
+          <button
+            className="primary"
+            style={{ width: '100%' }}
+            disabled={!hasAnyEnabled}
+            onClick={handleAnalyze}
+          >
+            Run Analysis →
+          </button>
           <p style={{
             fontSize: '0.75rem',
             color: 'var(--text-muted)',
             textAlign: 'center',
-            marginTop: 16,
+            marginTop: 8,
             lineHeight: 1.5,
           }}>
             All analysis happens on your device. No credentials or files leave this machine.

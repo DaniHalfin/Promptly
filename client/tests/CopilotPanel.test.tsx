@@ -138,9 +138,9 @@ describe('CopilotPanel', () => {
     expect(screen.getByText('Total Cost')).toBeInTheDocument();
   });
 
-  it('shows Connected badge when tier is A or B', () => {
+  it('does not show Connected badge (badge removed from all result panels)', () => {
     render(<CopilotPanel report={report()} />);
 
-    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
   });
 });

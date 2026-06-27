@@ -22,18 +22,6 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
           <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
             OpenAI
           </h2>
-          <span
-            className="ml-2 px-2 py-1 rounded"
-            style={{
-              background: 'var(--color-positive-muted)',
-              color: 'var(--color-positive-text)',
-              fontSize: 'var(--text-note)',
-              fontWeight: 600,
-              border: '1px solid var(--color-positive)',
-            }}
-          >
-            Connected
-          </span>
         </div>
         <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>No data available</p>
       </div>
@@ -49,18 +37,6 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
           <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
             OpenAI
           </h2>
-          <span
-            className="ml-2 px-2 py-1 rounded"
-            style={{
-              background: 'var(--color-positive-muted)',
-              color: 'var(--color-positive-text)',
-              fontSize: 'var(--text-note)',
-              fontWeight: 600,
-              border: '1px solid var(--color-positive)',
-            }}
-          >
-            Connected
-          </span>
         </div>
         <p
           className="text-center py-8"
@@ -104,18 +80,6 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
             <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
               OpenAI
             </h2>
-            <span
-              className="ml-2 px-2 py-1 rounded"
-              style={{
-                background: 'var(--color-positive-muted)',
-                color: 'var(--color-positive-text)',
-                fontSize: 'var(--text-note)',
-                fontWeight: 600,
-                border: '1px solid var(--color-positive)',
-              }}
-            >
-              Connected
-            </span>
           </div>
           <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-positive-text)' }}>
             ${totalSpend.toFixed(2)}

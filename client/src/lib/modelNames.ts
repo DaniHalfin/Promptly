@@ -6,9 +6,9 @@
  * prefixes) MUST appear BEFORE less-specific keys, or a shorter prefix will
  * silently swallow a more-specific model ID and return the wrong name.
  *
- * ✅ Correct:  'claude-sonnet-4-6' before 'claude-sonnet'
- * ❌ Wrong:   'claude-sonnet' before 'claude-sonnet-4-6'
- *             (claude-sonnet-4-6-20250514 would match 'claude-sonnet' and
+ * ✅ Correct:  'claude-sonnet-4.6' before 'claude-sonnet'
+ * ❌ Wrong:   'claude-sonnet' before 'claude-sonnet-4.6'
+ *             (claude-sonnet-4.6-20250514 would match 'claude-sonnet' and
  *              return "Claude Sonnet" instead of "Claude Sonnet 4.6")
  */
 
@@ -18,14 +18,15 @@
  */
 const MODEL_FRIENDLY_NAMES: Record<string, string> = {
   // Anthropic — Claude 4 family
-  'claude-opus-4-8':        'Claude Opus 4.8',
-  'claude-opus-4-7':        'Claude Opus 4.7',
-  'claude-opus-4-6':        'Claude Opus 4.6',
-  'claude-opus-4-5':        'Claude Opus 4.5',
-  'claude-sonnet-4-6':      'Claude Sonnet 4.6',
-  'claude-sonnet-4-5':      'Claude Sonnet 4.5',
+  'claude-opus-4.8':        'Claude Opus 4.8',
+  'claude-opus-4.7':        'Claude Opus 4.7',
+  'claude-opus-4.6':        'Claude Opus 4.6',
+  'claude-opus-4.5':        'Claude Opus 4.5',
+  'claude-opus-4':          'Claude Opus 4',
+  'claude-sonnet-4.6':      'Claude Sonnet 4.6',
+  'claude-sonnet-4.5':      'Claude Sonnet 4.5',
   'claude-sonnet-4':        'Claude Sonnet 4',
-  'claude-haiku-4-5':       'Claude Haiku 4.5',
+  'claude-haiku-4.5':       'Claude Haiku 4.5',
   'claude-haiku-4':         'Claude Haiku 4',
   // Anthropic — Claude 3.5 family
   'claude-3-5-sonnet-20241022': 'Claude Sonnet 3.5',

@@ -182,7 +182,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <h3 style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
-        {isConnected && (
+        {(source?.status === 'connected' || source?.status === 'ready') && (
           <span style={{
             padding: '2px 8px',
             background: 'var(--color-positive-muted)',
@@ -345,7 +345,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       )}
 
-      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}>{source.error}</p>}
+      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8, WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>{source.error}</p>}
     </div>
   );
 }

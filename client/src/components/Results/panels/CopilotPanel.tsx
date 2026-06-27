@@ -2,6 +2,7 @@ import React from 'react';
 import { SourceReport } from '../../../types/index.js';
 import { ModelCostSharePie } from '../charts/ModelCostSharePie.js';
 import { friendlyModelName } from '../../../lib/modelNames.js';
+import { formatTokenCount } from '../../../lib/formatters.js';
 
 interface CopilotPanelProps {
   report: SourceReport;
@@ -44,9 +45,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-blue-600 rounded-full mr-3" />
           <h2 className="text-lg font-semibold">GitHub Copilot</h2>
           {(tier === 'A' || tier === 'B') && (
-            <span style={{ marginLeft: 8, padding: '2px 6px', background: 'var(--color-positive-muted)', color: 'var(--color-positive-text)', fontSize: 'var(--text-note)', fontWeight: 600, borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-positive)' }}>
-              Connected
-            </span>
+            <span style={{ marginLeft: 8, padding: '2px 6px', background: 'var(--color-accent-muted)', color: 'var(--color-accent-light)', fontSize: 'var(--text-note)', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>{tier || 'N/A'}</span>
           )}
         </div>
       </div>
@@ -67,7 +66,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Tokens</p>
-          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{(totalInputTokens + totalOutputTokens).toLocaleString()}</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{formatTokenCount(totalInputTokens + totalOutputTokens)}</p>
         </div>
       </div>
 
@@ -75,29 +74,29 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       {tokenBreakdown.length > 0 && (
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Token breakdown by model</h3>
-          <div className="table-scroll">
+          <div className="table-scroll" style={{ overflowX: 'auto' }}>
             <table className="w-full text-sm" data-testid="token-breakdown-table">
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Model</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Input tokens</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Output tokens</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Cache read</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Cache write</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Reasoning</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Requests</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Cost (USD)</th>
+                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160 }}>Model</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Input tokens</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Output tokens</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cache read</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cache write</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Reasoning</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 80 }}>Requests</th>
+                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cost (USD)</th>
                 </tr>
               </thead>
               <tbody>
                 {tokenBreakdown.map(row => (
                   <tr key={row.model} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 100ms' }}>
                     <td style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)', padding: '8px 0' }}>{friendlyModelName(row.model)}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.inputTokens.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.outputTokens.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.cacheReadTokens.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.cacheWriteTokens.toLocaleString()}</td>
-                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.reasoningTokens.toLocaleString()}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.inputTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.outputTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.cacheReadTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.cacheWriteTokens)}</td>
+                    <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{formatTokenCount(row.reasoningTokens)}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>{row.requestCount.toLocaleString()}</td>
                     <td className="text-right" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-body)' }}>${row.requestCost.toFixed(4)}</td>
                   </tr>
@@ -139,12 +138,12 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Input tokens</p>
-          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{totalInputTokens.toLocaleString()}</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{formatTokenCount(totalInputTokens)}</p>
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4 }}>Total prompt tokens (cached reads/writes are subsets, not additive)</p>
         </div>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Output tokens</p>
-          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{totalOutputTokens.toLocaleString()}</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{formatTokenCount(totalOutputTokens)}</p>
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4 }}>Total completion tokens (reasoning subsets included)</p>
         </div>
       </div>

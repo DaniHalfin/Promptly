@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTokenCount } from '../../../lib/formatters.js';
 import { SourceReport } from '../../../types/index.js';
 import { ConversationLengthBar } from '../charts/ConversationLengthBar.js';
 import { TierUpgradeNudge } from '../../common/TierUpgradeNudge.js';
@@ -26,18 +27,6 @@ export function FileExportPanel({ report }: FileExportPanelProps) {
           <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
             {displayName}
           </h2>
-          <span
-            className="ml-2 px-2 py-1 rounded"
-            style={{
-              background: 'var(--color-positive-muted)',
-              color: 'var(--color-positive-text)',
-              fontSize: 'var(--text-note)',
-              fontWeight: 600,
-              border: '1px solid var(--color-positive)',
-            }}
-          >
-            Connected
-          </span>
         </div>
         <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>No data available</p>
       </div>
@@ -53,18 +42,6 @@ export function FileExportPanel({ report }: FileExportPanelProps) {
           <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
             {displayName}
           </h2>
-          <span
-            className="ml-2 px-2 py-1 rounded"
-            style={{
-              background: 'var(--color-positive-muted)',
-              color: 'var(--color-positive-text)',
-              fontSize: 'var(--text-note)',
-              fontWeight: 600,
-              border: '1px solid var(--color-positive)',
-            }}
-          >
-            Connected
-          </span>
         </div>
         <p
           className="text-center py-8"
@@ -95,18 +72,6 @@ export function FileExportPanel({ report }: FileExportPanelProps) {
           <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
             {displayName}
           </h2>
-          <span
-            className="ml-2 px-2 py-1 rounded"
-            style={{
-              background: 'var(--color-positive-muted)',
-              color: 'var(--color-positive-text)',
-              fontSize: 'var(--text-note)',
-              fontWeight: 600,
-              border: '1px solid var(--color-positive)',
-            }}
-          >
-            Connected
-          </span>
         </div>
       </div>
 
@@ -125,13 +90,13 @@ export function FileExportPanel({ report }: FileExportPanelProps) {
         <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Total Tokens</p>
           <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {estimatedTokens.toLocaleString()}
+            {formatTokenCount(estimatedTokens)}
           </p>
         </div>
         <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Avg Conversation Length</p>
           <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {avgLength.toLocaleString()}
+            {formatTokenCount(avgLength)}
           </p>
         </div>
         <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
@@ -229,7 +194,7 @@ export function FileExportPanel({ report }: FileExportPanelProps) {
         <ul className="space-y-2" style={{ fontSize: 'var(--text-body)', color: 'var(--color-positive-text)' }}>
           <li>
             • Average conversation:{' '}
-            <span style={{ fontWeight: 600 }}>{avgLength.toLocaleString()} tokens</span>
+            <span style={{ fontWeight: 600 }}>{formatTokenCount(avgLength)} tokens</span>
           </li>
           {conversationCount > 100 && (
             <li>• High conversation volume—consider organizing by topic or use case</li>

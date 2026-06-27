@@ -170,7 +170,7 @@ export function Results() {
         <ThemeToggle />
       </div>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', padding: '32px 24px', boxSizing: 'border-box' }}>
         {/* Hero */}
         <div style={{ marginBottom: 32, textAlign: 'center' }}>
           <div className="kpi-hero num" style={{ color: 'var(--color-accent)', marginBottom: 4 }}>
