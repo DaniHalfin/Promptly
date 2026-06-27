@@ -154,13 +154,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     setValidating(false);
   };
 
-  const statusColor: Record<string, string> = {
-    pending: 'bg-gray-100',
-    ready: 'bg-blue-100 border-blue-300',
-    connected: 'bg-green-100 border-green-300',
-    error: 'bg-red-100 border-red-300',
-  };
-
   const cardBorder = isConnected
     ? '2px solid var(--color-accent-border)'
     : source?.status === 'error'
@@ -188,39 +181,43 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
+        <h3 style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
         {isConnected && (
           <span style={{
-            color: 'var(--color-accent-light)',
-            fontSize: '1rem',
-            animation: 'checkIn 120ms ease-out',
+            padding: '2px 8px',
+            background: 'var(--color-positive-muted)',
+            color: 'var(--color-positive-text)',
+            fontSize: 'var(--text-note)',
+            fontWeight: 600,
+            borderRadius: 'var(--radius-pill)',
+            border: '1px solid var(--color-positive)',
             flexShrink: 0,
-          }}>✓</span>
+          }}>✓ Connected</span>
         )}
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{info.description}</p>
+      <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
 
       {!info.disabled && info.setupInstructions && (
-        <div className="mb-4">
+        <div style={{ marginBottom: 16 }}>
           <button
             type="button"
             onClick={() => setShowInstructions((v) => !v)}
-            className="text-xs text-slate-500 hover:text-slate-700 underline-offset-2 hover:underline focus:outline-none"
+            style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             aria-expanded={showInstructions}
           >
-            {showInstructions ? '▴ Hide' : 'How to connect ▾'}
+            {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
           </button>
 
           {showInstructions && (
-            <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-3">
-              <ol className="list-decimal list-inside space-y-1">
+            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
                 {info.setupInstructions.steps.map((step, i) => (
-                  <li key={i} className="text-xs text-slate-600">{step}</li>
+                  <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
                 ))}
               </ol>
               {info.setupInstructions.note && (
-                <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1">
-                  <p className="text-xs text-amber-800">{info.setupInstructions.note}</p>
+                <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--color-warning-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
+                  <p style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', margin: 0 }}>{info.setupInstructions.note}</p>
                 </div>
               )}
               {info.setupInstructions.docsUrl && (
@@ -228,7 +225,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
                   href={info.setupInstructions.docsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-block text-xs text-blue-600 hover:underline"
+                  style={{ display: 'inline-block', marginTop: 8, fontSize: 'var(--text-note)', color: 'var(--color-accent-light)' }}
                 >
                   Official docs →
                 </a>
@@ -239,13 +236,13 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       )}
 
       {info.disabled ? (
-        <div className="rounded border border-slate-200 bg-slate-50 p-3" aria-disabled="true">
-          <p className="text-sm font-semibold text-slate-700">Currently disabled</p>
-          <p className="text-xs text-slate-500 mt-1">Claude export upload is not available in this MVP.</p>
+        <div style={{ borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)', background: 'var(--color-bg-inset)', padding: '10px 14px' }} aria-disabled="true">
+          <p style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>Currently disabled</p>
+          <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Claude export upload is not available in this MVP.</p>
         </div>
       ) : info.type === 'api' ? (
         <div>
-          <label htmlFor={`${sourceId}-credential`} className="block text-sm font-medium mb-2">API Key</label>
+          <label htmlFor={`${sourceId}-credential`} style={{ display: 'block', fontSize: 'var(--text-body)', fontWeight: 500, marginBottom: 8 }}>API Key</label>
           <input
             ref={credInputRef}
             id={`${sourceId}-credential`}
@@ -260,7 +257,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
               borderRadius: 'var(--radius-sm)',
               padding: '8px 12px',
               color: 'var(--text-primary)',
-              fontSize: '0.875rem',
+              fontSize: 'var(--text-body)',
               fontFamily: 'monospace',
               marginBottom: 8,
             }}
@@ -271,25 +268,84 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       ) : info.type === 'local' ? (
         <div>
-          <label className="flex items-center gap-3 text-sm font-medium mb-2">
-            <input ref={checkboxRef} type="checkbox" checked={Boolean(source?.enabled)} onChange={handleLocalToggle} disabled={validating} />
-            Enable local {info.label} analysis
-          </label>
-          <p className="text-xs text-slate-500">
+          <button
+            role="switch"
+            aria-checked={Boolean(source?.enabled)}
+            aria-label={`Enable local ${info.label} analysis`}
+            onClick={() => checkboxRef.current?.click()}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}
+          >
+            <span className={`toggle-track${source?.enabled ? ' on' : ''}${validating ? ' disabled' : ''}`}>
+              <span className="toggle-thumb" />
+            </span>
+            <span style={{ fontSize: 'var(--text-body)', fontWeight: 500, color: 'var(--text-primary)' }}>
+              Enable local {info.label} analysis
+            </span>
+          </button>
+          <input
+            ref={checkboxRef}
+            type="checkbox"
+            aria-hidden="true"
+            tabIndex={-1}
+            style={{ display: 'none' }}
+            checked={Boolean(source?.enabled)}
+            onChange={handleLocalToggle}
+            disabled={validating}
+          />
+          <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', margin: 0 }}>
             Promptly scans <code>{info.localPath}</code> on this computer. No API key or file upload is required.
           </p>
-          {validating && <p className="text-sm text-blue-600 mt-2">{info.localCheckMessage ?? 'Checking local data...'}</p>}
+          {validating && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-accent-light)', marginTop: 8 }}>{info.localCheckMessage ?? 'Checking local data...'}</p>}
         </div>
       ) : (
         <div>
-          <label htmlFor={`${sourceId}-file`} className="block text-sm font-medium mb-2">Upload File</label>
-          <input ref={fileInputRef} id={`${sourceId}-file`} type="file" accept=".json,.jsonl" onChange={handleFileChange} className="mb-3" />
-          {source?.file && <p className="text-sm text-green-600">✓ {source.file.name} selected</p>}
+          <div
+            className="upload-area"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) updateSource(sourceId, { file, status: 'ready' });
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Upload JSON or JSONL file"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+          >
+            <span className="upload-area-icon">📂</span>
+            <span className="upload-area-label">
+              Click or drag a .json / .jsonl file here
+            </span>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.jsonl"
+            aria-hidden="true"
+            tabIndex={-1}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          {source?.file && (
+            <div className="upload-file-selected">
+              <span>✓ {source.file.name}</span>
+              <button
+                type="button"
+                className="upload-file-clear"
+                onClick={() => {
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  updateSource(sourceId, { file: undefined, status: 'pending' });
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {source?.error && <p className="text-sm text-red-600 mt-2">{source.error}</p>}
-      {source?.status === 'connected' && <p className="text-sm text-green-600 mt-2">✓ Connected</p>}
+      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}>{source.error}</p>}
     </div>
   );
 }

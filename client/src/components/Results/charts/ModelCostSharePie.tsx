@@ -7,29 +7,64 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { friendlyModelName } from '../../../lib/modelNames.js';
 
 interface ModelCostSharePieProps {
   data: Array<{ model: string; costUsd: number; percentage: number }>;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
+// OKLCH values matching the design token palette
+const COLORS = [
+  'oklch(62% 0.19 270)',   // indigo
+  'oklch(60% 0.20 300)',   // purple
+  'oklch(65% 0.16 240)',   // blue
+  'oklch(68% 0.17 180)',   // teal
+  'oklch(70% 0.18 150)',   // green
+];
+
+const RADIAN = Math.PI / 180;
+
+function renderCustomizedLabel({
+  cx, cy, midAngle, innerRadius, outerRadius, percent,
+}: {
+  cx: number; cy: number; midAngle: number;
+  innerRadius: number; outerRadius: number; percent: number;
+}) {
+  if (percent * 100 < 5) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+      {`${(percent * 100).toFixed(1)}%`}
+    </text>
+  );
+}
+
+function renderLegendText(value: string) {
+  return (
+    <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-note)' }}>
+      {friendlyModelName(value)}
+    </span>
+  );
+}
 
 export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-        <p className="text-slate-500">No data available</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-note)' }}>No data available</p>
       </div>
     );
   }
 
   // Ensure we have valid numeric data for the pie chart
   const validData = data.filter(d => d.costUsd > 0);
-  
+
   if (validData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-        <p className="text-slate-500">No data available</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-note)' }}>No data available</p>
       </div>
     );
   }
@@ -42,30 +77,30 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={(entry) => `${entry.model}: ${entry.percentage.toFixed(1)}%`}
+          label={renderCustomizedLabel}
           outerRadius={100}
           innerRadius={60}
           fill="#8884d8"
           dataKey="costUsd"
+          nameKey="model"
         >
           {validData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
         <Tooltip
-          formatter={(value) => {
-            if (typeof value === 'number') {
-              return `$${value.toFixed(2)}`;
-            }
-            return value;
+          formatter={(value, name) => {
+            const numVal = typeof value === 'number' ? value : parseFloat(String(value));
+            return [`$${numVal.toFixed(2)}`, friendlyModelName(String(name))];
           }}
           contentStyle={{
-            backgroundColor: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            borderRadius: '4px',
+            backgroundColor: 'var(--color-bg-elevated)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
           }}
         />
-        <Legend />
+        <Legend formatter={renderLegendText} />
       </PieChart>
     </ResponsiveContainer>
   );

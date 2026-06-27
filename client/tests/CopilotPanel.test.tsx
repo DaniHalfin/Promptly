@@ -76,9 +76,9 @@ describe('CopilotPanel', () => {
 
     const table = screen.getByTestId('token-breakdown-table');
     const bodyRows = within(table).getAllByRole('row').slice(1);
-    expect(within(bodyRows[0]).getByText('claude-sonnet-4')).toBeInTheDocument();
-    expect(within(bodyRows[1]).getByText('gpt-4o')).toBeInTheDocument();
-    expect(within(bodyRows[2]).getByText('gpt-4.1-mini')).toBeInTheDocument();
+    expect(within(bodyRows[0]).getByText('Claude Sonnet 4')).toBeInTheDocument();
+    expect(within(bodyRows[1]).getByText('GPT-4o')).toBeInTheDocument();
+    expect(within(bodyRows[2]).getByText('GPT-4.1 mini')).toBeInTheDocument();
   });
 
   it('renders model spend table sorted by costUsd descending', () => {
@@ -87,10 +87,10 @@ describe('CopilotPanel', () => {
     const tables = screen.getAllByRole('table');
     const modelSpendTable = tables[1];
     const bodyRows = within(modelSpendTable).getAllByRole('row').slice(1);
-    expect(within(bodyRows[0]).getByText('claude-sonnet-4')).toBeInTheDocument();
+    expect(within(bodyRows[0]).getByText('Claude Sonnet 4')).toBeInTheDocument();
     expect(within(bodyRows[0]).getByText('$60.00')).toBeInTheDocument();
-    expect(within(bodyRows[1]).getByText('gpt-4o')).toBeInTheDocument();
-    expect(within(bodyRows[2]).getByText('gpt-4.1-mini')).toBeInTheDocument();
+    expect(within(bodyRows[1]).getByText('GPT-4o')).toBeInTheDocument();
+    expect(within(bodyRows[2]).getByText('GPT-4.1 mini')).toBeInTheDocument();
   });
 
   it('cache fraction tile renders with aggregate percentage', () => {
@@ -105,8 +105,8 @@ describe('CopilotPanel', () => {
     render(<CopilotPanel report={report()} />);
 
     const bars = screen.getByTestId('cache-fraction-bars');
-    expect(within(bars).getByText('claude-sonnet-4')).toBeInTheDocument();
-    expect(within(bars).getByText('gpt-4o')).toBeInTheDocument();
+    expect(within(bars).getByText('Claude Sonnet 4')).toBeInTheDocument();
+    expect(within(bars).getByText('GPT-4o')).toBeInTheDocument();
   });
 
   it('renders input and output token tiles', () => {
@@ -136,5 +136,11 @@ describe('CopilotPanel', () => {
 
     expect(screen.queryByTestId('cache-fraction-tile')).not.toBeInTheDocument();
     expect(screen.getByText('Total Cost')).toBeInTheDocument();
+  });
+
+  it('shows Connected badge when tier is A or B', () => {
+    render(<CopilotPanel report={report()} />);
+
+    expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 });

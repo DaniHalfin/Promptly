@@ -41,6 +41,16 @@
   --radius-lg:   12px;
   --radius-xl:   16px;
   --radius-pill: 999px;
+
+  /* Typography — fonts */
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif; /* heavier weight; page title only */
+
+  /* Typography — 4 canonical sizes */
+  --text-title:   1.125rem;   /* 18px  — page/section headings (h2 in panels, Recommendations h2) */
+  --text-heading: 0.9375rem;  /* 15px  — card headings (h3), panel sub-titles */
+  --text-body:    0.875rem;   /* 14px  — all body copy, table cells, labels */
+  --text-note:    0.75rem;    /* 12px  — metadata, timestamps, KPI tile labels, footnotes */
 }
 
 /* ─── Light mode overrides ───────────────────────────────────────────────── */
@@ -63,7 +73,7 @@ html, body {
   min-height: 100vh;
   background: var(--color-bg-base);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -161,6 +171,114 @@ html, body {
 }
 .danger:hover { opacity: 0.8; }
 
+/* ─── Toggle switch ─────────────────────────────────────────────────────── */
+.toggle-track {
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  flex-shrink: 0;
+  padding: 2px;
+  position: relative;
+}
+.toggle-track.on {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.toggle-track.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--text-on-accent);
+  transition: transform 150ms ease;
+  transform: translateX(0);
+}
+.toggle-track.on .toggle-thumb {
+  transform: translateX(18px);
+}
+[data-theme="light"] .toggle-track {
+  background: rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+[data-theme="light"] .toggle-track.on {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ─── File upload area ──────────────────────────────────────────────────── */
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border: 2px dashed var(--color-accent-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-inset);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+  text-align: center;
+}
+.upload-area:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+.upload-area-icon {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.upload-area-label {
+  font-size: var(--text-body);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+}
+.upload-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-positive-muted);
+  border: 1px solid var(--color-positive);
+}
+.upload-file-selected span {
+  flex: 1;
+  font-size: var(--text-body);
+  color: var(--color-positive-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upload-file-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-positive-text);
+  font-size: var(--text-heading);
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+[data-theme="light"] .upload-area {
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-inset);
+}
+
+/* ─── Panel table row hover ─────────────────────────────────────────────── */
+.panel-table-row:hover {
+  background: var(--color-bg-inset);
+}
+
 /* ─── Numeric / tabular ──────────────────────────────────────────────────── */
 .kpi-value, .num {
   font-feature-settings: 'tnum' 1, 'ss01' 1;
@@ -198,13 +316,28 @@ html, body {
 
 /* ─── Scrollable table wrapper ───────────────────────────────────────────── */
 .table-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-md);
-  mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
 }
 
-@media (max-width: 640px) {
+/* Desktop: table fills available width — no horizontal scroll, no fade mask */
+@media (min-width: 769px) {
+  .table-scroll {
+    overflow-x: visible;
+    width: 100%;
+  }
+  .table-scroll table {
+    width: 100%;
+    table-layout: auto;   /* columns size to content */
+  }
+}
+
+/* Mobile: restore horizontal scroll with sticky first column and right fade */
+@media (max-width: 768px) {
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
+  }
   .table-col-sticky {
     position: sticky;
     left: 0;
@@ -216,4 +349,10 @@ html, body {
     background: var(--color-bg-surface);
     border-right-color: rgba(0, 0, 0, 0.1);
   }
+}
+
+/* Tabular numbers on all numeric table cells */
+.table-scroll td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }

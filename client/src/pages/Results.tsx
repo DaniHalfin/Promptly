@@ -9,6 +9,7 @@ import { FileExportPanel } from '../components/Results/panels/FileExportPanel.js
 import { PrintLayout } from '../components/export/PrintLayout.js';
 import { transformReportForExport } from '../lib/exportTransform.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { friendlyModelName } from '../lib/modelNames.js';
 import type { SourceId } from '../types/index.js';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -146,14 +147,26 @@ export function Results() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={() => dispatch({ phase: 'connection' })} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', padding: 0 }}>
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 24px',
+        borderBottom: '1px solid var(--color-border, rgba(255,255,255,0.09))',
+        background: 'var(--color-bg-elevated)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}>
+        <button onClick={() => dispatch({ phase: 'connection' })} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-body)', padding: 0 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/>
           </svg>
           Back
         </button>
-        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-muted)', letterSpacing: '-0.01em' }}>Promptly</span>
+        <span style={{ fontWeight: 700, fontSize: 'var(--text-body)', color: 'var(--text-muted)', letterSpacing: '-0.01em' }}>Promptly</span>
         <ThemeToggle />
       </div>
 
@@ -163,7 +176,7 @@ export function Results() {
           <div className="kpi-hero num" style={{ color: 'var(--color-accent)', marginBottom: 4 }}>
             ${totalSpend != null ? totalSpend.toFixed(2) : '0.00'}
           </div>
-          <p style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             Total AI Spend · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {new Date(report.metadata.generated_at).toLocaleDateString()}
           </p>
 
@@ -172,11 +185,11 @@ export function Results() {
             {[
               { label: 'Total Tokens', value: totalTokens > 0 ? totalTokens.toLocaleString() : '—' },
               { label: 'Cache Hit', value: cacheHitPct },
-              { label: 'Top Model', value: topModel?.model ?? '—' },
+              { label: 'Top Model', value: topModel ? friendlyModelName(topModel.model) : '—' },
             ].map(tile => (
               <div key={tile.label} className="card" style={{ padding: '12px 20px', minWidth: 120, maxWidth: 180, flex: '1 1 120px', textAlign: 'center' }}>
-                <div className="num" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tile.value}</div>
-                <div style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>{tile.label}</div>
+                <div className="num" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{tile.value}</div>
+                <div style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>{tile.label}</div>
               </div>
             ))}
           </div>
@@ -205,7 +218,6 @@ export function Results() {
             return (
               <div key={source.source_id} className="card">
                 <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600 }}>{source.source_id}</h3>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>Tier: {source.tier ?? '—'}</p>
               </div>
             );
           })}
@@ -214,14 +226,14 @@ export function Results() {
         {/* Recommendations */}
         {report.recommendations.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Recommendations</h2>
+            <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Recommendations</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {report.recommendations.slice(0, 5).map((rec, idx) => (
                 <div key={idx} className="card" style={{ borderLeft: `4px solid ${recColor(rec)}`, paddingLeft: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                     <div>
-                      <h3 style={{ margin: '0 0 4px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{rec.title}</h3>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{rec.body}</p>
+                      <h3 style={{ margin: '0 0 4px', fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>{rec.title}</h3>
+                      <p style={{ margin: 0, fontSize: 'var(--text-body)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{rec.body}</p>
                     </div>
                     {rec.estimatedSavingsUsd != null && (
                       <span className="num" style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--color-positive-text)', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -239,12 +251,6 @@ export function Results() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
           <button className="primary" onClick={downloadJSON} disabled={!hasData}>Export JSON</button>
           <button className="primary" onClick={downloadPDF} disabled={!hasData}>Export PDF</button>
-          <button
-            onClick={() => dispatch({ phase: 'landing', sources: {} })}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'underline', padding: '0 8px' }}
-          >
-            Start Over
-          </button>
         </div>
       </div>
     </div>

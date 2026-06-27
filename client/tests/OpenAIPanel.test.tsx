@@ -67,6 +67,12 @@ describe('OpenAIPanel', () => {
     expect(screen.getByText('* Estimated row')).toBeInTheDocument();
     expect(screen.getByTitle('Estimated model cost')).toHaveTextContent('*');
   });
+
+  it('shows Connected badge when tier is A or B', () => {
+    render(<OpenAIPanel report={report()} />);
+
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+  });
 });
 
 

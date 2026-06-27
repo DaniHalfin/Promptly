@@ -4,6 +4,7 @@ import { DailySpendLine } from '../charts/DailySpendLine.js';
 import { ModelCostSharePie } from '../charts/ModelCostSharePie.js';
 import { TokenRatioBar } from '../charts/TokenRatioBar.js';
 import { TierUpgradeNudge } from '../../common/TierUpgradeNudge.js';
+import { friendlyModelName } from '../../../lib/modelNames.js';
 
 interface OpenAIPanelProps {
   report: SourceReport;
@@ -12,43 +13,72 @@ interface OpenAIPanelProps {
 export function OpenAIPanel({ report }: OpenAIPanelProps) {
   const { metrics, tier } = report;
 
+  // ── Empty / no-metrics state ─────────────────────────────────────────────
   if (!metrics) {
     return (
-      <div className="border rounded-lg p-6 bg-slate-50">
+      <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
         <div className="flex items-center mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full mr-3" />
-          <h2 className="text-lg font-semibold">OpenAI</h2>
-          <span className="ml-2 px-2 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded">
-            {tier || 'N/A'}
+          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            OpenAI
+          </h2>
+          <span
+            className="ml-2 px-2 py-1 rounded"
+            style={{
+              background: 'var(--color-positive-muted)',
+              color: 'var(--color-positive-text)',
+              fontSize: 'var(--text-note)',
+              fontWeight: 600,
+              border: '1px solid var(--color-positive)',
+            }}
+          >
+            Connected
           </span>
         </div>
-        <p className="text-slate-600">No data available</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>No data available</p>
       </div>
     );
   }
 
-  // Handle zero-data state
+  // ── Zero-data state ──────────────────────────────────────────────────────
   if (!metrics.totalActualSpendUsd && !metrics.modelBreakdown?.length) {
     return (
-      <div className="border rounded-lg p-6 bg-slate-50">
+      <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
         <div className="flex items-center mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full mr-3" />
-          <h2 className="text-lg font-semibold">OpenAI</h2>
-          <span className="ml-2 px-2 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded">
-            {tier || 'N/A'}
+          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            OpenAI
+          </h2>
+          <span
+            className="ml-2 px-2 py-1 rounded"
+            style={{
+              background: 'var(--color-positive-muted)',
+              color: 'var(--color-positive-text)',
+              fontSize: 'var(--text-note)',
+              fontWeight: 600,
+              border: '1px solid var(--color-positive)',
+            }}
+          >
+            Connected
           </span>
         </div>
-        <p className="text-slate-600 text-center py-8">$0.00 — No activity in this period</p>
+        <p
+          className="text-center py-8"
+          style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}
+        >
+          $0.00 — No activity in this period
+        </p>
       </div>
     );
   }
 
-  // Tier B and higher metrics
+  // ── Tier A / B — full metrics ────────────────────────────────────────────
   if (tier === 'A' || tier === 'B') {
     const totalSpend = metrics.totalActualSpendUsd || 0;
     const modelBreakdown = metrics.modelBreakdown || [];
+
     const pieData = modelBreakdown.map(m => ({
-      model: m.model,
+      model: friendlyModelName(m.model),
       costUsd: m.estimatedCostUsd,
       percentage: totalSpend > 0 ? (m.estimatedCostUsd / totalSpend) * 100 : 0,
     }));
@@ -58,38 +88,56 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
       costUsd: d.spendUsd,
     }));
 
-    // Aggregate token counts from model breakdown
-    const totalInputTokens = modelBreakdown.reduce((sum, m) => sum + m.inputTokens, 0);
+    const totalInputTokens  = modelBreakdown.reduce((sum, m) => sum + m.inputTokens, 0);
     const totalOutputTokens = modelBreakdown.reduce((sum, m) => sum + m.outputTokens, 0);
     const totalCachedTokens = modelBreakdown.reduce((sum, m) => sum + (m.cachedInputTokens || 0), 0);
 
-    // Get top recommendation (if available in the parent component)
     const topRecommendation = 'Monitor daily spend trends and optimize models for peak usage periods';
 
     return (
-      <div className="border rounded-lg p-6 bg-white">
+      <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full mr-3" />
-            <h2 className="text-lg font-semibold">OpenAI</h2>
-            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
-              Tier {tier}
+            <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              OpenAI
+            </h2>
+            <span
+              className="ml-2 px-2 py-1 rounded"
+              style={{
+                background: 'var(--color-positive-muted)',
+                color: 'var(--color-positive-text)',
+                fontSize: 'var(--text-note)',
+                fontWeight: 600,
+                border: '1px solid var(--color-positive)',
+              }}
+            >
+              Connected
             </span>
           </div>
-          <p className="text-3xl font-bold text-green-600">${totalSpend.toFixed(2)}</p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-positive-text)' }}>
+            ${totalSpend.toFixed(2)}
+          </p>
         </div>
 
+        {/* KPI tiles */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-slate-50 rounded p-4">
-            <p className="text-sm text-slate-600">Avg Daily Spend</p>
-            <p className="text-xl font-semibold">${(metrics.avgDailySpendUsd || 0).toFixed(2)}</p>
+          <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Avg Daily Spend</p>
+            <p style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              ${(metrics.avgDailySpendUsd || 0).toFixed(2)}
+            </p>
           </div>
-          <div className="bg-slate-50 rounded p-4">
-            <p className="text-sm text-slate-600">Peak Day</p>
+          <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Peak Day</p>
             {metrics.peakSpendDay ? (
-              <p className="text-xl font-semibold">${metrics.peakSpendDay.spendUsd.toFixed(2)}</p>
+              <p style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                ${metrics.peakSpendDay.spendUsd.toFixed(2)}
+              </p>
             ) : (
-              <p className="text-xl font-semibold">—</p>
+              <p style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>—</p>
             )}
           </div>
         </div>
@@ -97,7 +145,9 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
         {/* Daily Spend Chart */}
         {dailySpendData.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold mb-4">Daily Spend Trend</h3>
+            <h3 className="mb-4" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Daily Spend Trend
+            </h3>
             <DailySpendLine data={dailySpendData} />
           </div>
         )}
@@ -105,11 +155,13 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
         {/* Model Breakdown */}
         {modelBreakdown.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold mb-1">
+            <h3 className="mb-1" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
               Estimated model cost breakdown — exact per-model billing data is not available from the OpenAI API.
             </h3>
             {modelBreakdown.some(m => m.estimated) && (
-              <p className="text-xs text-slate-500 mb-4">* Estimated row</p>
+              <p className="mb-4" style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)' }}>
+                * Estimated row
+              </p>
             )}
             <div className="grid grid-cols-2 gap-6">
               {pieData.length > 0 && (
@@ -118,27 +170,33 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
                 </div>
               )}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full" style={{ fontSize: 'var(--text-body)' }}>
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 font-semibold">Model</th>
-                      <th className="text-right py-2 font-semibold">Cost</th>
-                      <th className="text-right py-2 font-semibold">%</th>
+                      <th className="text-left py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Model</th>
+                      <th className="text-right py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Cost</th>
+                      <th className="text-right py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {modelBreakdown.map((m, idx) => (
-                      <tr key={idx} className="border-b hover:bg-slate-50">
-                        <td className="py-2">
-                          {m.model}
+                      <tr key={idx} className="border-b">
+                        <td className="py-2" style={{ color: 'var(--text-primary)' }}>
+                          {friendlyModelName(m.model)}
                           {m.estimated && (
-                            <span className="ml-1 text-blue-600" title="Estimated model cost">
+                            <span
+                              className="ml-1"
+                              title="Estimated model cost"
+                              style={{ color: 'var(--color-info)' }}
+                            >
                               *
                             </span>
                           )}
                         </td>
-                        <td className="text-right">${m.estimatedCostUsd.toFixed(2)}</td>
-                        <td className="text-right">
+                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
+                          ${m.estimatedCostUsd.toFixed(2)}
+                        </td>
+                        <td className="text-right" style={{ color: 'var(--text-secondary)' }}>
                           {totalSpend > 0 ? ((m.estimatedCostUsd / totalSpend) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>
@@ -150,10 +208,12 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
           </div>
         )}
 
-        {/* Token Ratio */}
+        {/* Token Distribution */}
         {(totalInputTokens > 0 || totalOutputTokens > 0) && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold mb-4">Token Distribution</h3>
+            <h3 className="mb-4" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Token Distribution
+            </h3>
             <TokenRatioBar
               inputTokens={totalInputTokens}
               outputTokens={totalOutputTokens}
@@ -162,45 +222,59 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
           </div>
         )}
 
-        {/* Top Recommendation */}
-        <div className="bg-blue-50 border border-blue-200 rounded p-4">
-          <p className="text-sm font-semibold text-blue-900">Recommendation</p>
-          <p className="text-sm text-blue-800 mt-1">{topRecommendation}</p>
+        {/* Recommendation */}
+        <div
+          className="rounded p-4 border"
+          style={{ background: 'var(--color-accent-muted)', borderColor: 'var(--color-accent-border)' }}
+        >
+          <p style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Recommendation
+          </p>
+          <p className="mt-1" style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>
+            {topRecommendation}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Tier C metrics
+  // ── Tier C — estimated metrics ───────────────────────────────────────────
   const estimatedSpend = metrics.estimatedRelativeCostUsd || 0;
-  const modelBreakdown = metrics.modelBreakdown || [];
+  const modelBreakdown  = metrics.modelBreakdown || [];
   const pieData = modelBreakdown
     .filter(m => m.estimatedCostUsd > 0)
     .map(m => ({
-      model: m.model,
+      model: friendlyModelName(m.model),
       costUsd: m.estimatedCostUsd,
       percentage: estimatedSpend > 0 ? (m.estimatedCostUsd / estimatedSpend) * 100 : 0,
     }));
 
   return (
-    <div className="border rounded-lg p-6 bg-white">
+    <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full mr-3" />
-          <h2 className="text-lg font-semibold">OpenAI</h2>
-          <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
-            Tier C
-          </span>
+          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            OpenAI
+          </h2>
         </div>
-        <p className="text-3xl font-bold text-amber-600">~${estimatedSpend.toFixed(2)}</p>
+        <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-warning-text)' }}>
+          ~${estimatedSpend.toFixed(2)}
+        </p>
       </div>
 
-      <p className="text-sm text-slate-600 mb-6">Estimated based on {metrics.baselineModelAssumption || 'standard models'}</p>
+      <p className="mb-6" style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>
+        Estimated based on {metrics.baselineModelAssumption || 'standard models'}
+      </p>
 
-      {/* Model Comparison */}
+      {/* Estimated Model Breakdown */}
       {pieData.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-4">Estimated Model Breakdown</h3>
+          <h3 className="mb-4" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Estimated Model Breakdown
+          </h3>
           <ModelCostSharePie data={pieData} />
         </div>
       )}
@@ -209,9 +283,14 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
       <TierUpgradeNudge sourceId="openai" currentTier="C" />
 
       {/* Optimization Tips */}
-      <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
-        <p className="text-sm font-semibold text-green-900 mb-3">Optimization Tips</p>
-        <ul className="text-sm text-green-800 space-y-2">
+      <div
+        className="rounded p-4 mb-6 border"
+        style={{ background: 'var(--color-positive-muted)', borderColor: 'var(--color-positive)' }}
+      >
+        <p className="mb-3" style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--color-positive-text)' }}>
+          Optimization Tips
+        </p>
+        <ul className="space-y-2" style={{ fontSize: 'var(--text-body)', color: 'var(--color-positive-text)' }}>
           <li>• Use smaller models for simple tasks to reduce costs</li>
           <li>• Consider batch processing for non-urgent requests</li>
           <li>• Monitor token usage patterns to identify optimization opportunities</li>
@@ -221,3 +300,4 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
     </div>
   );
 }
+

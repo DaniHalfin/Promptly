@@ -73,6 +73,13 @@ describe('ClaudeCodePanel', () => {
 
     expect(screen.queryByText('Prompt cache impact')).not.toBeInTheDocument();
   });
+
+  it('shows tier badge for non-local source (ClaudeCode always shows tier)', () => {
+    render(<ClaudeCodePanel report={report()} />);
+
+    // ClaudeCode uses tier badge (not Connected pill) — tier B shown
+    expect(screen.getByText(/tier b/i)).toBeInTheDocument();
+  });
 });
 
 

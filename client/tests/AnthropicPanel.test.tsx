@@ -62,6 +62,12 @@ describe('AnthropicPanel', () => {
 
     expect(screen.queryByText(/prompt cache savings/i)).not.toBeInTheDocument();
   });
+
+  it('shows Connected badge when tier is A or B', () => {
+    render(<AnthropicPanel report={report()} />);
+
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+  });
 });
 
 

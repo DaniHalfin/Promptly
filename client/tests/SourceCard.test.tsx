@@ -13,6 +13,7 @@ vi.mock('../api/client.js', () => ({
 }));
 
 function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknown> = {}) {
+  const updateSource = vi.fn();
   const value = {
     state: {
       phase: 'connection',
@@ -21,16 +22,19 @@ function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknow
       },
     },
     dispatch: vi.fn(),
-    updateSource: vi.fn(),
+    updateSource,
     clearSession: vi.fn(),
     abortControllerRef: { current: null },
   };
 
-  return render(
-    <SessionContext.Provider value={value as any}>
-      <SourceCard sourceId={sourceId} />
-    </SessionContext.Provider>
-  );
+  return {
+    updateSource,
+    ...render(
+      <SessionContext.Provider value={value as any}>
+        <SourceCard sourceId={sourceId} />
+      </SessionContext.Provider>
+    ),
+  };
 }
 
 describe('SourceCard', () => {
@@ -38,7 +42,7 @@ describe('SourceCard', () => {
     renderSourceCard('claude_code', { enabled: false });
 
     expect(screen.getByRole('heading', { name: 'Claude Code' })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /enable local claude code analysis/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /enable local claude code analysis/i })).toBeInTheDocument();
     expect(screen.getByText(/no api key or file upload is required/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/api key/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
@@ -108,7 +112,7 @@ describe('SourceCard', () => {
 
   it('renders github_copilot as a local source with enable toggle and no credential field', () => {
     renderSourceCard('github_copilot', { enabled: false });
-    expect(screen.getByRole('checkbox', { name: /enable local/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /enable local/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/api key/i)).not.toBeInTheDocument();
   });
 
@@ -132,6 +136,28 @@ describe('SourceCard', () => {
     renderSourceCard('claude_export');
 
     expect(screen.queryByRole('button', { name: /how to connect/i })).not.toBeInTheDocument();
+  });
+
+  it('toggle switch has aria-checked="true" when local source is enabled', () => {
+    renderSourceCard('claude_code', { enabled: true, status: 'connected' });
+
+    const toggle = screen.getByRole('switch', { name: /enable local claude code analysis/i });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('shows only one Connected text (corner badge) — no bottom Connected paragraph', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk-test' });
+
+    expect(screen.getAllByText(/connected/i)).toHaveLength(1);
+  });
+
+  it('renders styled upload area for file-type source and shows selected file info', () => {
+    renderSourceCard('chatgpt_export');
+
+    expect(screen.getByRole('button', { name: /upload json or jsonl file/i })).toBeInTheDocument();
+
+    // No file selected yet — no clear button
+    expect(screen.queryByRole('button', { name: /✕/ })).not.toBeInTheDocument();
   });
 });
 
