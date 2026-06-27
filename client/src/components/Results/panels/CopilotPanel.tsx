@@ -108,12 +108,12 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model spend</h3>
           <div className="table-scroll">
-            <table className="text-sm" style={{ width: '100%', tableLayout: 'fixed' }}>
+            <table className="text-sm" style={{ width: '100%' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '55%' }}>Model</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '25%' }}>Net spend</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, width: '20%' }}>% of total</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'left' }}>Model</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'right' }}>Net spend</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'right' }}>% of total</th>
                 </tr>
               </thead>
               <tbody>
