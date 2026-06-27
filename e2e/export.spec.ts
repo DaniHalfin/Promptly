@@ -23,4 +23,14 @@ test.describe('exports', () => {
 
     expect(download.suggestedFilename()).toMatch(/^promptly-analysis-\d{4}-\d{2}-\d{2}\.json$/);
   });
+
+  test('clicking PDF export triggers a download with correct filename', async ({ page }) => {
+    await navigateToMockResults(page);
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export PDF' }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/^promptly-analysis-\d{4}-\d{2}-\d{2}\.pdf$/);
+  });
 });

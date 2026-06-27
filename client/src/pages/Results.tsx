@@ -29,7 +29,6 @@ export function Results() {
       container.style.top = '-9999px';
       container.style.left = '-9999px';
       container.style.width = '210mm';
-      container.style.visibility = 'hidden';
       container.style.zIndex = '-1';
       document.body.appendChild(container);
 
@@ -44,6 +43,10 @@ export function Results() {
         logging: false,
         backgroundColor: '#ffffff'
       });
+
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('html2canvas returned an empty canvas — content was not rendered');
+      }
 
       const pdf = new jsPDF({
         orientation: 'p',
