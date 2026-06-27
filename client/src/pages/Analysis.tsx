@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext.js';
+import type { SourceId } from '../types/index.js';
 
 export function Analysis() {
   const { state, dispatch, abortControllerRef } = useSession();
   const [elapsed, setElapsed] = useState(0);
+
+  const LOCAL_SOURCE_IDS = new Set<SourceId>(['github_copilot', 'claude_code']);
+  const API_SOURCE_IDS   = new Set<SourceId>(['openai', 'anthropic']);
+  const FILE_SOURCE_IDS  = new Set<SourceId>(['chatgpt_export', 'claude_export']);
+
+  const enabledIds = Object.keys(state.sources) as SourceId[];
+  const hasLocal = enabledIds.some(id => LOCAL_SOURCE_IDS.has(id));
+  const hasApi   = enabledIds.some(id => API_SOURCE_IDS.has(id));
+  const hasFile  = enabledIds.some(id => FILE_SOURCE_IDS.has(id));
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -42,7 +52,9 @@ export function Analysis() {
         <div className="bg-white rounded-lg p-6 mb-6 text-left">
           <h3 className="font-semibold mb-2">What's happening:</h3>
           <ul className="space-y-1 text-sm text-slate-600">
-            <li>• Connecting to your API sources</li>
+            {hasLocal && <li>• Reading local session files</li>}
+            {hasApi   && <li>• Connecting to your API sources</li>}
+            {hasFile  && <li>• Processing exported conversation files</li>}
             <li>• Processing usage data</li>
             <li>• Calculating metrics</li>
             <li>• Generating recommendations</li>

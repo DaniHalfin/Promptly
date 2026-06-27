@@ -123,12 +123,33 @@ export function Results() {
 
   const totalSpend = report.cross_source_summary.total_actual_spend_usd;
   const sourceCount = report.sources.filter(s => !s.error).length;
+  const hasData = report.sources.some(s => s.metrics !== null && s.connected === true);
 
   return (
     <div className="min-h-screen p-8 bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-start mb-8">
           <div>
+            <button
+              onClick={() => dispatch({ phase: 'connection' })}
+              className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-sm mb-3 bg-transparent border-0 cursor-pointer p-0"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5" />
+                <path d="M12 5l-7 7 7 7" />
+              </svg>
+              Back
+            </button>
             <h1 className="text-4xl font-bold mb-2">Analysis Results</h1>
             <p className="text-slate-600">
               {new Date(report.metadata.generated_at).toLocaleDateString()} • {sourceCount} sources analyzed
@@ -200,15 +221,18 @@ export function Results() {
           </div>
         )}
 
-        <div className="flex gap-4">
-          <button className="primary" onClick={downloadJSON}>
+        <div className="flex gap-4 items-center">
+          <button className="primary" onClick={downloadJSON} disabled={!hasData}>
             Export JSON
           </button>
-          <button className="primary" onClick={downloadPDF}>
+          <button className="primary" onClick={downloadPDF} disabled={!hasData}>
             Export PDF
           </button>
-          <button className="secondary" onClick={() => dispatch({ phase: 'landing', sources: {} })}>
-            New Analysis
+          <button
+            className="text-sm text-slate-500 hover:text-slate-700 underline bg-transparent border-0 cursor-pointer"
+            onClick={() => dispatch({ phase: 'landing', sources: {} })}
+          >
+            Start Over
           </button>
         </div>
       </div>

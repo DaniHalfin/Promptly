@@ -37,21 +37,30 @@ function asNumber(value: unknown): number {
  */
 export interface ShutdownEvent {
   type: 'session.shutdown';
-  sessionStartTime: number; // Unix ms
-  modelMetrics?: Record<string, {
-    requests?: {
-      count?: number;
-      cost?: number; // USD float (AI credit units)
-    };
-    usage?: {
-      inputTokens?: number;      // TOTAL; cacheReadTokens/cacheWriteTokens are subsets
-      outputTokens?: number;     // TOTAL; reasoningTokens is a subset
-      cacheReadTokens?: number;
-      cacheWriteTokens?: number;
-      reasoningTokens?: number;
-    };
-  }>;
-  totalPremiumRequests?: number; // float AI credit cost — cross-check only
+  id?: string;
+  timestamp?: string;
+  parentId?: string;
+  /** All metered fields live under `data`, not at the top level. */
+  data: {
+    sessionStartTime: number; // Unix ms
+    shutdownType?: string;
+    totalApiDurationMs?: number;
+    totalPremiumRequests?: number; // float AI credit cost — cross-check only
+    currentModel?: string;
+    modelMetrics?: Record<string, {
+      requests?: {
+        count?: number;
+        cost?: number; // USD float (AI credit units)
+      };
+      usage?: {
+        inputTokens?: number;      // TOTAL; cacheReadTokens/cacheWriteTokens are subsets
+        outputTokens?: number;     // TOTAL; reasoningTokens is a subset
+        cacheReadTokens?: number;
+        cacheWriteTokens?: number;
+        reasoningTokens?: number;
+      };
+    }>;
+  };
 }
 
 /** Stream-parse a single events.jsonl file, returning only session.shutdown events. */
@@ -87,10 +96,10 @@ async function parseEventsFile(filePath: string): Promise<ShutdownEvent[]> {
 
 /** Map a ShutdownEvent to a NormalizedCopilotSession. */
 export function normalizeSession(event: ShutdownEvent, sourceFile: string): NormalizedCopilotSession {
-  const date = localDateString(event.sessionStartTime);
+  const date = localDateString(event.data.sessionStartTime);
   const models: NormalizedCopilotSession['models'] = {};
 
-  for (const [modelName, metrics] of Object.entries(event.modelMetrics ?? {})) {
+  for (const [modelName, metrics] of Object.entries(event.data.modelMetrics ?? {})) {
     // requestCost: USD float (AI credit units) — not a request count
     const requestCost = asNumber(metrics.requests?.cost);
     // inputTokens = TOTAL prompt tokens; cacheReadTokens + cacheWriteTokens are subsets, NOT additive
@@ -109,7 +118,7 @@ export function normalizeSession(event: ShutdownEvent, sourceFile: string): Norm
     };
   }
 
-  return { date, sourceFile, models, totalCost: event.totalPremiumRequests ?? 0 };
+  return { date, sourceFile, models, totalCost: event.data.totalPremiumRequests ?? 0 };
 }
 
 const githubCopilotAdapter: SourceAdapter = {
@@ -198,18 +207,18 @@ const githubCopilotAdapter: SourceAdapter = {
         }
 
         for (const event of events) {
-          if (!Number.isFinite(event.sessionStartTime)) {
+          if (!Number.isFinite(event.data?.sessionStartTime)) {
             hadMalformedFiles = true;
             continue;
           }
 
-          const sessionDate = localDateString(event.sessionStartTime);
+          const sessionDate = localDateString(event.data.sessionStartTime);
           // Filter to analysis window
           if (sessionDate < startStr || sessionDate > endStr) continue;
 
           // Deduplicate: crash/recovery cycles can write two session.shutdown events
           // with the same sessionStartTime to the same file.
-          const sessionKey = `${eventsFilePath}:${event.sessionStartTime}`;
+          const sessionKey = `${eventsFilePath}:${event.data.sessionStartTime}`;
           if (seenSessionKeys.has(sessionKey)) {
             hadDuplicateEvents = true;
             continue;
