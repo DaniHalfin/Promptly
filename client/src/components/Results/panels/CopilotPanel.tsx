@@ -74,14 +74,14 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
             <table className="w-full text-sm" data-testid="token-breakdown-table">
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160 }}>Model</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Input tokens</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Output tokens</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cache read</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cache write</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Reasoning</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 80 }}>Requests</th>
-                  <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90 }}>Cost (USD)</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160, textAlign: 'left' }}>Model</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Input tokens</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Output tokens</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Cache read</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Cache write</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Reasoning</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 80, textAlign: 'right' }}>Requests</th>
+                  <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 90, textAlign: 'right' }}>Cost (USD)</th>
                 </tr>
               </thead>
               <tbody>

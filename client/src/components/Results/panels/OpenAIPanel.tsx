@@ -137,9 +137,9 @@ export function OpenAIPanel({ report }: OpenAIPanelProps) {
                 <table className="w-full" style={{ fontSize: 'var(--text-body)' }}>
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Model</th>
-                      <th className="text-right py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Cost</th>
-                      <th className="text-right py-2" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>%</th>
+                      <th className="py-2" style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'left' }}>Model</th>
+                      <th className="py-2" style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>Cost</th>
+                      <th className="py-2" style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>%</th>
                     </tr>
                   </thead>
                   <tbody>

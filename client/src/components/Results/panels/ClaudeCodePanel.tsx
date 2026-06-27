@@ -103,9 +103,9 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                    <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Model</th>
-                    <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>Cost</th>
-                    <th className="text-right" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8 }}>%</th>
+                    <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'left' }}>Model</th>
+                    <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'right' }}>Cost</th>
+                    <th style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, textAlign: 'right' }}>%</th>
                   </tr>
                 </thead>
                 <tbody>
