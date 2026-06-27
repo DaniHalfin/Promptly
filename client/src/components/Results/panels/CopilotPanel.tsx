@@ -108,7 +108,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model spend</h3>
           <div className="table-scroll">
-            <table className="w-full text-sm">
+            <table className="text-sm" style={{ width: 'auto' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                   <th className="text-left" style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingBottom: 8, minWidth: 160 }}>Model</th>
@@ -130,7 +130,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
       )}
 
-      {/* 4: Input / output token tiles */}
+      {/* 4: Input / output token tiles + cache fraction */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 24, marginBottom: 24 }}>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Input tokens</p>
@@ -142,34 +142,32 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
           <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{formatTokenCount(totalOutputTokens)}</p>
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4 }}>Total completion tokens (reasoning subsets included)</p>
         </div>
-      </div>
-
-      {/* 5: Cache-read fraction */}
-      {cachedFraction && (
-        <div className="mb-6">
-          <div className="card-inset mb-4" data-testid="cache-fraction-tile">
+        {cachedFraction && (
+          <div className="card-inset" data-testid="cache-fraction-tile">
             <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Cache-read fraction (aggregate)</p>
             <p className="kpi-large num" style={{ color: 'var(--color-positive-text)' }}>{(cachedFraction.aggregate * 100).toFixed(1)}%</p>
             <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4 }}>Higher cache-read fraction = lower effective cost per token</p>
           </div>
-          {cachedFraction.perModel.length > 0 && (
-            <div>
-              <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Cache-read fraction by model</h3>
-              <div className="space-y-2" data-testid="cache-fraction-bars">
-                {cachedFraction.perModel.map(({ model, fraction }) => (
-                  <div key={model}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-note)', marginBottom: 4, color: 'var(--text-secondary)' }}>
-                      <span>{friendlyModelName(model)}</span>
-                      <span>{(fraction * 100).toFixed(1)}%</span>
-                    </div>
-                    <div style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: 'var(--color-positive)', borderRadius: 'var(--radius-pill)', width: `${Math.min(fraction * 100, 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
+        )}
+      </div>
+
+      {/* 5: Cache-read fraction per model */}
+      {cachedFraction && cachedFraction.perModel.length > 0 && (
+        <div className="mb-6">
+          <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Cache-read fraction by model</h3>
+          <div className="space-y-2" data-testid="cache-fraction-bars">
+            {cachedFraction.perModel.map(({ model, fraction }) => (
+              <div key={model}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-note)', marginBottom: 4, color: 'var(--text-secondary)' }}>
+                  <span>{friendlyModelName(model)}</span>
+                  <span>{(fraction * 100).toFixed(1)}%</span>
+                </div>
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: 'var(--color-positive)', borderRadius: 'var(--radius-pill)', width: `${Math.min(fraction * 100, 100)}%` }} />
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 

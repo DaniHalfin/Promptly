@@ -170,15 +170,13 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       style={{
         borderRadius: 'var(--radius-lg)',
         padding: '16px 20px',
-        transition: 'all 150ms ease',
+        transition: 'background 150ms ease, border-color 150ms ease',
         display: 'flex',
         flexDirection: 'column',
         gap: 0,
         cursor: info.disabled ? 'default' : 'pointer',
         border: cardBorder,
         background: cardBg,
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
       }}
     >
       {/* Header row */}
@@ -347,7 +345,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       )}
 
-      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8, WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>{source.error}</p>}
+      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}>{source.error}</p>}
     </div>
   );
 }
