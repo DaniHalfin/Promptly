@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AnalysisReport } from '../../types/index.js';
+import { friendlySourceName, friendlyModelName } from '../../lib/modelNames.js';
 
 interface PrintLayoutProps {
   report: AnalysisReport;
@@ -109,7 +110,8 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                 fontWeight: '600',
                 textTransform: 'capitalize'
               }}>
-                {source.source_id.replace('_', ' ')}
+                {/* WP-14: friendlySourceName gives proper casing ("GitHub Copilot" not "github copilot") */}
+                {friendlySourceName(source.source_id)}
               </h3>
               <p style={{ margin: '0', fontSize: '14px', color: '#991b1b' }}>
                 Error: {source.error}
@@ -136,7 +138,7 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                 fontWeight: '600',
                 textTransform: 'capitalize'
               }}>
-                {source.source_id.replace('_', ' ')}
+                {friendlySourceName(source.source_id)}
               </h3>
               <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
                 No data available
@@ -169,7 +171,7 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                 fontWeight: '600',
                 textTransform: 'capitalize'
               }}>
-                {source.source_id.replace('_', ' ')}
+                {friendlySourceName(source.source_id)}
               </h3>
               {source.tier && (
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
@@ -318,7 +320,8 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                     }}
                   >
                     <div>
-                      <p style={{ margin: '0', fontWeight: '500' }}>{model.model}</p>
+                      {/* WP-14: friendlyModelName for proper model display names */}
+                      <p style={{ margin: '0', fontWeight: '500' }}>{friendlyModelName(model.model)}</p>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <p style={{ margin: '0', color: '#6b7280' }}>

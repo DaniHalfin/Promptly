@@ -42,7 +42,8 @@ const sourceInfo: Record<
   github_copilot: {
     label: 'GitHub Copilot',
     type: 'local',
-    description: 'Reads session data from ~/.copilot/session-state/ automatically; no API key required.',
+    /* WP-13: Removed "no data leaves" claim — the footer covers privacy globally */
+    description: 'Local session data — no API key required.',
     localPath: '~/.copilot/session-state',
     localCheckMessage: 'Checking local GitHub Copilot data...',
     setupInstructions: {
@@ -75,7 +76,8 @@ const sourceInfo: Record<
   claude_code: {
     label: 'Claude Code',
     type: 'local',
-    description: 'Reads Claude Code JSONL from ~/.claude/projects locally; no data leaves this machine.',
+    /* WP-13: Shorter copy — footer covers global privacy claim; JSONL glossed inline */
+    description: 'Local JSONL logs — no API key or upload required.',
     localPath: '~/.claude/projects',
     localCheckMessage: 'Checking local Claude Code data...',
     setupInstructions: {
@@ -165,7 +167,10 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     : 'var(--color-bg-surface)';
 
   return (
+    /* STATIC-P1-C01 Option 2: role="group" + aria-labelledby groups card controls under its heading label */
     <div
+      role="group"
+      aria-labelledby={`${sourceId}-heading`}
       onClick={handleCardClick}
       style={{
         borderRadius: 'var(--radius-lg)',
@@ -183,8 +188,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <h3 style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
+        <h3 id={`${sourceId}-heading`} style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
         {(source?.status === 'connected' || source?.status === 'ready') && (
+          /* WP-13: "Validated" is more accurate — confirms credentials, not that analysis has run */
           <span style={{
             padding: '2px 8px',
             background: 'var(--color-positive-muted)',
@@ -194,7 +200,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             borderRadius: 'var(--radius-pill)',
             border: '1px solid var(--color-positive)',
             flexShrink: 0,
-          }}>✓ Connected</span>
+          }}>✓ Validated</span>
         )}
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
@@ -243,7 +249,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Claude export upload is not available in this MVP.</p>
         </div>
       ) : info.type === 'api' ? (
-        <div>
+        /* WP-6: aria-busy signals async state to AT immediately */
+        <div aria-busy={validating} aria-label={validating ? 'Validating…' : undefined}>
           <label htmlFor={`${sourceId}-credential`} style={{ display: 'block', fontSize: 'var(--text-body)', fontWeight: 500, marginBottom: 8 }}>API Key</label>
           <input
             ref={credInputRef}
@@ -252,6 +259,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             placeholder="Paste your API key here"
             value={source?.credential || ''}
             onChange={handleCredentialChange}
+            /* WP-3: aria-describedby links input to its error so AT announces error on focus */
+            aria-describedby={source?.error ? `${sourceId}-error` : undefined}
             style={{
               width: '100%',
               background: 'var(--color-bg-inset)',
@@ -264,17 +273,26 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
               marginBottom: 8,
             }}
           />
-          <button className="secondary w-full" onClick={handleValidate} disabled={validating || !source?.credential}>
-            {validating ? 'Validating...' : 'Validate'}
+          {/* WP-3: aria-describedby on button so screen readers announce error when button is focused after a failed attempt */}
+          <button
+            className="secondary w-full"
+            onClick={handleValidate}
+            disabled={validating || !source?.credential}
+            aria-describedby={source?.error ? `${sourceId}-error` : undefined}
+          >
+            {validating ? 'Validating…' : 'Validate'}
           </button>
         </div>
       ) : info.type === 'local' ? (
-        <div>
+        /* WP-6: aria-busy on the local-toggle container mirrors async state for AT */
+        <div aria-busy={validating}>
           <button
             role="switch"
             aria-checked={Boolean(source?.enabled)}
+            /* WP-2: aria-disabled prevents AT from announcing the switch as activatable during validation */
+            aria-disabled={validating ? true : undefined}
             aria-label={`Enable local ${info.label} analysis`}
-            onClick={() => checkboxRef.current?.click()}
+            onClick={() => { if (validating) return; checkboxRef.current?.click(); }}
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}
           >
             <span className={`toggle-track${source?.enabled ? ' on' : ''}${validating ? ' disabled' : ''}`}>
@@ -294,8 +312,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             onChange={handleLocalToggle}
             disabled={validating}
           />
+          {/* WP-13: Shorter copy — global footer covers the "no data leaves" privacy claim */}
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', margin: 0 }}>
-            Promptly scans <code>{info.localPath}</code> on this computer. No API key or file upload is required.
+            Scans <code>{info.localPath}</code> on this machine.
           </p>
           {validating && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-accent-light)', marginTop: 8 }}>{info.localCheckMessage ?? 'Checking local data...'}</p>}
         </div>
@@ -312,7 +331,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             }}
             role="button"
             tabIndex={0}
-            aria-label="Upload JSON or JSONL file"
+            /* WP-2: aria-label matches visible text exactly (WCAG 2.5.3 Label-in-name) */
+            aria-label="Click or drag a .json or .jsonl file here"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           >
             <span className="upload-area-icon">📂</span>
@@ -335,6 +355,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
               <button
                 type="button"
                 className="upload-file-clear"
+                /* WP-2: aria-label gives the icon-only ✕ button an accessible name */
+                aria-label="Clear file"
                 onClick={() => {
                   if (fileInputRef.current) fileInputRef.current.value = '';
                   updateSource(sourceId, { file: undefined, status: 'pending' });
@@ -347,7 +369,16 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       )}
 
-      {source?.error && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}>{source.error}</p>}
+      {/* WP-3: role="alert" announces errors to AT immediately; id enables aria-describedby on related inputs */}
+      {source?.error && (
+        <p
+          id={`${sourceId}-error`}
+          role="alert"
+          style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}
+        >
+          {source.error}
+        </p>
+      )}
     </div>
   );
 }

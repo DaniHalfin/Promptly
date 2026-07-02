@@ -356,3 +356,30 @@ html, body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
+
+/* ─── Progress bar (Analysis page) ──────────────────────────────────────── */
+/* WP-12: Class-based so @media (prefers-reduced-motion) can suppress the transition */
+.progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  transition: width 600ms ease;
+}
+
+/* ─── Reduced motion overrides ───────────────────────────────────────────── */
+/* WP-12: Disable all animations/transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Freeze step-pulse and check-in keyframes so CSS overrides still apply */
+  @keyframes stepPulse {
+    0%, 100% { opacity: 1; }   /* no pulse — frozen */
+  }
+  @keyframes checkIn {
+    from, to { opacity: 1; transform: scale(1); }  /* no scale animation */
+  }
+  .progress-fill { transition: none; }
+}

@@ -104,7 +104,7 @@ export function Landing() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '48px 24px 120px',
+        padding: '48px 24px 160px', /* WP-8: 160px ensures last card is clear of the ~116px fixed footer bar at all font sizes */
       }}>
         <div style={{ width: '100%', maxWidth: 520 }}>
           {/* Hero text */}
@@ -127,17 +127,18 @@ export function Landing() {
             Understand exactly what you spend on AI tokens — locally, with no data leaving your machine.
           </p>
 
-          {/* Source cards */}
-          <p style={{
+          {/* Source cards — WP-1: h2 so SourceCard h3 headings have a valid parent heading */}
+          <h2 style={{
             fontSize: '0.6875rem',
             fontWeight: 600,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'var(--text-muted)',
             marginBottom: 12,
+            margin: '0 0 12px',
           }}>
             Connect your AI sources
-          </p>
+          </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <SourceCard sourceId="github_copilot" />
             <SourceCard sourceId="claude_code" />
@@ -179,6 +180,18 @@ export function Landing() {
           }}>
             All analysis happens on your device. No credentials or files leave this machine.
           </p>
+          {/* WP-13: Helper text explains why the button is disabled */}
+          {!hasAnyEnabled && (
+            <p style={{
+              fontSize: '0.75rem',
+              color: 'var(--color-warning-text)',
+              textAlign: 'center',
+              marginTop: 4,
+              lineHeight: 1.5,
+            }}>
+              Validate at least one source above to enable analysis.
+            </p>
+          )}
         </div>
       </div>
     </div>

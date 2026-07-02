@@ -10,6 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- WP-1: Skip navigation link for keyboard/AT users -->
+    <a href="#main-content"
+       style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"
+       onfocus="this.style.left='16px';this.style.width='auto';this.style.height='auto';this.style.overflow='visible';">
+      Skip to main content
+    </a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

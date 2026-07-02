@@ -71,6 +71,9 @@ export function Analysis() {
   const progressPct = Math.min(Math.round((stepIndex / totalSteps) * 100), 99);
   const formatTime = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
 
+  // WP-12: Respect prefers-reduced-motion for step icon animations
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)', display: 'flex', flexDirection: 'column' }}>
       {/* Top bar */}
@@ -82,9 +85,10 @@ export function Analysis() {
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 440 }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          {/* WP-1: h1 for correct heading hierarchy; h2 skipped `<h1>` at this level */}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>
             Analyzing your AI usage
-          </h2>
+          </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 32 }}>
             Elapsed: {formatTime(elapsed)}
           </p>
@@ -104,8 +108,8 @@ export function Analysis() {
                     width: 20, height: 20, flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.875rem',
-                    ...(s === 'done' ? { color: 'var(--color-positive-text)', animation: 'checkIn 120ms ease-out' } :
-                       s === 'active' ? { color: 'var(--color-accent-light)', animation: 'stepPulse 1.2s ease-in-out infinite' } :
+                    ...(s === 'done'   ? { color: 'var(--color-positive-text)', animation: prefersReducedMotion ? 'none' : 'checkIn 120ms ease-out' } :
+                       s === 'active'  ? { color: 'var(--color-accent-light)',  animation: prefersReducedMotion ? 'none' : 'stepPulse 1.2s ease-in-out infinite' } :
                        { color: 'var(--text-disabled)' }),
                   }}>
                     {s === 'done' ? '✓' : s === 'active' ? '●' : '○'}
@@ -124,15 +128,9 @@ export function Analysis() {
             })}
           </div>
 
-          {/* Progress bar */}
+          {/* WP-12: Use .progress-fill class so @media (prefers-reduced-motion) can suppress transition */}
           <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginBottom: 32 }}>
-            <div style={{
-              height: '100%',
-              width: `${progressPct}%`,
-              background: 'var(--color-accent)',
-              borderRadius: 'var(--radius-pill)',
-              transition: 'width 600ms ease',
-            }} />
+            <div className="progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
 
           <button className="danger" onClick={handleCancel} style={{ width: '100%' }}>

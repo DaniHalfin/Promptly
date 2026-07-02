@@ -206,6 +206,10 @@ export function Results() {
       </div>
 
       <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', padding: '32px 24px', boxSizing: 'border-box' }}>
+        {/* WP-1: Visually-hidden h1 provides page title for AT — Results has no visible heading otherwise */}
+        <h1 id="results-heading" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+          Analysis Results
+        </h1>
         {/* Hero */}
         <div style={{ marginBottom: 32, textAlign: 'center' }}>
           <div className="kpi-hero num" style={{ color: 'var(--color-accent)', marginBottom: 4 }}>

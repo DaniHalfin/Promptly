@@ -9,12 +9,15 @@ export function App() {
   const { state } = useSession();
 
   return (
+    // WP-1: <main> landmark so assistive technology can navigate to main content
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)' }}>
-      {state.phase === 'landing' && <Landing />}
-      {(state.phase === 'connection' || !state.phase) && <Landing />}
-      {state.phase === 'analyzing' && <Analysis />}
-      {state.phase === 'results' && <Results />}
-      {state.phase === 'error' && <Error />}
+      <main id="main-content">
+        {state.phase === 'landing' && <Landing />}
+        {(state.phase === 'connection' || !state.phase) && <Landing />}
+        {state.phase === 'analyzing' && <Analysis />}
+        {state.phase === 'results' && <Results />}
+        {state.phase === 'error' && <Error />}
+      </main>
     </div>
   );
 }

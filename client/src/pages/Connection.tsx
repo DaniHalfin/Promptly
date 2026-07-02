@@ -88,12 +88,13 @@ export function Connection() {
           <h2 className="text-lg font-semibold mb-4">Analysis Period</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Start Date</label>
-              <input type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} />
+              {/* WP-2: htmlFor/id binding so labels are programmatically associated with their inputs */}
+              <label htmlFor="analysis-start-date" className="block text-sm font-medium mb-2">Start Date</label>
+              <input id="analysis-start-date" type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">End Date</label>
-              <input type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} />
+              <label htmlFor="analysis-end-date" className="block text-sm font-medium mb-2">End Date</label>
+              <input id="analysis-end-date" type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} />
             </div>
           </div>
         </div>

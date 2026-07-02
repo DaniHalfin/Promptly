@@ -75,3 +75,25 @@ export function friendlyModelName(modelId: string): string {
   if (prefixMatch) return MODEL_FRIENDLY_NAMES[prefixMatch];
   return modelId;
 }
+
+// ─── Source display names ─────────────────────────────────────────────────────
+
+/**
+ * Maps source IDs to user-friendly display names.
+ * Falls back to underscore-replaced ID for unknown sources.
+ *
+ * WP-14: Replaces source_id.replace('_', ' ') calls in PrintLayout and elsewhere
+ * which produced lowercase "github copilot" / "claude code" instead of proper casing.
+ */
+const SOURCE_DISPLAY_NAMES: Record<string, string> = {
+  openai:          'OpenAI',
+  anthropic:       'Anthropic',
+  github_copilot:  'GitHub Copilot',
+  chatgpt_export:  'ChatGPT Export',
+  claude_export:   'Claude Export',
+  claude_code:     'Claude Code',
+};
+
+export function friendlySourceName(sourceId: string): string {
+  return SOURCE_DISPLAY_NAMES[sourceId] ?? sourceId.replace(/_/g, ' ');
+}
