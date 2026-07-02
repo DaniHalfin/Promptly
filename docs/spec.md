@@ -1,13 +1,13 @@
 ---
-title: promptly-product-spec-v1-7
+title: promptly-product-spec-v1-8
 source: spec-draft
 source_type: sub-agent
 tags: [spec, promptly, product, v1.7]
 created_at: 2026-06-24T00:48:50.086Z
 ---
 # Promptly Product Spec
-**Version:** 1.7
-**Date:** 2026-06-24
+**Version:** 1.8
+**Date:** 2026-07-01
 **Author:** spec-draft agent
 **Status:** Draft
 
@@ -56,7 +56,7 @@ The core frame is **token economy**: how efficiently are you allocating your tok
 | Requires code instrumentation | No | Yes | No |
 | Works retroactively on existing data | Yes | No | Yes |
 | Aggregates across providers | No | Sometimes | Yes |
-| Shows optimization recommendations | Minimal | Yes (Tier A only) | Yes (all tiers) |
+| Shows optimization recommendations | Minimal | Yes (Tier A only — see §6) | Yes (all tiers) |
 | Requires cloud account / SaaS signup | No | Yes | No |
 | Data leaves your machine | Yes (to provider) | Yes (to vendor) | Never |
 
@@ -338,6 +338,8 @@ The adapter extracts only `session.shutdown` events. Each such event contains:
 
 ### Tier definitions
 
+All four P0 MVP sources — Claude Code, OpenAI, Anthropic, and GitHub Copilot — are classified as Tier B. Tier A is defined for architectural completeness and future extensibility (for proxy- or SDK-based ingestion that would expose full per-request trace data); it contains no MVP sources. Tier C is likewise defined for future P1 sources such as web-UI conversation exports; it also contains no MVP sources.
+
 | Tier | Name | Data available | Sources that map to this tier |
 |---|---|---|---|
 | A | Full Trace | Per-request rows with prompt text, completion text, model, tokens, cost, latency | None in MVP (reserved for future proxy/SDK ingestion) |
@@ -363,13 +365,13 @@ The tier label is displayed on each source card in the results dashboard.
 - Daily spend trend (line chart)
 - Model cost breakdown (pie or bar chart: % of total spend per model)
 - Input vs. output token ratio (per model and aggregate — all Tier B sources)
-- Cached token fraction (Anthropic, Claude Code, and GitHub Copilot: see §7.8 and §7.19 for source-specific formulas)
+- Cached token fraction (Anthropic, Claude Code, and GitHub Copilot: see §7.8)
 - Average daily spend and 7-day rolling average
 - Peak spend day
 - All Tier B recommendations (see §8)
 - Month-over-month spend change (when ≥45 days of data available) — §7.12
-- Claude Code: session count and average tokens per session — §7.13–§7.14
-- GitHub Copilot: total cost, token breakdown by model, per-model cost breakdown, cached token fraction, average tokens per session — §7.15–§7.19
+- Claude Code: session count and average tokens per session — §7.14–§7.15
+- GitHub Copilot: all common metrics covered in §7.4–§7.15; Copilot-specific additions (per-model request count, reasoning token breakdown) at §7.16–§7.17
 
 **Tier C (no MVP sources — future P1 placeholder):**
 Tier C is defined for completeness and future P1 sources. When a Tier C source is connected in a future release, it will unlock:
@@ -420,22 +422,28 @@ All metrics are defined below with their formula and the minimum tier at which t
 - When sources have different date ranges, the displayed range is the union (earliest start date to latest end date). Individual source date ranges are shown on each source card.
 - Tier: B and C
 
-### OpenAI and Anthropic metrics (Tier B)
+### Common per-source metrics (all Tier B sources)
 
-**7.4 Total spend (actual USD)**
-- Definition: Sum of all dollar values returned by the Costs API over the analysis period. This figure is the true billed cost as reported by the provider.
-- Formula: `sum(cost_usd_per_day)` over the selected date range.
-- Display: Labeled as "Actual (from [provider] Costs API)." This is a daily aggregate total; it is NOT broken down by model. Per-model cost breakdown is estimated in §7.6.
+Each metric in this block applies to every connected Tier B source. Where a source does not support a specific metric, a source-support note explains what is shown instead.
+
+**7.4 Per-source total spend (actual USD)**
+Applies to: All four Tier B sources.
+- Definition: Total actual cost for the analysis period, per source. Cost is derived differently depending on the source, but the concept — total actual cost for the analysis period — is universal. For OpenAI and Anthropic, cost is returned directly from the provider billing API (Costs API). For Claude Code, cost is computed from token counts × model price using the LiteLLM price map (no provider API call is made). For GitHub Copilot, cost is derived from session request cost data in local session event files.
+- Formula: `sum(cost_usd_per_day)` over the selected date range (OpenAI and Anthropic); sum of tokens × price per session (Claude Code); sum of per-model request cost across all qualifying session events (GitHub Copilot).
+- Display: Labeled as "Actual (from [provider] Costs API)" for OpenAI and Anthropic; "Computed (tokens × LiteLLM price map)" for Claude Code; "Actual (from local session event files)" for GitHub Copilot. This is a daily aggregate total; per-model cost breakdown is estimated in §7.6.
+- Note (GitHub Copilot): cost is derived from premium request cost data in local session event files.
 - Tier: B
 
 **7.5 Daily spend trend**
-- Definition: Time series of daily cost in USD.
-- Data source: Costs API daily buckets.
+Applies to: All four Tier B sources.
+- Definition: Time series of daily cost in USD. All four Tier B sources produce daily or session-day cost data that feeds this trend: OpenAI and Anthropic provide calendar-day buckets from the Costs API; Claude Code sessions are bucketed by session start day; GitHub Copilot sessions are bucketed by session start day from local event files.
 - Chart type: Line chart, x-axis = date, y-axis = USD.
 - Tier: B
 
 **7.6 Model cost share**
-- Definition: For each model that appears in the Usage API data, its estimated percentage contribution to total spend.
+Applies to: All four Tier B sources.
+- Note: GitHub Copilot exposes additional token categories per model including cache-read tokens, cache-write tokens (informational only — not a billing charge), and reasoning tokens. Other sources expose input and output tokens per model.
+- Definition: For each model that appears in the usage data, its estimated percentage contribution to total spend.
 - Formula:
   ```
   model_cost_estimate(m) = cost_estimate_input(m) + (output_tokens_m × output_cost_per_token_m)
@@ -451,27 +459,30 @@ All metrics are defined below with their formula and the minimum tier at which t
   - GitHub Copilot: the entire outer formula is replaced — **`model_cost_estimate(m) = requests.cost(m)`** (taken from `requests.cost` in the `modelMetrics` entry directly; this value is pre-computed by the provider and is inclusive of all token billing). The output term `(output_tokens_m × output_cost_per_token_m)` is NOT applied separately — it is already captured within `requests.cost`. Do not add the output term.
 
   model_cost_share(m) = model_cost_estimate(m) / Σ model_cost_estimate(x) for all models x
-  (If the denominator `Σ model_cost_estimate(x)` is zero for all models in a source, `model_cost_share` is undefined for that source; see §7.18 for the Copilot-specific zero-guard and display behavior.)
+  (If the denominator `Σ model_cost_estimate(x)` is zero for all models in a source, `model_cost_share` is undefined for that source and the model cost breakdown chart is suppressed for that source.)
   ```
   Where:
   - `input_tokens_m` and `output_tokens_m` are summed over the analysis period from the Usage API (for OpenAI), the Anthropic Usage Report API `/v1/organization/usage_report/messages` (for Anthropic), or Claude Code local session JSONL files under `~/.claude/projects/` (for Claude Code)
   - `cache_creation_input_tokens_m` and `cache_read_input_tokens_m` are summed over the analysis period from the Anthropic Usage Report API (for Anthropic) or Claude Code local session JSONL files under `~/.claude/projects/` (for Claude Code); these fields are not present for OpenAI or GitHub Copilot
   - `input_cost_per_token_m`, `output_cost_per_token_m`, `cache_creation_input_token_cost_m`, and `cache_read_input_token_cost_m` are from the LiteLLM price map (§11)
   - If the LiteLLM cache price fields are absent for a model, fall back to the two-term formula for that model and note the estimate excludes cache costs
+  - When a model's cost share rounds to zero, it is shown as '<0.1%' rather than 0% to preserve its presence in the breakdown.
 - Note: This is a price-weighted estimated cost breakdown. For OpenAI and Anthropic/Claude Code, the chart is labeled "Estimated model cost breakdown." For GitHub Copilot, actual `requests.cost` values are used directly and the chart is labeled "Actual model cost breakdown."
 - Chart type: Pie chart or stacked bar chart.
 - Tier: B
 
 **7.7 Input vs. output token ratio**
+Applies to: All four Tier B sources.
 - Definition: Ratio of total input tokens to total output tokens, per model and in aggregate.
 - Formula: `input_output_ratio = total_input_tokens / total_output_tokens`
 - Why it matters: A high ratio (many input tokens relative to output) indicates large prompts with short completions, which is the pattern R3 (Reduce Prompt Verbosity) watches for. A low ratio (output tokens approaching or exceeding input tokens) indicates verbose model responses.
-- **Note for Anthropic and Claude Code:** For this ratio, `total_input_tokens` = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (cache fields are additive — see §7.2). Using `input_tokens` alone would understate actual LLM input volume for sessions with active prompt caching.
-- **Note for GitHub Copilot:** `usage.inputTokens` already includes all prompt tokens (cached and uncached). For this ratio, use `usage.inputTokens` directly — do not add `cacheReadTokens` or `cacheWriteTokens` separately, as they are already counted within `inputTokens`. See §5 Source 4.
-- **Note for OpenAI:** use `input_tokens` as `total_input_tokens` directly — `cached_input_tokens` is already included in `input_tokens` and must not be added separately.
+- **Note for Anthropic and Claude Code:** For this ratio, total input tokens includes all three additive input token categories: standard input tokens, cache creation tokens, and cache read tokens (cache fields are additive — see §7.2). Using standard input tokens alone would understate actual LLM input volume for sessions with active prompt caching.
+- **Note for GitHub Copilot:** The total input token count already includes all prompt tokens (cached and uncached). For this ratio, use the total input token count directly — do not add cache read or cache write tokens separately, as they are already counted within the total. See §5 Source 4.
+- **Note for OpenAI:** Use total input tokens directly — cached input tokens are already included in the input token count and must not be added separately.
 - Tier: B
 
-**7.8 Cached token fraction (Anthropic and Claude Code)**
+**7.8 Cached token fraction**
+Applies to: Anthropic, Claude Code, and GitHub Copilot. Not displayed for OpenAI — prompt caching is fully automatic and cannot be configured or tuned by the developer; surfacing a cache fraction would not be actionable.
 - Definition: Fraction of total input tokens that were served from the prompt cache.
 - Formula (Anthropic): `cache_fraction_anthropic = cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)`
   - Data source: Anthropic Usage API
@@ -479,7 +490,7 @@ All metrics are defined below with their formula and the minimum tier at which t
   - Data source: Claude Code local session files (`~/.claude/`)
 - When both Anthropic and Claude Code are connected, the system computes `cache_fraction_anthropic` and `cache_fraction_claude_code` independently and displays each on its respective source card.
 - Why it matters: Cache reads are cheaper than standard input tokens. A low cache fraction on a high-volume source indicates a missed prompt-caching opportunity.
-- For GitHub Copilot cached token fraction, see §7.19.
+- Note (GitHub Copilot): For GitHub Copilot, the denominator for the cache fraction calculation differs from Anthropic and Claude Code due to differences in how token types are reported across sources. The engineering design specifies the per-source formula.
 - Realized savings formula (backward-looking): `savings_[source] = cache_read_input_tokens_[source] * (standard_input_price_[source] - cache_read_price_[source])` where `[source]` ∈ {`anthropic`, `claude_code`} matching the source whose data is used; `cache_read_input_tokens_[source]` = sum of `cache_read_input_tokens` from the respective source's data, `standard_input_price_[source]` = `input_cost_per_token` and `cache_read_price_[source]` = `cache_read_input_token_cost` from the LiteLLM price map.
 
   **Note:** `standard_input_price_[source]` and `cache_read_price_[source]` are source-aggregate aliases (token-volume-weighted average across models for that source):
@@ -491,85 +502,69 @@ All metrics are defined below with their formula and the minimum tier at which t
   If `sum(cache_read_input_tokens_m) == 0` for the source, set `savings_[source] = 0` and suppress the realized savings display for that source. For the authoritative per-model `_m` contract using the same LiteLLM fields, see §8 R1 Estimated savings formula. For forward-looking savings potential, see §8 R1.
 
   (Cache write overhead is not netted here — write costs are already sunk for tokens that have been cached. The forward-looking formula in §8 R1 nets write overhead because those costs have not yet been incurred.)
-- Tier: B (Anthropic and Claude Code)
+- Tier: B (Anthropic, Claude Code, and GitHub Copilot)
 
 **7.9 Average daily spend**
+Applies to: All four Tier B sources.
 - Definition: Mean of daily cost values over the analysis period.
 - Formula: `avg_daily_spend = total_spend_usd / number_of_days_with_data`
 - Tier: B
 
 **7.10 Peak spend day**
+Applies to: All four Tier B sources.
 - Definition: The calendar day with the highest single-day cost in the analysis period.
 - Formula: `argmax(cost_usd_per_day)`
 - Display: Date and amount.
 - Tier: B
 
 **7.11 7-day rolling average spend**
+Applies to: All four Tier B sources.
 - Definition: Rolling average of daily cost over the last 7 days of the analysis period.
 - Formula: `avg(cost_usd_per_day[last_7_days])`
 - Tier: B
 
 **7.12 Month-over-month spend change**
+Applies to: All four Tier B sources.
 - Definition: Percentage change in spend from the prior 30-day period to the current 30-day period, if sufficient data exists.
 - Formula: `MoM_change = (current_30d_spend - prior_30d_spend) / prior_30d_spend * 100`
 - Only shown if the analysis period covers at least 45 days.
 - Tier: B
 
-**7.12a Average daily output tokens per model (derived)**
+**7.13 Average daily output tokens per model (derived)**
+Applies to: All four Tier B sources.
 - Definition: Average output tokens per calendar day for a given model, over the analysis period. Used by the R2 recommendation trigger.
 - Formula: `output_tokens_per_day(model) = sum(output_tokens_for_model) / number_of_days_with_data`
 - This is a derived value computed during recommendation evaluation; it is not displayed directly in the UI.
 - Tier: B
 
-### Claude Code metrics (Tier B)
-
-Note: Cached token fraction for Claude Code is defined in §7.8 (alongside the Anthropic formula). The section header "OpenAI and Anthropic metrics" does not restrict §7.8's scope — it covers both Anthropic and Claude Code sources.
-
-**7.13 Session count**
-- Definition: Number of distinct Claude Code sessions recorded in the local data files.
-- Formula: `count(sessions)` across all project directories under `~/.claude/projects/`
-- Display: "N sessions analyzed"
+**7.14 Session count**
+Applies to: Claude Code and GitHub Copilot (local-file sources). Not applicable to OpenAI and Anthropic — these sources return daily aggregated usage data without session-level granularity; individual sessions are not visible.
+- Definition: Number of distinct sessions found in local data files for the analysis period.
+- Formula (Claude Code): `count(sessions)` across all project directories under `~/.claude/projects/`
+- Formula (GitHub Copilot): `count(sessions with valid session.shutdown events)` across all subdirectories under the session-state root.
+- Display: "N sessions analyzed" (shown separately on each source's panel)
+- Session count is displayed separately on each source's panel. No combined count across sources is shown — Copilot and Claude Code sessions represent different interaction types and cannot be meaningfully combined.
+- Note (GitHub Copilot): Session count reflects qualifying session events found in local session event files.
 - Tier: B
 
-**7.14 Average tokens per session**
-- Definition: Mean total tokens (input + output) per Claude Code session over the analysis period.
-- Formula: `avg((input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens) per session)` — cache fields are additive for Claude Code (see §7.2).
+**7.15 Average tokens per session**
+Applies to: Claude Code and GitHub Copilot (local-file sources). Not applicable to OpenAI and Anthropic — these sources do not expose session-level granularity.
+- Definition: Mean total tokens (input + output) per session over the analysis period.
+- Formula (Claude Code): `avg((input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens) per session)` — cache fields are additive for Claude Code (see §7.2).
 - Display: "~N tokens per session (average)"
 - Tier: B
 
-### GitHub Copilot metrics (Tier B)
+### Source-specific metrics
 
-**7.15 Copilot session count**
-- Definition: Number of distinct Copilot sessions found in `~/.copilot/session-state/` that contain a `session.shutdown` event with non-empty `modelMetrics`.
-- Formula: `count(sessions with valid session.shutdown events)` across all subdirectories under the session-state root.
-- Display: "N sessions analyzed"
-- Tier: B
+The following metrics are unique to a specific source and have no conceptual equivalent in the other Tier B sources.
 
-**7.16 Copilot token breakdown by model**
-- Definition: Per-model daily aggregates of input, output, cache-read, cache-write, and reasoning tokens, plus request count and premium request cost. Mirrors the Claude Code token breakdown structure.
-- Formula: For each model key in `modelMetrics`, sum `usage.inputTokens`, `usage.outputTokens`, `usage.cacheReadTokens`, `usage.cacheWriteTokens`, `usage.reasoningTokens`, `requests.count`, and `requests.cost` across all sessions whose `sessionStartTime` falls within the analysis period; bucket by calendar day.
-- Display: Table of model name, daily token totals (input / output / cache-read / cache-write / reasoning), request count, and cost (USD). Sorted by total cost descending.
-- Tier: B
+**7.16 Per-model request count**
+- Source: GitHub Copilot only
+- The number of discrete premium AI interactions made to each model during the analysis period. This is a distinct count separate from token volume. Other Tier B sources aggregate usage by tokens only; GitHub Copilot is the only P0 source that exposes a per-model request count separately from token volume.
 
-**7.17 Copilot total cost**
-- Definition: Total premium request cost for the analysis period, summed across all models and all sessions.
-- Formula: `total_cost = sum(requests.cost)` across all `modelMetrics` entries in all qualifying `session.shutdown` events.
-- Display: "Total Copilot cost: $X.XX (premium interactions only — code completions are unlimited and not tracked)."
-- Tier: B
-
-**7.18 Copilot model cost breakdown**
-- Definition: Percentage of total Copilot cost attributable to each model.
-- Formula: `model_cost_share(m) = sum(requests.cost for model m) / total_cost`
-- If `total_cost == 0` (e.g., the user has only used code completions with no premium interactions), suppress the model cost breakdown chart and display instead: "No premium interaction cost recorded for this period. Code completions are not tracked in cost data (see §5 Source 4)." When `total_cost == 0`, `model_cost_share(m)` is treated as undefined (not zero) for all models; the R2 trigger does not fire for Copilot in this state because `total_spend_premium_model_usd = 0 < $5.00`.
-- Chart type: Pie chart or bar chart.
-- Display: Model names with cost percentage and absolute cost. Sorted by cost descending.
-- Tier: B
-
-**7.19 Copilot cached token fraction**
-- Definition: Fraction of total input tokens served from the cache, per model and in aggregate. Because `inputTokens` already includes cached and non-cached prompt tokens, it is the full denominator.
-- Formula: `cache_fraction_copilot(m) = cacheReadTokens_m / inputTokens_m` for each model `m`; `cache_fraction_copilot(aggregate) = Σ(cacheReadTokens_m) / Σ(inputTokens_m)` where the sum runs over all models `m` in the analysis period.
-- Display: Percentage with raw token counts. Shown per model and as a weighted aggregate.
-- Tier: B
+**7.17 Reasoning token breakdown**
+- Source: GitHub Copilot only
+- Reasoning tokens are a distinct token category produced by certain Copilot models during internal chain-of-thought processing. They are shown per model alongside regular output tokens. Reasoning tokens are a subset of output tokens — they are not additional tokens on top of the output count. No other P0 Tier B source exposes a separate reasoning token category.
 
 ---
 
@@ -666,8 +661,8 @@ Where `[Model name]` and `[cheaper model]` are resolved at render time:
 Where:
 - `current_spend` = total actual cost for the analysis period for the source that contains `premium_model` (i.e., the Tier B source whose usage data reported the triggering model)
 - `total_spend_premium_model_usd` = `current_spend * model_cost_share(premium_model)` — used for the $5.00 minimum-spend guard in the trigger
-- `model_cost_share(premium_model)` = fraction of total spend attributable to the premium model (§7.6 for Anthropic/OpenAI; §7.18 for Copilot)
-- `output_tokens_per_day(premium_model)` = average daily output tokens for the premium model over the analysis period (see §7.12a)
+- `model_cost_share(premium_model)` = fraction of total spend attributable to the premium model (§7.6 — covers all Tier B sources)
+- `output_tokens_per_day(premium_model)` = average daily output tokens for the premium model over the analysis period (see §7.13)
 - `premium_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map (all Tier B sources including GitHub Copilot)
 - `cheaper_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map for the suggested alternative model; if absent, suppress the savings estimate for that model pair
 - `[X]` = `model_cost_share(premium_model) * 100` (percentage of total source spend, rounded to one decimal place)
@@ -678,7 +673,7 @@ Note: If `cheaper_model_price` is absent for a given model pair, suppress the sa
 
 **Tiers that can trigger this:** B (all Tier B sources, including GitHub Copilot)
 
-**Copilot-specific note:** For GitHub Copilot, model selection for Chat and CLI is configurable in Copilot settings. The recommendation body surfaces the per-model cost breakdown (§7.18) as evidence and links users to Copilot model configuration settings.
+**Copilot-specific note:** For GitHub Copilot, model selection for Chat and CLI is configurable in Copilot settings. The recommendation body surfaces the per-model cost breakdown (§7.6) as evidence and links users to Copilot model configuration settings.
 
 **Copilot model substitution table**
 
@@ -1119,7 +1114,7 @@ Resolved. `~/.claude/stats-cache.json` does not exist. Real data location: `~/.c
 
 ---
 
-*End of Promptly Product Spec v1.7*
+*End of Promptly Product Spec v1.8*
 ---
 
 ## Changelog
