@@ -63,34 +63,52 @@ export function TokenRatioBar({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" />
-        <YAxis dataKey="name" type="category" width={140} />
-        <Tooltip
-          formatter={(value) => {
-            if (typeof value === 'number') {
-              return value.toLocaleString();
-            }
-            return value;
-          }}
-          contentStyle={{
-            backgroundColor: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            borderRadius: '4px',
-          }}
-        />
-        <Bar dataKey="value" fill="#8884d8" radius={[0, 8, 8, 0]}>
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    // WP-9: <figure> provides semantic chart container; sr-only table exposes data to screen readers
+    <figure aria-label="Token usage breakdown">
+      <figcaption className="sr-only">
+        <table>
+          <thead>
+            <tr><th scope="col">Token type</th><th scope="col">Count</th></tr>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <tr key={row.name}>
+                <td>{row.name}</td>
+                <td>{row.value.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </figcaption>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis type="number" />
+          <YAxis dataKey="name" type="category" width={140} />
+          <Tooltip
+            formatter={(value) => {
+              if (typeof value === 'number') {
+                return value.toLocaleString();
+              }
+              return value;
+            }}
+            contentStyle={{
+              backgroundColor: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+            }}
+          />
+          <Bar dataKey="value" fill="#8884d8" radius={[0, 8, 8, 0]}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </figure>
   );
 }

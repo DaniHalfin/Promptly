@@ -86,7 +86,12 @@ export function Analysis() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 440 }}>
           {/* WP-1: h1 for correct heading hierarchy; h2 skipped `<h1>` at this level */}
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
+          <h1
+            tabIndex={-1}
+            data-focus-on-mount
+            style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em', outline: 'none' }}
+          >
             Analyzing your AI usage
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 32 }}>

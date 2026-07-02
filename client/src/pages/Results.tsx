@@ -207,7 +207,13 @@ export function Results() {
 
       <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', padding: '32px 24px', boxSizing: 'border-box' }}>
         {/* WP-1: Visually-hidden h1 provides page title for AT — Results has no visible heading otherwise */}
-        <h1 id="results-heading" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+        {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
+        <h1
+          id="results-heading"
+          tabIndex={-1}
+          data-focus-on-mount
+          style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', outline: 'none' }}
+        >
           Analysis Results
         </h1>
         {/* Hero */}

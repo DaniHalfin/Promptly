@@ -70,38 +70,57 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={validData}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={renderCustomizedLabel}
-          outerRadius={100}
-          innerRadius={60}
-          fill="#8884d8"
-          dataKey="costUsd"
-          nameKey="model"
-        >
-          {validData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip
-          formatter={(value, name) => {
-            const numVal = typeof value === 'number' ? value : parseFloat(String(value));
-            return [`$${numVal.toFixed(2)}`, friendlyModelName(String(name))];
-          }}
-          contentStyle={{
-            backgroundColor: 'var(--color-bg-elevated)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-primary)',
-          }}
-        />
-        <Legend formatter={renderLegendText} />
-      </PieChart>
-    </ResponsiveContainer>
+    // WP-9: <figure> provides semantic chart container; sr-only table exposes data to screen readers
+    <figure aria-label="Model cost share">
+      <figcaption className="sr-only">
+        <table>
+          <thead>
+            <tr><th scope="col">Model</th><th scope="col">Cost (USD)</th><th scope="col">Percentage</th></tr>
+          </thead>
+          <tbody>
+            {validData.map((row) => (
+              <tr key={row.model}>
+                <td>{friendlyModelName(row.model)}</td>
+                <td>${row.costUsd.toFixed(4)}</td>
+                <td>{row.percentage.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </figcaption>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={validData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={renderCustomizedLabel}
+            outerRadius={100}
+            innerRadius={60}
+            fill="#8884d8"
+            dataKey="costUsd"
+            nameKey="model"
+          >
+            {validData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value, name) => {
+              const numVal = typeof value === 'number' ? value : parseFloat(String(value));
+              return [`$${numVal.toFixed(2)}`, friendlyModelName(String(name))];
+            }}
+            contentStyle={{
+              backgroundColor: 'var(--color-bg-elevated)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          <Legend formatter={renderLegendText} />
+        </PieChart>
+      </ResponsiveContainer>
+    </figure>
   );
 }

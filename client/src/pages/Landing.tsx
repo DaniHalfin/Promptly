@@ -108,14 +108,20 @@ export function Landing() {
       }}>
         <div style={{ width: '100%', maxWidth: 520 }}>
           {/* Hero text */}
-          <h1 style={{
-            fontSize: '2.25rem',
-            fontWeight: 700,
-            letterSpacing: '-0.025em',
-            color: 'var(--text-primary)',
-            marginBottom: 8,
-            lineHeight: 1.2,
-          }}>
+          {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
+          <h1
+            tabIndex={-1}
+            data-focus-on-mount
+            style={{
+              fontSize: '2.25rem',
+              fontWeight: 700,
+              letterSpacing: '-0.025em',
+              color: 'var(--text-primary)',
+              marginBottom: 8,
+              lineHeight: 1.2,
+              outline: 'none',
+            }}
+          >
             AI Token Analytics
           </h1>
           <p style={{

@@ -207,11 +207,11 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
 
       {!info.disabled && info.setupInstructions && (
         <div style={{ marginBottom: 16 }}>
+          {/* WP-5: .disclosure-btn class replaces bare inline style — visible button boundary, open/closed state via aria-expanded */}
           <button
             type="button"
+            className="disclosure-btn"
             onClick={() => setShowInstructions((v) => !v)}
-            /* WP-4: padding + minHeight ensure ≥44px touch target (was padding:0, ~15px tall) */
-            style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0', minHeight: 44, display: 'flex', alignItems: 'center', gap: 4 }}
             aria-expanded={showInstructions}
           >
             {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
