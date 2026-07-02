@@ -210,7 +210,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           <button
             type="button"
             onClick={() => setShowInstructions((v) => !v)}
-            style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            /* WP-4: padding + minHeight ensure ≥44px touch target (was padding:0, ~15px tall) */
+            style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0', minHeight: 44, display: 'flex', alignItems: 'center', gap: 4 }}
             aria-expanded={showInstructions}
           >
             {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
@@ -293,7 +294,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             aria-disabled={validating ? true : undefined}
             aria-label={`Enable local ${info.label} analysis`}
             onClick={() => { if (validating) return; checkboxRef.current?.click(); }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}
+            /* WP-4: padding + minHeight ensure ≥44px touch target (was padding:0, ~22px tall) */
+            style={{ background: 'none', border: 'none', padding: '11px 0', minHeight: 44, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}
           >
             <span className={`toggle-track${source?.enabled ? ' on' : ''}${validating ? ' disabled' : ''}`}>
               <span className="toggle-thumb" />

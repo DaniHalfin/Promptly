@@ -256,4 +256,27 @@ describe('SourceCard', () => {
     expect(friendlySourceName('unknown_source')).toBe('unknown source');
     expect(friendlySourceName('my_new_source')).toBe('my new source');
   });
+
+  // ── WP-4: Touch targets ─────────────────────────────────────────────────
+
+  it('disclosure button has minHeight: 44 in its inline style — WP-4', () => {
+    const { container } = renderSourceCard('openai');
+    // The disclosure button is the one labelled "How to connect"
+    const btn = screen.getByRole('button', { name: /how to connect/i });
+    // jsdom exposes inline styles via element.style
+    expect(btn.style.minHeight).toBe('44px');
+  });
+
+  it('switch button has minHeight: 44 in its inline style — WP-4', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: false });
+    const sw = screen.getByRole('switch');
+    expect(sw.style.minHeight).toBe('44px');
+  });
+
+  it('switch button has vertical padding in its inline style — WP-4', () => {
+    renderSourceCard('claude_code', { enabled: false });
+    const sw = screen.getByRole('switch');
+    // padding: '11px 0' → element.style.padding
+    expect(sw.style.padding).toBe('11px 0px');
+  });
 });

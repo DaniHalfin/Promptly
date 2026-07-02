@@ -357,6 +357,18 @@ html, body {
   font-feature-settings: 'tnum' 1;
 }
 
+/* ─── Input minimum touch target ────────────────────────────────────────── */
+/* WP-4: All text/password/date inputs get min 44px height to meet touch target guidelines */
+/* (API key input was ~30px tall with padding:'8px 12px'; date inputs in Connection ~34px) */
+input[type="text"],
+input[type="password"],
+input[type="date"],
+input[type="email"],
+input[type="search"] {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
 /* ─── Progress bar (Analysis page) ──────────────────────────────────────── */
 /* WP-12: Class-based so @media (prefers-reduced-motion) can suppress the transition */
 .progress-fill {
