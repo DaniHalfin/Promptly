@@ -265,7 +265,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             style={{
               width: '100%',
               background: 'var(--color-bg-inset)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              /* WP-10: use --color-input-border token (0.35 opacity) for WCAG 3:1 non-text contrast */
+              border: '1px solid var(--color-input-border)',
               borderRadius: 'var(--radius-sm)',
               padding: '8px 12px',
               color: 'var(--text-primary)',

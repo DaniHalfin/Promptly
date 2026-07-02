@@ -8,14 +8,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { getChartColors } from '../../../lib/chart-colors.js';
 
 interface DailySpendLineProps {
   data: Array<{ date: string; costUsd: number }>;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
-
 export function DailySpendLine({ data }: DailySpendLineProps) {
+  // WP-11: resolve chart colours from CSS custom properties; fall back to OKLCH constants
+  const COLORS = getChartColors();
+
   if (!data || data.length === 0) {
     return (
       <figure aria-label="Daily spend over time">

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import { getChartColors } from '../../../lib/chart-colors.js';
 
 interface TokenRatioBarProps {
   inputTokens: number;
@@ -17,13 +18,13 @@ interface TokenRatioBarProps {
   cachedTokens?: number;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa'];
-
 export function TokenRatioBar({
   inputTokens,
   outputTokens,
   cachedTokens,
 }: TokenRatioBarProps) {
+  // WP-11: resolve chart colours from CSS custom properties
+  const COLORS = getChartColors();
   const data = useMemo(() => {
     const chartData = [];
     

@@ -8,14 +8,15 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { getChartColors } from '../../../lib/chart-colors.js';
 
 interface ConversationLengthBarProps {
   data: Array<{ bucket: string; count: number }>;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
-
 export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
+  // WP-11: resolve chart colours from CSS custom properties
+  const COLORS = getChartColors();
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">

@@ -8,20 +8,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { friendlyModelName } from '../../../lib/modelNames.js';
+import { getChartColors } from '../../../lib/chart-colors.js';
 
 interface ModelCostSharePieProps {
   data: Array<{ model: string; costUsd: number; percentage: number }>;
 }
 
-// OKLCH values matching the design token palette
-const COLORS = [
-  'oklch(62% 0.19 270)',   // indigo
-  'oklch(60% 0.20 300)',   // purple
-  'oklch(65% 0.16 240)',   // blue
-  'oklch(68% 0.17 180)',   // teal
-  'oklch(70% 0.18 150)',   // green
-];
-
+// WP-11: colours now sourced from CSS custom properties via getChartColors();
+// hardcoded OKLCH strings serve as fallbacks when custom properties are absent.
+// (Previously: hardcoded const COLORS = [...oklch values...])
 const RADIAN = Math.PI / 180;
 
 function renderCustomizedLabel({
@@ -68,6 +63,9 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
       </div>
     );
   }
+
+  // WP-11: resolve at render time so theme changes are reflected without a page reload
+  const COLORS = getChartColors();
 
   return (
     // WP-9: <figure> provides semantic chart container; sr-only table exposes data to screen readers
