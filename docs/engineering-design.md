@@ -1,7 +1,7 @@
-# Promptly Engineering Design v1.2
+# Promptly Engineering Design v1.3
 
-**Version:** 1.2
-**Date:** 2026-06-25
+**Version:** 1.3
+**Date:** 2026-07-03
 **Author:** architect agent
 **Source spec:** spec.md v1.8 (2026-07-01) — §6/§7 alignment pass applied 2026-07-03
 **Status:** Canonical (current)
@@ -763,6 +763,102 @@ Note: For GitHub Copilot, `cacheReadTokens` and `cacheWriteTokens` are subsets o
 
 All functions remain **pure**: same inputs → same outputs.
 
+#### Cross-Source Aggregation Note — `totalTokens()` (F1)
+
+`crossSource.ts:totalTokens()` aggregates tokens across all connected Tier B sources. **Copilot sources require a separate branch**: Copilot does not populate `modelBreakdown` (that is the non-Copilot path); instead it exposes `copilotTokenBreakdownByModel`. The cross-source `total_actual_tokens` aggregate must sum from `copilotTokenBreakdownByModel` for Copilot sources; if the non-Copilot path is used for a Copilot source, Copilot tokens are silently excluded from the cross-source total.
+
+```typescript
+// crossSource.ts: totalTokens() — Copilot branch
+// Non-Copilot sources: sum modelBreakdown[m].inputTokens + outputTokens
+// Copilot source: sum copilotTokenBreakdownByModel[m].inputTokens + outputTokens
+```
+
+#### `computeCopilotTierBMetrics()` — Additional Computed Fields
+
+The following fields must be computed by `computeCopilotTierBMetrics()` in `metrics/tierB.ts` in addition to the session count, model breakdown, and cached fraction documented in the table above.
+
+**Daily Spend Array (F2)**
+
+```typescript
+dailySpend: { date: string; spendUsd: number }[]
+```
+
+Bucket sessions by `NormalizedCopilotSession.date` (ISO date string, local TZ). For each session, the spend contribution is:
+
+```
+Σ  session.models[m].outputTokens × outputPrice_m
+ + session.models[m].inputTokens  × inputPrice_m
+```
+
+across all models `m` (prices from LiteLLM price map). This field is a prerequisite for F5 statistics and F9 daily input tokens. It is also the basis for the `DailySpendLine` chart in `CopilotPanel`.
+
+**Aggregate Input/Output Ratio (F3)**
+
+```
+aggregateInputOutputRatio = totalInputTokens / totalOutputTokens
+```
+
+Derived from the model aggregates already computed for `copilotTokenBreakdownByModel`. Guard against divide-by-zero (return `null` if `totalOutputTokens === 0`). Uses the same approach as the non-Copilot branch (`inputOutputRatio()` in `tierB.ts`).
+
+**Daily Spend Statistics (F5, requires F2)**
+
+These four statistics are derived from `dailySpend[]`:
+
+| Stat | Formula |
+|---|---|
+| `avgDailySpendUsd` | `totalCost / dailySpend.length` (0 if empty) |
+| `peakSpendDay` | Entry with highest `spendUsd` |
+| `rollingAvgSpend7dUsd` | Mean of last 7 entries' `spendUsd` |
+| `momChangePct` | `(last30Sum − prev30Sum) / prev30Sum × 100`; `null` if fewer than 45 data points |
+
+> **Recommendation:** extract these four into a shared `computeDailySpendStats(dailySpend[])` helper callable from both `computeTierBMetrics` (non-Copilot branch) and `computeCopilotTierBMetrics`. This avoids duplicating the window-slice logic.
+
+**Average Tokens per Session — Copilot formula (F7)**
+
+```
+// Per session:
+sessionTokens(s) = Σ (s.models[m].inputTokens + s.models[m].outputTokens)
+                   across all models m
+
+// Aggregate:
+copilotAvgTokensPerSession = mean(sessionTokens(s))
+                             across all sessions
+```
+
+**Critical distinction:** For Copilot, `inputTokens` is the **TOTAL** prompt token count — `cacheReadTokens` and `cacheWriteTokens` are subsets, not additive columns. The formula is therefore `inputTokens + outputTokens` only — **no cache token additions**. This differs from Claude Code where cache token types are additive to the denominator.
+
+> **Efficiency note:** The per-session loop for `copilotAvgTokensPerSession` can be combined with the F2 `dailySpend` loop and the F9 `copilotDailyInputTokens` loop for a single pass over sessions.
+
+**Daily Input Token Series (F9)**
+
+```typescript
+copilotDailyInputTokens: { date: string; inputTokens: number }[]
+```
+
+Computed in the same session loop as F2. For each session, accumulate `Σ session.models[m].inputTokens` by `session.date`. Used by R3's `getP90DailyInputTokens()` to compute the p90 daily input token threshold for Copilot sources.
+
+#### `computeTierBMetrics()` — Projected R1 Savings (F8)
+
+`computeTierBMetrics()` in `metrics/tierB.ts` (non-Copilot branch) must compute a new field `projectedR1SavingsUsd` using the forward-looking formula from spec §8 R1. This is **distinct** from `cachedTokenSavingsUsdAnthropic` / `cachedTokenSavingsUsdClaudeCode`, which are backward-looking **realized** savings displayed in panels as "Cache Savings" and remain unchanged.
+
+```
+For each model m in a caching-eligible source (Anthropic, Claude Code):
+  cache_fraction_m  = cacheReadTokens_m / inputTokens_m   (0 if inputTokens_m = 0)
+  savings_m         = inputTokens_m
+                    × (1 − cache_fraction_m)
+                    × 0.5                                  // reuse_factor, fixed per spec §8 R1
+                    × [(standard_input_price_m − cache_read_price_m)
+                       − (cache_creation_price_m − standard_input_price_m)]
+
+estimatedSavingsUsd = Σ savings_m across all models m
+```
+
+Where:
+- `standard_input_price_m` = `priceMap[m].input_cost_per_token`
+- `cache_read_price_m` = `priceMap[m].cache_read_input_token_cost`
+- `cache_creation_price_m` = `priceMap[m].cache_creation_input_token_cost`
+- Skip model `m` if any required price field is missing from the price map.
+
 ### 3.6 Recommendation Engine
 
 Each rule is a self-contained module exporting:
@@ -831,6 +927,12 @@ export const R1: Rule = {
 
 When both Anthropic and Claude Code trigger simultaneously, `evaluate()` returns **two separate cards** — one per source. Each card's `body` substitutes `[source_name]` = "Anthropic" or "Claude Code" respectively.
 
+#### R1 `buildR1Card()` — Savings Computation (F8)
+
+`buildR1Card()` must read `projectedR1SavingsUsd` (the **forward-looking** projected savings field computed by `computeTierBMetrics()`, see §3.5) as its `estimatedSavingsUsd` output field.
+
+> **v1.2 correction:** The v1.2 ED did not specify the savings formula for `buildR1Card()`. An implementation using `cachedTokenSavingsUsd*` (backward-looking realized savings) returns $0.00 for users who have not yet enabled caching — defeating the purpose of the recommendation. Corrected in v1.3: `buildR1Card()` must use `projectedR1SavingsUsd` (forward-looking, non-zero for workloads without full caching coverage).
+
 #### R2 downgrade-candidate tables (`R2_modelDowngrade.ts`)
 
 The non-Copilot table covers API sources (OpenAI, Anthropic):
@@ -879,7 +981,7 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
   },
   {
     pattern:  /^claude-fable-5/i,
-    cheaper:  'claude-sonnet-4-6',
+    cheaper:  'claude-haiku-4-5',  // Corrected from v1.2 which erroneously mapped to `claude-sonnet-4-6`
     rationale: 'Significant cost reduction; Fable 5 reserved for complex multi-step tasks',
   },
 ];
@@ -950,6 +1052,24 @@ export const R4: Rule = {
 >   ));
 > }
 > ```
+
+#### R3 Copilot Coverage (`R3_verbosity.ts`) (F9)
+
+R3 applies to **all Tier B sources including `github_copilot`** — there is no Copilot exclusion. The `getP90DailyInputTokens()` helper has a Copilot branch:
+
+```typescript
+function getP90DailyInputTokens(source: SourceMetrics): number | null {
+  // Copilot branch: if copilotDailyInputTokens is populated, use it as the daily series
+  // Non-Copilot: build daily input series from source.dailyTokensByModel[]
+  const dailySeries = source.copilotDailyInputTokens
+    ? source.copilotDailyInputTokens.map(d => d.inputTokens)
+    : buildDailyInputSeries(source.dailyTokensByModel);
+  if (!dailySeries || dailySeries.length === 0) return null;
+  return computeP90(dailySeries);
+}
+```
+
+The R3 trigger condition for Copilot uses `aggregateInputOutputRatio < 1.5` (same threshold as other sources), where `aggregateInputOutputRatio` is computed by `computeCopilotTierBMetrics()` via F3 (see §3.5).
 
 ### 3.7 LiteLLM Price Map Integration
 
@@ -1135,15 +1255,18 @@ A single full-page or center-page component renders `<Spinner />` with the messa
 1. **`<SummaryBar />`**: renders 7.1, 7.2, 7.3. Three-line layout. Left: total spend (Actual + Estimated split). Center: total tokens (Actual + Estimated). Right: analysis period (split into API range / file range if both present).
 2. **`<SourcesProcessedRow />`**: compact strip, one mini-pill per source: `✓ OpenAI (Tier B)`, `✓ Anthropic (Tier B)`, `✗ GitHub Copilot (no session data found in ~/.copilot/session-state/)`. Click expands to show warning array.
 3. **Source panels** (one per `connected: true && error: null` source):
-   - **`<OpenAIPanel />`** renders: 7.4 actual spend (big number), 7.5 daily spend line chart, 7.6 model cost share pie, 7.7 input/output ratio bar, 7.9 avg daily, 7.10 peak day, 7.11 7d rolling, 7.12 MoM badge (if applicable).
-   - **`<AnthropicPanel />`** renders: same as OpenAI plus 7.8 cached fraction donut + savings callout.
+   - **`<OpenAIPanel />`** renders: 7.4 actual spend (big number), 7.5 daily spend line chart, 7.6 model cost share pie, 7.7 input/output ratio bar, 7.9 avg daily, 7.10 peak day, 7.11 `rollingAvgSpend7dUsd` KPI tile (label: "7-Day Rolling Avg"), 7.12 `momChangePct` badge (label: "MoM Change"; if applicable). *(F6: rollingAvgSpend7dUsd and momChangePct tiles — fields were already computed; only the UI tiles were missing.)*
+   - **`<AnthropicPanel />`** renders: same as OpenAI plus 7.8 cached fraction donut + savings callout; plus `rollingAvgSpend7dUsd` tile (label: "7-Day Rolling Avg") and `momChangePct` tile (label: "MoM Change"). *(F6)*
+   - **`<ClaudeCodePanel />`** renders: same as Anthropic (7.4, 7.5, 7.6, 7.7, 7.9, 7.10) plus 7.8 cached fraction (Claude Code branch); `aggregateInputOutputRatio` KPI tile; `rollingAvgSpend7dUsd` tile (label: "7-Day Rolling Avg"); `momChangePct` tile (label: "MoM Change"); session count and average tokens per session from §7.14–7.15 (Claude Code branch). *(F4: aggregateInputOutputRatio tile — field was already computed in non-Copilot branch; only the UI tile was missing. F6: rolling avg and MoM tiles.)*
    - **`<CopilotPanel />`** renders (in order):
      1. **§7.14 Session count** — KPI tile (GitHub Copilot branch): single KPI tile showing the number of `session.shutdown` events found in the analysis window. Labeled: "Copilot sessions recorded locally in ~/.copilot/session-state/."
-     2. **§7.15 Average tokens per session** — KPI tile (GitHub Copilot branch) *(new item — was missing)*: shows mean tokens per session across the analysis window.
+     2. **§7.15 / F7 Average tokens per session** — KPI tile (GitHub Copilot branch): renders `copilotAvgTokensPerSession` (label: "Avg Tokens / Session"). Formula: mean of `Σ(inputTokens + outputTokens)` per session across all models; Copilot total-field semantics (cache tokens are subsets, not additive). *(F7)*
      3. **§7.4 Per-source total spend** — KPI tile (common metric, GitHub Copilot): single KPI tile showing sum of `requests.cost` across all models and sessions in USD. Labeled: "Total premium request cost (USD) — based on session.shutdown modelMetrics."
-     4. **§7.6 Model cost share** — `<ModelCostSharePie />` chart driven by `copilotModelCostBreakdown` (reuses existing chart component).
-     5. **§7.8 Cached token fraction** — bar chart (Copilot branch formula): per-model fraction + aggregate KPI tile showing percentage of input tokens served from cache. Labeled: "Higher cache-read fraction = lower effective cost per token."
-     6. Token breakdown table — renders data for **§7.16** (per-model request count) and **§7.17** (reasoning breakdown), both source-specific: table with columns `Model | Input tokens | Output tokens | Cache read | Cache write | Reasoning | Requests | Cost (USD)`. Sorted descending by `requestCost`. Note: `inputTokens` is total (cache tokens are subsets); `reasoningTokens` is a subset of `outputTokens`.
+     4. **§7.9 / F2+F5 Daily spend chart and KPI tiles** — `<DailySpendLine />` chart driven by `dailySpend[]` (F2 daily spend array); plus KPI tiles: `avgDailySpendUsd` (label: "Avg Daily Spend"), `peakSpendDay` (label: "Peak Spend Day"), `rollingAvgSpend7dUsd` (label: "7-Day Rolling Avg"), `momChangePct` (label: "MoM Change"; null-safe). *(F2 + F5)*
+     5. **F3 `aggregateInputOutputRatio`** — KPI tile. Computed by `computeCopilotTierBMetrics()` from model aggregates. *(F3)*
+     6. **§7.6 Model cost share** — `<ModelCostSharePie />` chart driven by `copilotModelCostBreakdown` (reuses existing chart component).
+     7. **§7.8 Cached token fraction** — bar chart (Copilot branch formula): per-model fraction + aggregate KPI tile showing percentage of input tokens served from cache. Labeled: "Higher cache-read fraction = lower effective cost per token."
+     8. Token breakdown table — renders data for **§7.16** (per-model request count) and **§7.17** (reasoning breakdown), both source-specific: table with columns `Model | Input tokens | Output tokens | Cache read | Cache write | Reasoning | Requests | Cost (USD)`. Sorted descending by `requestCost`. Note: `inputTokens` is total (cache tokens are subsets); `reasoningTokens` is a subset of `outputTokens`.
    - **`<FileExportPanel sourceId="chatgpt_export"|"claude_export" />`** renders: 7.13–7.19. Histogram via `ConversationLengthBar`.
    - **`<UpgradeNudge />`** appears at the bottom of any Tier C panel where a Tier B alternative exists.
 4. **`<RecommendationsList />`**: maps `report.recommendations` to `<RecommendationCard />` instances, sorted by severity. Each card shows: severity badge, title, body, triggering metric value, and (where the spec calls for it) a chart thumbnail reused from the source panel charts.
@@ -1165,6 +1288,35 @@ All charts use Recharts (per spec §11). Components in `client/src/components/Re
 - The 4-page structure mirrors spec §10 (Summary, Per-Source Insights, Recommendations, Assumptions).
 - Sensitive fields are filtered: PrintLayout consumes only `report` (which never contains credentials by design).
 
+**Page 1 — Summary (F12)**
+
+After the summary stats block, Page 1 includes a **per-source summary table** filtered to `source.connected === true && source.metrics !== null`:
+
+| Column | Source field | Notes |
+|---|---|---|
+| Source | Human-readable name | e.g., "OpenAI", "GitHub Copilot" |
+| Tier | `source.tier` | `'A'`, `'B'`, or `'C'` |
+| Total Tokens | `source.metrics.totalActualTokens` | `toLocaleString()`; "—" if null |
+| Total Spend | `source.metrics.totalSpendUsd` | `$X.XX`; "—" if null |
+
+**Per-Source Insights — Copilot section (F7)**
+
+The Copilot source description in `PrintLayout` includes a stats row: **"Avg Tokens / Session"** sourced from `metrics.copilotAvgTokensPerSession`.
+
+**Recommendations section (F13)**
+
+The recommendations section renders **all** fired recommendations with no cap. The v1.2 implementation erroneously applied `.slice(0, 3)` — corrected in v1.3.
+
+**Page 4 — Assumptions & Caveats (F11)**
+
+A fourth page is always rendered when the report is complete:
+
+- **Section title:** "Assumptions & Caveats"
+- **Assumptions list:** `report.assumptions[]`, bulleted, one entry per line.
+- **Price map date line:** "Token prices sourced from LiteLLM price map, last updated: {date}" — sourced from `report.metadata.litellm_price_map_date`.
+- **Hardcoded disclaimer:** "All figures labeled 'estimated' are approximations based on the LiteLLM public price map and per-session token counts. Actual costs may differ depending on negotiated rates, volume discounts, and billing rounding."
+- **Render condition:** always rendered when `report` is complete (not conditional on any specific source being connected).
+
 #### JSON
 - `exportJson.ts`: `JSON.stringify(report, null, 2)`, wrap in `Blob`, `URL.createObjectURL`, click synthetic `<a download="promptly-report-{YYYY-MM-DD}.json">`, revoke object URL.
 
@@ -1184,6 +1336,7 @@ These interfaces are the contract between client, server, and the JSON export. T
 export type SourceId =
   | 'openai'
   | 'anthropic'
+  | 'claude_code'                 // ← was missing in v1.2
   | 'github_copilot'
   | 'chatgpt_export'
   | 'claude_export';
@@ -1323,6 +1476,11 @@ export interface SourceMetrics {
   peakSpendDay?: { date: string; spendUsd: number };
   rollingAvgSpend7dUsd?: number;
   momChangePct?: number | null;
+  avgDailyOutputTokensPerModel?: Record<string, number>;
+  // Computed as model.outputTokens / periodDays; used by R2 to evaluate per-model output token rate.
+  projectedR1SavingsUsd?: number;
+  // Forward-looking estimated monthly savings if caching is adopted, per spec §8 R1 formula.
+  // Distinct from cachedTokenSavingsUsd* fields which are backward-looking realized savings.
 
   // Claude Code Tier B fields
   claudeCodeSessionCount?: number;                // §7.14 Session count (Claude Code branch)
@@ -1339,7 +1497,9 @@ export interface SourceMetrics {
 
   // GitHub Copilot Tier B fields
   copilotSessionCount?: number;                   // §7.14 Session count (GitHub Copilot branch)
-  copilotAvgTokensPerSession?: number;            // §7.15 Average tokens per session (GitHub Copilot branch)
+  copilotAvgTokensPerSession?: number;            // = mean(Σ(inputTokens + outputTokens) per session); Copilot-only
+  copilotDailyInputTokens?: { date: string; inputTokens: number }[];
+  // Copilot-only. Daily input token series used by R3 getP90DailyInputTokens().
   copilotTokenBreakdownByModel?: {                // feeds §7.6, §7.7, §7.8 (common) + §7.16, §7.17 (source-specific)
     model: string;
     inputTokens: number;
@@ -1450,6 +1610,8 @@ export interface AnalysisReport {
   "error": null,
   "metrics": {
     "session_count": 47,
+    "avg_tokens_per_session": 18420,
+    "avg_daily_spend_usd": 2.31,
     "total_cost_usd": 11.80,
     "model_breakdown": [
       {
@@ -1768,17 +1930,17 @@ The design review (2026-06-22) raised six non-blocking observations. The followi
 | **#2 `allSourcesFailed` frontend handling not explicit.** `useAnalysis.ts` lacks an explicit branch for `allSourcesFailed: true` (spec §4: return to connection step when zero sources succeed). | **Open.** Developer must add the branch. (See §8 item 12.) |
 | **#3 OQ-1 and OQ-2 resolved.** Both were previously blocking open questions. | **Resolved.** OQ-1 resolved in §3.7 (OpenAI approximation note + `isModelCostEstimated()`). OQ-2 resolved in §3.3.3 (local JSONL filesystem source; no PAT, no org-discovery, no network calls). |
 | **#4 Recommendation card chart thumbnails have no concrete rendering design.** `supportingChartRef` carries a `sourceId + chartId` reference but no chart registry or thumbnail-rendering pattern is designed. | **Open.** Developer must invent the wiring (chart registry keyed by `sourceId:chartId`). |
-| **#5 `serializeReport.ts` camelCase→snake_case boundary is mentioned but undesigned.** | **Open.** Small surface area; implementable from the TypeScript interfaces in §5. |
+| **#5 `serializeReport.ts` camelCase→snake_case boundary is mentioned but undesigned.** | **Open.** Small surface area; implementable from the TypeScript interfaces in §5. At minimum, this file must map `copilotAvgTokensPerSession` → `avg_tokens_per_session` in the Copilot section of the serialized JSON export (see §5 ED-DOC-2 example). This file does not yet exist and must be created as part of implementing F7. |
 | **#6 `lookupPrice()` prefix matching was order-dependent.** Two model keys where one is a prefix of the other could match ambiguously. | **Resolved.** §3.7 now includes longest-key-wins logic. |
 
 ---
 
 ## 11. Changelog
 
-| Version | Date | Notes |
-|---|---|---|
-| v1.2 | 2026-06-25 | Amendment v1.2: replaced legacy Copilot billing/engagement normalized types with NormalizedCopilotSession; updated NormalizedSourceData (copilotSessions field); added CopilotModelMetrics and CopilotShutdownEvent adapter-private interfaces; removed the legacy Copilot plan-cost option from SourceConfig, SessionState, §8, §9; updated metrics table input types; updated isModelCostEstimated() comment; removed GitHub from ADR-1 CORS rationale; cleaned §9 A2/A3, §10 review note. |
+See [engineering-design-changelog.md](./engineering-design-changelog.md)
+
+---
 
 *Ready for design-review agent.*
 
-*End of Promptly Engineering Design v1.2*
+*End of Promptly Engineering Design v1.3*

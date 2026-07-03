@@ -88,6 +88,7 @@ Project documentation lives in [`docs/`](./docs/):
 | [`spec.md`](./docs/spec.md) | Product spec — current canonical |
 | [`spec-changelog.md`](./docs/spec-changelog.md) | Spec revision history (reference, load on demand) |
 | [`engineering-design.md`](./docs/engineering-design.md) | Engineering design — current canonical |
+| [`engineering-design-changelog.md`](./docs/engineering-design-changelog.md) | Engineering design version history |
 | [`engineering-design-amendment-v1.0-v1.1.md`](./docs/engineering-design-amendment-v1.0-v1.1.md) | Amendment reference (v1.0 → v1.1 delta) |
 | [`engineering-design-amendment-v1.2.md`](./docs/engineering-design-amendment-v1.2.md) | Amendment reference (v1.2 — GitHub Copilot adapter redesign) |
 | [`engineering-design-errata.md`](./docs/engineering-design-errata.md) | Blocker fixes applied to v1.1 |
