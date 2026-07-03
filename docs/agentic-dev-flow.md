@@ -1,56 +1,65 @@
-# Agentic Development Flow -- Promptly
+# Agentic Development Flow — Promptly
 
-This document describes the end-to-end AI-assisted workflow used to build the Promptly project. Each phase is driven by specialized agents operating in critique-and-fix loops, with a human directing and approving at every gate. The workflow is designed so that no phase begins until the previous one has passed a structured review.
+This document describes how Promptly was built using AI agents. Each phase has a clear goal, a set of specialized agents, and a gate that must pass before the next phase begins. A human directs the work and approves every handoff.
 
 ---
 
 ## Phase 0 — Definition and Research
 
-**Goal:** Define the problem space, scope the MVP, and produce a research foundation that the specification drafter can build from.
+**Goal:** Define what we're building, scope the first version, and gather enough background that the team can write a solid spec.
 
-Phase 0 is a structured conversation between the human and the AI planning partner. The planning partner's role is to surface scope, constraints, and unknowns through targeted questions, then dispatch the researcher to fill knowledge gaps, and synthesize the output into a brief that the specification drafter can act on.
+This phase is a conversation between the developer and an AI planning partner. The planning partner asks questions to clarify goals and constraints, identifies what research is needed, and sends a researcher to fill in the gaps. Once the research comes back, the planning partner synthesizes it into a brief that the spec writers can act on.
 
-**Agents involved:**
+### Agents
 
-1. **AI planning partner (orchestrator)** -- Facilitates the ideation conversation, helps frame and scope the problem, identifies what research is needed, dispatches the researcher, and synthesizes findings into guidance for the specification drafter. Does not produce artifacts directly -- acts as the connective layer between the human's vision and the execution agents.
+**AI planning partner**
+Runs the ideation conversation, frames the problem, figures out what needs to be researched, and turns the findings into actionable guidance. Doesn't write artifacts — connects the developer's vision to the agents that do.
 
-2. **researcher** -- Investigates the problem domain: competitive landscape, platform data availability, API access paths, pricing models, and feasibility constraints. Produces a research report that grounds the spec in what is actually possible.
+**researcher**
+Looks into the problem space: competing tools, where the data comes from, how to access it, and what's actually feasible. Writes a research report that keeps the spec grounded in reality.
 
-   Note: researcher does not stop at the end of Phase 0. As the specification drafter surfaces specific data-access questions during Phase 1, researcher is dispatched on demand to answer them.
+Note: the researcher isn't done after Phase 0. Whenever the spec writers surface a question they can't answer, the researcher is called in to answer it.
 
-**Loop mechanic:** Human articulates vision → planning partner scopes and frames → researcher investigates → planning partner synthesizes findings → brief handed to the specification drafter. Researcher loops back throughout Phase 1 as new questions arise.
+### Loop
 
-**Output:**
-- [`research/llm-analytics-landscape.md`](./research/llm-analytics-landscape.md) -- LLM usage analytics landscape, competitive tools, and feasibility analysis
-- [`research/github-copilot-data-access.md`](./research/github-copilot-data-access.md) -- GitHub Copilot usage data access paths (produced during Phase 1 as spec questions surfaced)
-- [`research/claude-anthropic-data-access.md`](./research/claude-anthropic-data-access.md) -- Claude and Anthropic usage data access paths (produced during Phase 1)
-- Scoping guidance: individual developer spend, local data sources where possible, no proxy dependency
+```
+developer shares vision → planning partner frames it → researcher investigates → planning partner synthesizes
+→ brief handed to spec writers
+Researcher comes back as needed throughout Phase 1
+```
+
+### Output
+
+- [`research/llm-analytics-landscape.md`](./research/llm-analytics-landscape.md) — Overview of the AI analytics space, competing tools, and what's feasible
+- [`research/github-copilot-data-access.md`](./research/github-copilot-data-access.md) — How to get GitHub Copilot usage data (written during Phase 1 as questions came up)
+- [`research/claude-anthropic-data-access.md`](./research/claude-anthropic-data-access.md) — How to get Claude / Anthropic usage data (written during Phase 1)
+- Scope decision: focus on individual developer spend, use local data sources where possible, avoid proxy dependencies
 
 ---
 
 ## Phase 1: Spec Creation
 
-**Goal:** Produce a product specification that is internally consistent, complete, and critique-proof before any design work begins.
+**Goal:** Write a product spec that is complete, consistent, and has no open questions before design begins.
 
 ### Agents
 
 **specification drafter**
-Drafts the initial spec from the user's vision and research input. Iterates on sections as feedback arrives from critique and consistency passes.
+Writes the spec from the developer's vision and research. Revises it as feedback comes in from the critic and consistency checker.
 
 **specification critic**
-Reviews the spec against a structured checklist covering: completeness, consistency, scope clarity, data model correctness, edge case coverage, and ambiguity. Returns a categorized list of blocking and non-blocking issues. Runs in a loop with the specification drafter until zero blocking issues remain.
+Reviews the spec against a fixed checklist: completeness, internal consistency, scope clarity, data model accuracy, edge case coverage, and ambiguity. Returns a list of issues categorized as blocking or non-blocking. Loops with the specification drafter until there are no blocking issues left.
 
 **consistency checker**
-Cross-checks the spec for internal contradictions, broken references, mismatched data, and scope drift. Read-only -- surfaces issues only, never modifies. Runs after the specification critic passes clean.
+Reads the spec looking for contradictions, broken references, mismatched data, and scope drift. Never edits — only reports. Runs after the specification critic gives a clean pass.
 
 **researcher**
-Brought in as needed to fill knowledge gaps -- for example, how a specific platform's billing API works, what pricing data is publicly available, or competitive landscape context.
+Called in whenever the spec writers hit a question they can't answer from existing research.
 
-### Loop Mechanic
+### Loop
 
 ```
-specification critic -> specification drafter fixes -> specification critic re-checks -> repeat until 0 blocking issues
-consistency checker runs as final gate
+specification critic reviews → specification drafter fixes → repeat until zero blocking issues
+consistency checker runs as the final gate
 Spec is done when both pass clean
 ```
 
@@ -63,24 +72,24 @@ Spec is done when both pass clean
 
 ## Phase 2: Engineering Design
 
-**Goal:** Translate the spec into a concrete technical design covering architecture, data models, component contracts, and implementation decisions.
+**Goal:** Turn the approved spec into a concrete technical plan — what gets built, how the pieces fit together, and what the key decisions are.
 
 ### Agents
 
 **architect**
-Produces the engineering design document from the approved spec. Covers: system architecture, component breakdown, data flow, API contracts, adapter model, metrics engine, recommendation rules, frontend structure, and test strategy.
+Writes the engineering design from the approved spec. Covers system structure, component breakdown, data flow, API contracts, the adapter pattern, the metrics engine, recommendation logic, the frontend structure, and the test plan.
 
 **design reviewer**
-Reviews the engineering design for correctness, completeness, and spec fidelity. Returns blocking and advisory issues. When reviewing amendments, scope is restricted to the changed sections only. Runs in a loop with architect until zero blocking issues remain.
+Reviews the design for correctness, completeness, and faithfulness to the spec. Returns blocking and advisory issues. When reviewing changes, focuses only on what changed. Loops with the architect until there are no blocking issues left.
 
 **architect (errata pass)**
-When the design reviewer surfaces blockers, architect produces a targeted errata document -- specific fixes only, not a full redesign. The design reviewer re-checks the errata before sign-off.
+When the design reviewer finds blockers, the architect writes a targeted fix document — specific corrections only, not a full rewrite. The design reviewer checks the fixes before signing off.
 
-### Loop Mechanic
+### Loop
 
 ```
-architect produces design -> design reviewer critiques -> architect fixes blockers -> design reviewer confirms -> clean
-For amendments: loop scoped to changed sections only
+architect writes design → design reviewer finds issues → architect fixes blockers → design reviewer confirms → done
+For amendments: loop covers only the changed sections
 ```
 
 ### Output
@@ -94,131 +103,131 @@ For amendments: loop scoped to changed sections only
 
 ## Phase 3: Development
 
-**Goal:** Implement the engineering design in working code, in logical dependency order.
+**Goal:** Build the engineering design into working code, in the right order.
 
 ### Agents
 
 **gap analyst**
-Reads the codebase and the canonical design, identifies every file that needs to change and what specifically needs to change, and produces a prioritized task list. This gap analysis is reviewed and approved by the developer before implementation begins.
+Reads the codebase and the design, finds every file that needs to change and exactly what needs to change in each, and produces a prioritized task list. The developer reviews and approves this list before any code is written.
 
 **developer**
-The primary implementation agent. Given a task from the gap analysis, it reads the canonical design, writes or modifies the relevant files, runs `tsc` to verify type correctness, and reports the result. Independent tasks are run in parallel; dependent tasks are chained sequentially.
+Handles implementation. For each task: reads the design, makes the changes, runs a type check to confirm nothing is broken, and reports back. Tasks that don't depend on each other run at the same time; tasks that do are chained in order.
 
-### Task Sequencing
+### Task order
 
-Tasks are ordered by dependency:
-
-```
-types -> infrastructure -> adapters -> metrics engine -> backend routes -> frontend
-```
-
-Independent tasks within a tier run in parallel. The next task in a chain is only assigned after the previous one completes with a clean TypeScript build.
-
-### Loop Mechanic
+Work flows through layers, each depending on the one before:
 
 ```
-gap analysis -> task list approved -> developer assigned task 1 -> tsc clean -> developer assigned task 2 -> ... -> all tasks done
-If a task fails: retry with failure context before escalating
+types → infrastructure → adapters → metrics engine → backend routes → frontend
+```
+
+Tasks within the same layer run in parallel. A layer only starts when the previous one passes a clean type check.
+
+### Loop
+
+```
+gap analysis → task list approved → developer works through tasks in order → type check passes → next task
+If a task fails: retry with the failure context before escalating
 ```
 
 ### Output
 
-Working implementation with clean TypeScript builds across server and client.
+A working application with clean type checks across the server and client.
 
 ---
 
 ## Phase 4: Test Development and Testing
 
-**Goal:** Build a comprehensive test suite covering all components and run it to verify correctness.
+**Goal:** Build a complete test suite and run it until everything passes.
 
 ### Agents
 
-Three developer agents run in parallel to build the three test suites simultaneously:
+Three developer agents write the three test suites at the same time:
 
 **developer (server unit tests)**
-Writes Vitest tests covering: priceMap, tiers registry, adapter logic (isPeakHour, JSONL parsing), metrics engine, and recommendation rules.
+Writes tests for the core server logic: price calculations, billing tiers, adapter behavior, the metrics engine, and recommendation rules.
 
 **developer (client component tests)**
-Writes Vitest + React Testing Library tests covering: SourceCard, CopilotPanel, ClaudeCodePanel, AnthropicPanel, and OpenAIPanel.
+Writes tests for the UI components: the source connection cards and each provider panel.
 
 **developer (E2E tests)**
-Writes Playwright tests covering: connection flow, analysis pipeline, and export. All tests run against mock fixtures -- no real credentials required. Adapter network calls are mocked via `page.route()` so the suite runs fully offline.
+Writes end-to-end tests covering the full user flow: connecting a source, running an analysis, and exporting results. All tests run against fixed mock data — no real API keys needed.
 
 **developer (fixes)**
-After the full suite runs, any failures are diagnosed and fixed in targeted single-pass corrections.
+After the full suite runs, diagnoses any failures and applies targeted fixes.
 
-### Test Structure
+### Test suite
 
-| Suite | Location | Count | Framework |
+| Suite | Location | Tests | Framework |
 |---|---|---|---|
 | Server unit tests | `server/tests/` | 44 | Vitest |
-| Client component tests | `client/tests/` | 20 | Vitest + RTL |
-| E2E tests | `e2e/` | 14 | Playwright (mocked) |
+| Client component tests | `client/tests/` | 20 | Vitest + React Testing Library |
+| End-to-end tests | `e2e/` | 14 | Playwright (mocked) |
 | **Total** | | **78** | |
 
-### Loop Mechanic
+### Loop
 
 ```
-tests authored -> full suite run -> failures diagnosed -> fixes applied -> re-run -> green
+tests written → full suite runs → failures diagnosed → fixes applied → re-run → all green
 ```
 
 ### Output
 
-78 passing tests across three tiers. `npm test` runs all suites from the repo root. No credentials needed.
+78 passing tests. `npm test` runs the full suite from the repo root. No credentials needed.
 
 ---
 
 ## Phase 5: UX Review
 
-**Goal:** Verify that the implemented UI meets accessibility, interaction quality, and usability standards across all user-facing flows before the product is considered shippable.
+**Goal:** Confirm that the UI works well for all users — including those using keyboards, screen readers, or small screens — before the product ships.
 
-Phase 5 is a three-agent review pipeline coordinated by an orchestrator. The orchestrator first discovers the application's structure from the codebase and presents a predispatch configuration for human review. Once confirmed, the three reviewers run in parallel — one examining source code statically, one driving the live application via Playwright, and one reasoning over screenshots and DOM as a senior UX engineer would. Results are collected and deduplicated into a single consolidated report.
+Phase 5 is a three-agent review coordinated by an orchestrator. First, the orchestrator reads the codebase to figure out what needs to be tested: which files, which user flows, which screen sizes. It presents this plan to the developer for review. Once approved, three reviewers run at the same time. Their findings are combined into a single report, with duplicate issues merged.
 
 ### Agents
 
 **UX orchestrator**
-Runs in two modes. In discovery mode, it scans the repo to infer the full set of review inputs — include patterns, design token file, app URL, viewports, and the flows to test with their trigger scripts — then saves a predispatch config for human review and exits. In dispatch mode, given a confirmed config, it validates all inputs and launches the three review agents in parallel.
+Works in two modes. In discovery mode, it reads the repo to build the review plan — which files to scan, which flows to test, which screen sizes to check — then saves a summary for the developer to review and stops. In dispatch mode, once the developer confirms the plan, it kicks off the three reviewers in parallel.
 
 **static reviewer**
-Reads source files (TSX, TS, CSS) without running the app. Covers: accessibility semantics, heading structure and form binding, text alternatives for non-text content, focus management, error announcement, design token adherence, motion and animation safety, and label and naming accuracy. Gate: BLOCKED if any critical finding.
+Reads source files without running the app. Checks for: correct use of semantic HTML, proper heading structure and form labels, text alternatives for images and icons, focus handling when the page changes, error messages that are announced to screen readers, consistent use of design tokens, animations that respect reduced-motion settings, and accurate accessible names. Gate: BLOCKED if any critical finding.
 
 **runtime reviewer**
-Drives the live application via Playwright across all flows and three viewports (desktop, tablet, mobile). Injects axe-core 4.9 into each flow for automated violation scanning. Covers: color contrast for text and UI components, keyboard navigation and focus order, skip navigation, interactive state visibility, loading and async feedback timing, touch target sizing, responsive layout, and text-spacing robustness. Gate: BLOCKED if any critical finding.
+Runs the live app in a browser across all flows and three screen sizes (desktop, tablet, mobile). Checks for: color contrast on text and UI controls, keyboard navigation and focus order, a skip link for keyboard users, visible states for interactive elements, loading indicators that appear quickly enough, touch targets that are large enough on mobile, layout at different sizes, and text readability when spacing is increased. Gate: BLOCKED if any critical finding.
 
 **semantic reviewer**
-Captures screenshots and DOM at each flow/viewport combination and reasons over them as a senior UX engineer. No automated rules — pure judgment. Covers: information architecture, content clarity and CTA quality, cognitive load, progressive disclosure, terminology, redundancy, error surface design, completion state accuracy, and geometry and occlusion issues. Applies an epistemic distinction between verified findings (geometrically measured) and reasoned findings (inferred from screenshots). Gate: VERIFIED CLEAR if no critical findings; HUMAN REVIEW REQUIRED if reasoned critical findings are present.
+Takes screenshots of each flow and screen size, then reasons over them as a senior UX designer would — no automated rules, just judgment. Checks for: clear information structure, readable content and effective calls to action, appropriate complexity, good use of progressive disclosure, plain language, repetition, how errors are surfaced, accuracy of completion states, and whether any elements are hidden behind others. Distinguishes between findings it can measure precisely and findings based on visual judgment. Gate: CLEAR if no critical findings; NEEDS HUMAN REVIEW if critical findings based on visual judgment are present.
 
-### Loop Mechanic
+### Loop
 
 ```
-orchestrator discovers repo → predispatch config reviewed by human → orchestrator dispatches agents
-static reviewer, runtime reviewer, and semantic reviewer run in parallel
-all three complete → deduplication pass (same issue found by multiple agents → merged, highest severity wins)
-→ consolidated report: BLOCKED / HUMAN REVIEW REQUIRED / CLEAR
+orchestrator reads repo → developer reviews and approves the plan → orchestrator starts reviewers
+static, runtime, and semantic reviewers run in parallel
+all three finish → duplicates merged, highest severity wins
+→ final report: BLOCKED / NEEDS HUMAN REVIEW / CLEAR
 ```
 
 ### Output
 
-- Predispatch config artifact — confirmed configuration used to drive the run
-- Static findings JSON — structured findings with severity, location, failure scenario, and fix for each issue
-- Runtime findings JSON — structured findings with Playwright-measured evidence
-- Semantic findings artifact — full LLM-reasoned findings with epistemic gate status (VERIFIED CLEAR / HUMAN REVIEW REQUIRED)
-- Consolidated UX review report — deduplicated, cross-agent findings with overall gate status, per-finding severity (critical / should-fix / advisory), and recommended fixes
+- Review plan — the confirmed list of flows, screen sizes, and files used for the run
+- Static findings — every issue found in source code, with location, what breaks, and how to fix it
+- Runtime findings — every issue found in the live app, with measured evidence
+- Semantic findings — all judgment-based findings with a clear statement of confidence level
+- Final report — all findings combined, categorized by severity (critical / should fix / advisory), with fixes
 
 ---
 
 ## Human in the Loop
 
-The developer acts as the directing intelligence throughout the entire workflow.
+The developer directs the work at every stage.
 
 Approval gates:
 - Approves the spec before design begins
 - Reviews and approves the engineering design, or escalates blockers
 - Reviews and approves the gap analysis task list before development starts
 - Sees each task result as it completes and can redirect at any point
-- Reviews the UX predispatch config (discovered flows, viewports, and trigger scripts) before any review agent is dispatched
+- Reviews the UX review plan (flows, screen sizes, trigger steps) before any review agent is dispatched
 
-Agents never make product decisions autonomously. They execute within a defined scope and surface any ambiguity for human resolution. All architectural decisions belong to the human -- agents propose, the human decides.
+Agents never make product decisions on their own. They work within a defined scope and flag anything unclear for the developer to resolve. All decisions belong to the developer — agents propose, the developer decides.
 
 
 
