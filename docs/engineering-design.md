@@ -1915,7 +1915,7 @@ The following items were addressed during spec iteration and are fully resolved 
 | A8 | Errored source in report array. | `engine/serializeReport.ts` | Yes. `{ sourceId, tier: null, connected: false, error: "...", metrics: null }`. Frontend hides the panel, surfaces in Sources Processed row. |
 | A9 | §7.24 Copilot vs API comparison: which Tier B source when multiple connected. | `engine/metrics/tierC.ts` | Use the Tier B source with the highest output token volume. Label the chosen reference. |
 | A10 | §7.6 model cost share when LiteLLM misses some models. | `engine/metrics/tierB.ts` `modelCostShare()` | Models with no price grouped under "Unknown" with `estimatedCostShare: 0` and warning surfaced; remaining normalize to sum to 100%. |
-| A11 | §8 R3 trigger direction: `input/output ratio < 1.5` means output-heavy. | `engine/recommendations/R3_verbosity.ts` | `inputTokens / outputTokens < 1.5` triggers per spec. Per-model evaluation, one card per qualifying model. |
+| A11 | §8 R3 trigger direction: `aggregateInputOutputRatio > 8` (input tokens massively exceed output tokens). Applies uniformly to all Tier B sources including Copilot — no source-specific threshold distinction. | `engine/recommendations/R3_verbosity.ts` | `aggregateInputOutputRatio > 8` triggers R3. Per-model evaluation, one card per qualifying model. |
 | A12 | `estimated_savings_usd` on all recommendations. | `RecommendationResult` shape | Field is optional/nullable; only R1 and R2 populate. R4 sets `null` explicitly (latency recommendation, not cost). |
 
 ---
