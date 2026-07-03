@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** 2026-06-25
 **Author:** architect agent
-**Source spec:** spec.md (amended per design amendment v1.2)
+**Source spec:** spec.md v1.8 (2026-07-01) — §6/§7 alignment pass applied 2026-07-03
 **Status:** Canonical (current)
 **Supersedes:** v1.0 (2026-06-18)
 
@@ -272,7 +272,7 @@ promptly/
 │       │   ├── tiers.ts              # classifyTier(normalized) → 'B' | 'C' | null
 │       │   ├── metrics/
 │       │   │   ├── index.ts          # orchestrator: per-source metric computation
-│       │   │   ├── tierB.ts          # 7.4 - 7.19 (OpenAI/Anthropic/Copilot/ClaudeCode)
+│   │   │   ├── tierB.ts          # §7.4–§7.17 per spec v1.8 (OpenAI/Anthropic/Copilot/ClaudeCode)
 │       │   │   ├── tierC.ts          # file export metrics (P1 stubs)
 │       │   │   ├── crossSource.ts    # 7.1 - 7.3
 │       │   │   └── pricing.ts        # LiteLLM lookups, blended price helpers
@@ -698,6 +698,8 @@ interface CopilotShutdownEvent {
 
 ### 3.4 Tier Classification Engine
 
+> **MVP scope:** All four P0 MVP adapters (OpenAI, Anthropic, Claude Code, GitHub Copilot) emit Tier B. The `'A'` type value is reserved for future proxy- or SDK-based adapters that expose per-request trace data; no MVP adapter emits Tier A. Tier C is likewise reserved for future P1 sources such as web-UI conversation exports; no MVP adapter emits Tier C.
+
 `server/src/engine/tiers.ts`:
 
 ```typescript
@@ -730,15 +732,32 @@ Maps each spec §7 metric to a pure function. Organization:
 | 7.10 Peak spend day | metrics/tierB.ts | `peakSpendDay(daily)` | daily | `{ date, costUsd }` |
 | 7.11 7-day rolling avg | metrics/tierB.ts | `rollingAvgSpend7d(daily)` | daily | number |
 | 7.12 MoM change | metrics/tierB.ts | `momChangePct(daily)` | daily | `number \| null` (null if <45 days) |
-| 7.12a Avg daily output tokens/model | metrics/tierB.ts | `avgDailyOutputTokensPerModel(tokensByModel)` | inputs | `Map<model, number>` |
-| 7.13 Claude Code session count | metrics/tierB.ts | `claudeCodeSessionCount(raw)` | `NormalizedSourceData` (claude_code) | number |
-| 7.14 Claude Code avg tokens/session | metrics/tierB.ts | `claudeCodeAvgTokensPerSession(raw)` | `NormalizedSourceData` (claude_code) | number |
+| 7.13 Average daily output tokens per model (derived) | metrics/tierB.ts | `avgDailyOutputTokensPerModel(tokensByModel)` | inputs | `Map<model, number>` |
+| 7.14 Session count (Claude Code branch) | metrics/tierB.ts | `claudeCodeSessionCount(raw)` | `NormalizedSourceData` (claude_code) | number |
+| 7.15 Average tokens per session (Claude Code branch) | metrics/tierB.ts | `claudeCodeAvgTokensPerSession(raw)` | `NormalizedSourceData` (claude_code) | number |
 | 7.15a Claude Code peak-hour fraction | *(adapter pre-computed)* | — computed in `claudeCode.ts` step 4a | Per-session timestamps from `sessionFirstTimestamps` | `number \| undefined` in `NormalizedSourceData.claudeCodePeakHourFraction`; mapped 1:1 into `SourceMetrics.claudeCodePeakHourFraction`. No separate `tierB.ts` function needed. |
-| 7.15 Copilot session count | metrics/tierB.ts | `copilotSessionCount(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `number` |
-| 7.16 Copilot token breakdown by model | metrics/tierB.ts | `copilotTokenBreakdownByModel(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, requestCount, requestCost }[]` |
-| 7.17 Copilot total cost | metrics/tierB.ts | `copilotTotalCost(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `number` (USD — sum of `requests.cost` across all models and sessions) |
-| 7.18 Copilot model cost breakdown | metrics/tierB.ts | `copilotModelCostBreakdown(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ model, costUsd, costShare }[]` |
-| 7.19 Copilot cached token fraction | metrics/tierB.ts | `copilotCachedTokenFraction(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `{ perModel: { model: string; fraction: number }[]; aggregate: number }` |
+| 7.14 Session count (GitHub Copilot branch) | metrics/tierB.ts | `copilotSessionCount(sessions)` | `NormalizedCopilotSession[]` (github_copilot copilotSessions) | `number` |
+| 7.15 Copilot avg tokens/session | metrics/tierB.ts | `copilotAvgTokensPerSession(sessions)` | `NormalizedCopilotSession[]` | `number` |
+| 7.4 Per-source total spend (GitHub Copilot) | metrics/tierB.ts | `copilotTotalCost(sessions)` | `NormalizedCopilotSession[]` | `number` (USD — sum of `requests.cost` across all models and sessions) |
+| 7.6 Model cost share (GitHub Copilot) | metrics/tierB.ts | `copilotModelCostBreakdown(sessions)` | `NormalizedCopilotSession[]` | `{ model, costUsd, costShare }[]` |
+| 7.7 Input/output token ratio (GitHub Copilot) | metrics/tierB.ts | `inputOutputRatio(tokensByModel)` | `NormalizedCopilotSession[]` copilotSessions | `{ aggregate, perModel }` |
+| 7.8 Cached token fraction (GitHub Copilot — see formula below) | metrics/tierB.ts | `copilotCachedTokenFraction(sessions)` | `NormalizedCopilotSession[]` | `{ perModel: { model: string; fraction: number }[]; aggregate: number }` |
+| 7.16 Per-model request count (GitHub Copilot, source-specific) | metrics/tierB.ts | (extracted from copilotTokenBreakdownByModel — requestCount field per model) | `NormalizedCopilotSession[]` | `{ model: string, requestCount: number }[]` |
+| 7.17 Reasoning token breakdown (GitHub Copilot, source-specific) | metrics/tierB.ts | (extracted from copilotTokenBreakdownByModel — reasoningTokens field per model) | `NormalizedCopilotSession[]` | `{ model: string, reasoningTokens: number, reasoningShare: number }[]` |
+
+**Copilot Cached Token Fraction Formula (spec §7.8, Copilot branch)**
+
+Per model m:
+```
+copilot_cache_fraction(m) = cacheReadTokens(m) / inputTokens(m)
+```
+
+Aggregate:
+```
+copilot_cache_fraction_agg = Σ cacheReadTokens(m) / Σ inputTokens(m)
+```
+
+Note: For GitHub Copilot, `cacheReadTokens` and `cacheWriteTokens` are subsets of `inputTokens` — they are NOT additive to the denominator. This differs from the Anthropic/Claude Code formula where cache token types are additive. The denominator is `inputTokens` only.
 
 **Note on §7.6 (OpenAI model cost share):** `modelCostShare()` returns **estimated** per-model cost for OpenAI sources. The Costs API returns only daily totals; per-model cost is approximated as each model's token fraction of the daily total multiplied by the daily cost. The function must attach `estimated: true` to each entry when `sourceId === 'openai'`. The UI must render these entries with the label "Estimated model cost breakdown" (not just "Model cost breakdown").
 
@@ -1119,11 +1138,12 @@ A single full-page or center-page component renders `<Spinner />` with the messa
    - **`<OpenAIPanel />`** renders: 7.4 actual spend (big number), 7.5 daily spend line chart, 7.6 model cost share pie, 7.7 input/output ratio bar, 7.9 avg daily, 7.10 peak day, 7.11 7d rolling, 7.12 MoM badge (if applicable).
    - **`<AnthropicPanel />`** renders: same as OpenAI plus 7.8 cached fraction donut + savings callout.
    - **`<CopilotPanel />`** renders (in order):
-     1. **§7.15** Copilot session count: single KPI tile showing the number of `session.shutdown` events found in the analysis window. Labeled: "Copilot sessions recorded locally in ~/.copilot/session-state/."
-     2. **§7.16** Copilot token breakdown by model: table with columns `Model | Input tokens | Output tokens | Cache read | Cache write | Reasoning | Requests | Cost (USD)`. Sorted descending by `requestCost`. Note: `inputTokens` is total (cache tokens are subsets); `reasoningTokens` is a subset of `outputTokens`.
-     3. **§7.17** Copilot total cost: single KPI tile showing sum of `requests.cost` across all models and sessions in USD. Labeled: "Total premium request cost (USD) — based on session.shutdown modelMetrics."
-     4. **§7.18** Copilot model cost breakdown: `<ModelCostSharePie />` chart driven by `copilotModelCostBreakdown` (reuses existing chart component).
-     5. **§7.19** Copilot cached token fraction: bar chart (per-model fraction) + aggregate KPI tile showing percentage of input tokens served from cache. Labeled: "Higher cache-read fraction = lower effective cost per token."
+     1. **§7.14 Session count** — KPI tile (GitHub Copilot branch): single KPI tile showing the number of `session.shutdown` events found in the analysis window. Labeled: "Copilot sessions recorded locally in ~/.copilot/session-state/."
+     2. **§7.15 Average tokens per session** — KPI tile (GitHub Copilot branch) *(new item — was missing)*: shows mean tokens per session across the analysis window.
+     3. **§7.4 Per-source total spend** — KPI tile (common metric, GitHub Copilot): single KPI tile showing sum of `requests.cost` across all models and sessions in USD. Labeled: "Total premium request cost (USD) — based on session.shutdown modelMetrics."
+     4. **§7.6 Model cost share** — `<ModelCostSharePie />` chart driven by `copilotModelCostBreakdown` (reuses existing chart component).
+     5. **§7.8 Cached token fraction** — bar chart (Copilot branch formula): per-model fraction + aggregate KPI tile showing percentage of input tokens served from cache. Labeled: "Higher cache-read fraction = lower effective cost per token."
+     6. Token breakdown table — renders data for **§7.16** (per-model request count) and **§7.17** (reasoning breakdown), both source-specific: table with columns `Model | Input tokens | Output tokens | Cache read | Cache write | Reasoning | Requests | Cost (USD)`. Sorted descending by `requestCost`. Note: `inputTokens` is total (cache tokens are subsets); `reasoningTokens` is a subset of `outputTokens`.
    - **`<FileExportPanel sourceId="chatgpt_export"|"claude_export" />`** renders: 7.13–7.19. Histogram via `ConversationLengthBar`.
    - **`<UpgradeNudge />`** appears at the bottom of any Tier C panel where a Tier B alternative exists.
 4. **`<RecommendationsList />`**: maps `report.recommendations` to `<RecommendationCard />` instances, sorted by severity. Each card shows: severity badge, title, body, triggering metric value, and (where the spec calls for it) a chart thumbnail reused from the source panel charts.
@@ -1134,8 +1154,8 @@ A single full-page or center-page component renders `<Spinner />` with the messa
 All charts use Recharts (per spec §11). Components in `client/src/components/Results/charts/` are thin wrappers around Recharts primitives. The four chart types needed:
 - Line chart (7.5 daily spend trend, 7.11 7d rolling overlay)
 - Pie / donut (7.6 model cost share, 7.8 cached fraction)
-- Bar chart (7.7 token ratio per model, 7.16 conversation length histogram)
-- Single-value cards / KPI tiles (7.4, 7.9, 7.10, 7.15–7.19)
+- Bar chart (§7.7 token ratio per model; Tier C only: conversation length histogram)
+- Single-value cards / KPI tiles (§7.4, §7.9, §7.10, §7.14, §7.15; Copilot-specific: §7.16 per-model request count, §7.17 reasoning breakdown)
 
 ### 4.7 Export Trigger
 
@@ -1305,8 +1325,8 @@ export interface SourceMetrics {
   momChangePct?: number | null;
 
   // Claude Code Tier B fields
-  claudeCodeSessionCount?: number;                // 7.13
-  claudeCodeAvgTokensPerSession?: number;         // 7.14
+  claudeCodeSessionCount?: number;                // §7.14 Session count (Claude Code branch)
+  claudeCodeAvgTokensPerSession?: number;         // §7.15 Average tokens per session (Claude Code branch)
   /** Pre-computed by adapter. Fraction of sessions with first timestamp in 08:00–18:00 Mon–Fri.
    *  undefined if no session timestamps available. Used by R4 trigger. */
   claudeCodePeakHourFraction?: number;            // 7.15a — R4 trigger
@@ -1318,8 +1338,9 @@ export interface SourceMetrics {
   cacheCreationInputTokensAnthropic?: number;
 
   // GitHub Copilot Tier B fields
-  copilotSessionCount?: number;                   // 7.15
-  copilotTokenBreakdownByModel?: {                // 7.16
+  copilotSessionCount?: number;                   // §7.14 Session count (GitHub Copilot branch)
+  copilotAvgTokensPerSession?: number;            // §7.15 Average tokens per session (GitHub Copilot branch)
+  copilotTokenBreakdownByModel?: {                // feeds §7.6, §7.7, §7.8 (common) + §7.16, §7.17 (source-specific)
     model: string;
     inputTokens: number;
     outputTokens: number;
@@ -1329,13 +1350,13 @@ export interface SourceMetrics {
     requestCount: number;
     requestCost: number;
   }[];
-  copilotTotalCostUsd?: number;                   // 7.17
-  copilotModelCostBreakdown?: {                   // 7.18
+  copilotTotalCostUsd?: number;                   // §7.4 Per-source total spend (GitHub Copilot)
+  copilotModelCostBreakdown?: {                   // §7.6 Model cost share (GitHub Copilot)
     model: string;
     costUsd: number;
     costShare: number;
   }[];
-  copilotCachedTokenFraction?: {                  // 7.19
+  copilotCachedTokenFraction?: {                  // §7.8 Cached token fraction (GitHub Copilot — see formula in §3.3.3)
     perModel: { model: string; fraction: number }[];
     aggregate: number;
   };
@@ -1497,7 +1518,7 @@ graph LR
 
 ### ADR-2: LiteLLM Price Map Reuse (with Fetched + Bundled Fallback)
 
-**Context:** Promptly needs current per-model pricing for token-to-dollar conversion (§7.6, 7.19, R1, R2). Maintaining our own price database means tracking model launches, deprecations, price changes across providers, indefinitely.
+**Context:** Promptly needs current per-model pricing for token-to-dollar conversion (§7.6, §7.8, R1, R2). Maintaining our own price database means tracking model launches, deprecations, price changes across providers, indefinitely.
 
 **Decision:** Reuse the community-maintained `model_prices_and_context_window.json` from `BerriAI/litellm`. Fetch at server startup; fall back to a bundled snapshot if the fetch fails.
 
