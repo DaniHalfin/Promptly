@@ -65,7 +65,7 @@
   --text-primary:      oklch(20% 0.02 250);
   --text-secondary:    oklch(45% 0.04 245);
   --text-muted:        oklch(62% 0.03 245);
-  --color-warning-text:   oklch(52% 0.15 65);
+  --color-warning-text:   oklch(42% 0.15 65);
   /* WP-10: light-mode input border — 0.35 opacity for WCAG non-text contrast */
   --color-input-border: rgba(0, 0, 0, 0.30);
 }
