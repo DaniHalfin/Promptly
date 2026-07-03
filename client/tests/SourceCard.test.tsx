@@ -1,21 +1,12 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { SourceCard } from '../src/components/SourceCard';
 import { SessionContext } from '../src/context/SessionContext.js';
 import type { SourceId } from '../src/types/index.js';
 import { friendlySourceName } from '../src/lib/modelNames.js';
-
-// Capture the mock fn outside vi.mock so tests can override it without
-// needing a top-level import from the virtual mock path (which vite can't resolve as a real file).
-const mockValidate = vi.fn().mockResolvedValue({ ok: true });
-
-vi.mock('../api/client.js', () => ({
-  apiClient: {
-    setCredential: vi.fn(),
-    validate: mockValidate,
-  },
-}));
+import { server } from './msw/server.js';
 
 function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknown> = {}) {
   const updateSource = vi.fn();
@@ -318,19 +309,36 @@ describe('SourceCard', () => {
     expect(busyDiv).toHaveAttribute('aria-busy', 'false');
   });
 
-  it('API section aria-busy becomes "true" during validation and "false" after — WP-6', async () => {
-    // NOTE: The vi.mock path '../api/client.js' intercepts SourceCard's render-time imports
-    // but the resolved path for apiClient.validate (src/api/client.ts) differs, so the
-    // mockImplementationOnce delayed-promise approach does not work here.
-    // Instead, verify the structural requirement: the aria-busy container exists on
-    // the API section div and has the correct attribute form (matches boolean → "true"/"false").
+  it('aria-busy flips to "true" during async validation and back to "false" after — WP-6 (MSW behavioral)', async () => {
+    // Wire up a deferred MSW handler: the validate POST is held open until we
+    // call resolveValidation(), letting us assert both in-flight and resolved states.
+    let resolveValidation!: () => void;
+    server.use(
+      http.post('/api/sources/openai/validate', () =>
+        new Promise<Response>((resolve) => {
+          resolveValidation = () =>
+            resolve(HttpResponse.json({ valid: true }));
+        })
+      )
+    );
+
     const { container } = renderSourceCard('openai', { credential: 'sk-test' });
-    const busyDiv = container.querySelector('[aria-busy]');
-    expect(busyDiv).not.toBeNull();
-    // Initial state: not validating
-    expect(busyDiv).toHaveAttribute('aria-busy', 'false');
-    // The div wraps the credential input + validate button, confirming correct placement
-    const input = busyDiv!.querySelector('input[type="password"]');
-    expect(input).not.toBeNull();
+    const validateBtn = screen.getByRole('button', { name: /^validate$/i });
+
+    // Fire the validate action — React sets validating=true synchronously
+    fireEvent.click(validateBtn);
+
+    // While the fetch is still in-flight, the api section must announce busy state
+    await waitFor(() => {
+      expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    });
+
+    // Resolve the deferred fetch — component calls setValidating(false)
+    resolveValidation();
+
+    // After the async chain settles, aria-busy must flip back to false
+    await waitFor(() => {
+      expect(container.querySelector('[aria-busy="false"]')).not.toBeNull();
+    });
   });
 });
