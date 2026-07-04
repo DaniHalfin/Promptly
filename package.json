@@ -18,7 +18,7 @@
     "dev:client": "npm --workspace client run dev",
     "build": "npm --workspace server run build && npm --workspace client run build",
     "lint": "npm-run-all --parallel lint:server lint:client",
-    "test": "npm --workspace server run test",
+    "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
@@ -30,4 +30,3 @@
     "npm": ">=10.0.0"
   }
 }
-

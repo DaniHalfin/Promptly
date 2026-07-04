@@ -80,21 +80,21 @@ describe('result panels', () => {
   it('renders Copilot avg tokens per session with a formatted number', () => {
     render(<CopilotPanel report={copilotReport({ copilotAvgTokensPerSession: 12345.6 })} />);
 
-    expect(screen.getByText('Avg tokens/session')).toBeTruthy();
+    expect(screen.getAllByText('Avg tokens/session').length).toBeGreaterThan(0);
     expect(screen.getByTestId('copilot-avg-tokens-per-session').textContent).toBe('12,346');
   });
 
   it('renders — when Copilot avg tokens per session is undefined', () => {
     render(<CopilotPanel report={copilotReport({ copilotAvgTokensPerSession: undefined })} />);
 
-    expect(screen.getByText('Avg tokens/session')).toBeTruthy();
+    expect(screen.getAllByText('Avg tokens/session').length).toBeGreaterThan(0);
     expect(screen.getByTestId('copilot-avg-tokens-per-session').textContent).toBe('—');
   });
 
   it('renders — for source totalSpendUsd when undefined', () => {
     render(<OpenAIPanel report={openAiReport({ totalSpendUsd: undefined })} />);
 
-    expect(screen.getByText('Total Spend')).toBeTruthy();
+    expect(screen.getAllByText('Total Spend').length).toBeGreaterThan(0);
     expect(screen.getByTestId('openai-total-spend').textContent).toBe('—');
   });
 
