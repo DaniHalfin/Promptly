@@ -182,13 +182,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               gridTemplateColumns: '1fr 1fr',
               gap: '16px'
             }}>
-              {metrics.totalActualSpendUsd !== undefined && (
+              {(metrics.totalSpendUsd ?? metrics.totalActualSpendUsd ?? metrics.copilotTotalCostUsd) !== undefined && (
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
                     TOTAL SPEND
                   </p>
                   <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold', color: '#0066cc' }}>
-                    ${metrics.totalActualSpendUsd.toFixed(2)}
+                    ${(metrics.totalSpendUsd ?? metrics.totalActualSpendUsd ?? metrics.copilotTotalCostUsd ?? 0).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -215,13 +215,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
                 </div>
               )}
 
-              {metrics.estimatedTotalTokens !== undefined && (
+              {(metrics.totalActualTokens ?? metrics.estimatedTotalTokens) !== undefined && (
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
                     TOTAL TOKENS
                   </p>
                   <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    {metrics.estimatedTotalTokens.toLocaleString()}
+                    {(metrics.totalActualTokens ?? metrics.estimatedTotalTokens ?? 0).toLocaleString()}
                   </p>
                 </div>
               )}

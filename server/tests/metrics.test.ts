@@ -8,6 +8,7 @@ import {
   copilotTokenBreakdownByModel,
   copilotCachedTokenFraction,
 } from '../src/engine/metrics/tierB.js';
+import { totalTokens } from '../src/engine/metrics/crossSource.js';
 import type { NormalizedCopilotSession, NormalizedSourceData } from '../src/types/index.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
@@ -47,6 +48,49 @@ const priceMap: PriceMap = new Map([[
     cache_read_input_token_cost: 0.1,
   },
 ]]);
+
+describe('crossSource totalTokens', () => {
+  it('includes GitHub Copilot token breakdown in actual token totals', () => {
+    const sources = [
+      {
+        source_id: 'github_copilot',
+        tier: 'B',
+        connected: true,
+        error: null,
+        metrics: {
+          sourceId: 'github_copilot',
+          tier: 'B',
+          periodStart: '2026-06-01T00:00:00Z',
+          periodEnd: '2026-06-02T00:00:00Z',
+          warnings: [],
+          copilotTokenBreakdownByModel: [
+            { model: 'gpt-5.4', inputTokens: 100, outputTokens: 25, cacheReadTokens: 10, cacheWriteTokens: 5, reasoningTokens: 0, requestCount: 1, requestCost: 0.1 },
+            { model: 'gpt-5.4-mini', inputTokens: 50, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, requestCount: 1, requestCost: 0.01 },
+          ],
+        },
+      },
+      {
+        source_id: 'anthropic',
+        tier: 'B',
+        connected: true,
+        error: null,
+        metrics: {
+          sourceId: 'anthropic',
+          tier: 'B',
+          periodStart: '2026-06-01T00:00:00Z',
+          periodEnd: '2026-06-02T00:00:00Z',
+          warnings: [],
+          estimatedTotalTokens: 20,
+          modelBreakdown: [
+            { model: 'claude-3-5-sonnet-20241022', inputTokens: 10, outputTokens: 5, estimatedCostShare: 1, estimatedCostUsd: 0.01 },
+          ],
+        },
+      },
+    ] as Parameters<typeof totalTokens>[0];
+
+    expect(totalTokens(sources)).toEqual({ actual: 200, estimated: 20 });
+  });
+});
 
 describe('computeTierBMetrics', () => {
   it('uses fixed 30-day windows for month-over-month change', () => {

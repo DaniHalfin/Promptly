@@ -16,7 +16,11 @@ export function totalTokens(sources: SourceReport[]): { actual: number; estimate
       const metrics = source.metrics;
       if (!metrics) return totals;
 
-      totals.actual += metrics.modelBreakdown?.reduce((sum, model) => sum + model.inputTokens + model.outputTokens, 0) ?? 0;
+      if (source.source_id === 'github_copilot') {
+        totals.actual += metrics.copilotTokenBreakdownByModel?.reduce((sum, model) => sum + model.inputTokens + model.outputTokens, 0) ?? 0;
+      } else {
+        totals.actual += metrics.modelBreakdown?.reduce((sum, model) => sum + model.inputTokens + model.outputTokens, 0) ?? 0;
+      }
       totals.estimated += metrics.estimatedTotalTokens ?? 0;
       return totals;
     },
