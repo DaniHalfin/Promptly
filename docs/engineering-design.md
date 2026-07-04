@@ -3,10 +3,8 @@
 **Version:** 1.3
 **Date:** 2026-07-03
 **Author:** architect agent
-**Source spec:** spec.md v1.8 (2026-07-01) — §6/§7 alignment pass applied 2026-07-03
+**Source spec:** spec.md v1.9 (2026-07-04)
 **Status:** Canonical (current)
-
-> **Note:** Design Amendment v1.2 (GitHub Copilot adapter: credential-based API → local JSONL file) has been merged into this document. The amendment source document is [`engineering-design-amendment-v1.2.md`](./engineering-design-amendment-v1.2.md) (retained as historical reference).
 
 ---
 
