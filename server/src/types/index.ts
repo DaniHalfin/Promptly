@@ -55,18 +55,18 @@ export interface NormalizedConversation {
 /** Per-session data extracted from session.shutdown events in events.jsonl.
  *  One entry per session.shutdown event within the analysis window. */
 export interface NormalizedCopilotSession {
-  date: string;         // ISO date (local TZ) derived from sessionStartTime
-  sourceFile: string;   // path for diagnostics
+  date: string;
+  sourceFile: string;
   models: Record<string, {
     requestCount: number;
-    requestCost: number;       // AI credit units (USD float)
-    inputTokens: number;       // TOTAL; cacheRead/cacheWrite are subsets
-    outputTokens: number;      // TOTAL; reasoningTokens is a subset
+    requestCost: number;
+    inputTokens: number;
+    outputTokens: number;
     cacheReadTokens: number;
     cacheWriteTokens: number;
     reasoningTokens: number;
   }>;
-  totalCost: number;    // raw totalPremiumRequests from the shutdown event — preserved as cross-check against per-model sum
+  totalCost: number;
 }
 
 export interface NormalizedSourceData {
