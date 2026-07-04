@@ -14,6 +14,7 @@ const baseMetrics: SourceMetrics = {
   periodStart: '2026-05-01',
   periodEnd: '2026-05-31',
   warnings: [],
+  totalSpendUsd: 100,
   copilotTotalCostUsd: 100,
   copilotSessionCount: 42,
   copilotModelCostBreakdown: [
@@ -47,10 +48,10 @@ function report(metrics: SourceMetrics = baseMetrics): SourceReport {
 }
 
 describe('CopilotPanel', () => {
-  it('renders total cost, session count, and total tokens KPI tiles', () => {
+  it('renders total spend, session count, and total tokens KPI tiles', () => {
     render(<CopilotPanel report={report()} />);
 
-    expect(screen.getByText('Total Cost')).toBeInTheDocument();
+    expect(screen.getByText('Total Spend')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
     expect(screen.getByText('Sessions')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
@@ -127,7 +128,7 @@ describe('CopilotPanel', () => {
     render(<CopilotPanel report={report(metricsWithoutBreakdown)} />);
 
     expect(screen.queryByTestId('token-breakdown-table')).not.toBeInTheDocument();
-    expect(screen.getByText('Total Cost')).toBeInTheDocument();
+    expect(screen.getByText('Total Spend')).toBeInTheDocument();
   });
 
   it('renders gracefully when copilotCachedTokenFraction is absent', () => {
@@ -135,7 +136,7 @@ describe('CopilotPanel', () => {
     render(<CopilotPanel report={report(metricsWithoutCache)} />);
 
     expect(screen.queryByTestId('cache-fraction-tile')).not.toBeInTheDocument();
-    expect(screen.getByText('Total Cost')).toBeInTheDocument();
+    expect(screen.getByText('Total Spend')).toBeInTheDocument();
   });
 
   it('does not show Connected badge (badge removed from all result panels)', () => {

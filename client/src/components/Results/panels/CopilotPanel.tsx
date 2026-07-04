@@ -1,5 +1,6 @@
 import React from 'react';
 import { SourceReport } from '../../../types/index.js';
+import { DailySpendLine } from '../charts/DailySpendLine.js';
 import { ModelCostSharePie } from '../charts/ModelCostSharePie.js';
 import { friendlyModelName } from '../../../lib/modelNames.js';
 import { formatTokenCount } from '../../../lib/formatters.js';
@@ -23,12 +24,19 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
     );
   }
 
-  const totalCost = metrics.copilotTotalCostUsd ?? 0;
+  const totalSpendDisplay = metrics.totalSpendUsd !== undefined ? `$${metrics.totalSpendUsd.toFixed(2)}` : '—';
   const sessionCount = metrics.copilotSessionCount ?? 0;
+  const avgTokensPerSession = metrics.copilotAvgTokensPerSession !== undefined
+    ? Math.round(metrics.copilotAvgTokensPerSession).toLocaleString()
+    : '—';
   const tokenBreakdown = metrics.copilotTokenBreakdownByModel ?? [];
   const modelCostBreakdown = metrics.copilotModelCostBreakdown ?? [];
   const sortedModelCostBreakdown = [...modelCostBreakdown].sort((a, b) => b.costUsd - a.costUsd);
   const cachedFraction = metrics.copilotCachedTokenFraction;
+  const dailySpendData = (metrics.dailySpend ?? []).map(day => ({
+    date: day.date,
+    costUsd: day.spendUsd,
+  }));
 
   const totalInputTokens = tokenBreakdown.reduce((sum, m) => sum + m.inputTokens, 0);
   const totalOutputTokens = tokenBreakdown.reduce((sum, m) => sum + m.outputTokens, 0);
@@ -51,14 +59,18 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
       </p>
 
       {/* 1: KPI tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         <div className="card-inset">
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Cost</p>
-          <p className="kpi-large num" style={{ color: 'var(--color-accent-light)' }}>${totalCost.toFixed(2)}</p>
+          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Spend</p>
+          <p className="kpi-large num" data-testid="copilot-total-spend" style={{ color: 'var(--color-accent-light)' }}>{totalSpendDisplay}</p>
         </div>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Sessions</p>
           <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{sessionCount.toLocaleString()}</p>
+        </div>
+        <div className="card-inset">
+          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Avg tokens/session</p>
+          <p className="kpi-large num" data-testid="copilot-avg-tokens-per-session" style={{ color: 'var(--text-primary)' }}>{avgTokensPerSession}</p>
         </div>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Tokens</p>
@@ -66,7 +78,27 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
       </div>
 
-      {/* 2: Token breakdown table */}
+      {/* 2: Daily spend chart */}
+      {dailySpendData.length > 0 && (
+        <div className="mb-6">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '-0.01em' }}>
+              Daily Spend Trend
+            </h3>
+            <span
+              aria-label="Estimated spend info"
+              data-testid="copilot-estimated-spend-info"
+              title="Estimated from token usage and LiteLLM price map"
+              style={{ color: 'var(--text-muted)', cursor: 'help' }}
+            >
+              ℹ
+            </span>
+          </div>
+          <DailySpendLine data={dailySpendData} />
+        </div>
+      )}
+
+      {/* 3: Token breakdown table */}
       {tokenBreakdown.length > 0 && (
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Token breakdown by model</h3>
@@ -103,7 +135,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
       )}
 
-      {/* 3: Model spend breakdown */}
+      {/* 4: Model spend breakdown */}
       {modelCostBreakdown.length > 0 && (
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model spend</h3>
@@ -130,7 +162,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
       )}
 
-      {/* 4: Input / output token tiles + cache fraction */}
+      {/* 5: Input / output token tiles + cache fraction */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 24, marginBottom: 24 }}>
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Input tokens</p>
@@ -151,7 +183,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         )}
       </div>
 
-      {/* 5: Cache-read fraction per model */}
+      {/* 6: Cache-read fraction per model */}
       {cachedFraction && cachedFraction.perModel.length > 0 && (
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Cache-read fraction by model</h3>
@@ -171,7 +203,7 @@ export function CopilotPanel({ report }: CopilotPanelProps) {
         </div>
       )}
 
-      {/* 6: Model cost share pie */}
+      {/* 7: Model cost share pie */}
       {pieData.length > 0 && (
         <div className="mb-6">
           <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '-0.01em' }}>Model cost share</h3>

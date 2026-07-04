@@ -34,6 +34,7 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
   }
 
   const totalSpend = metrics.totalActualSpendUsd ?? 0;
+  const totalSpendAlias = metrics.totalSpendUsd !== undefined ? formatUsd(metrics.totalSpendUsd) : '—';
   const modelBreakdown = [...(metrics.modelBreakdown ?? [])].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd);
   const dailySpendData = (metrics.dailySpend ?? []).map(day => ({
     date: day.date,
@@ -60,9 +61,13 @@ export function ClaudeCodePanel({ report }: ClaudeCodePanelProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="card-inset">
           <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Total spend</p>
+          <p className="kpi-large num" style={{ color: 'var(--text-primary)' }}>{totalSpendAlias}</p>
+        </div>
+        <div className="card-inset">
+          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)', marginBottom: 4 }}>Billed spend</p>
           <p className="kpi-large num" style={{ color: 'var(--color-positive-text)' }}>{formatUsd(totalSpend)}</p>
         </div>
         <div className="card-inset">

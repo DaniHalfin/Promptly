@@ -51,6 +51,7 @@ export function AnthropicPanel({ report }: AnthropicPanelProps) {
   // ── Tier A / B — full metrics ────────────────────────────────────────────
   if (tier === 'A' || tier === 'B') {
     const totalSpend = metrics.totalActualSpendUsd || 0;
+    const totalSpendAlias = metrics.totalSpendUsd !== undefined ? `$${metrics.totalSpendUsd.toFixed(2)}` : '—';
     const modelBreakdown = metrics.modelBreakdown || [];
 
     const pieData = modelBreakdown.map(m => ({
@@ -87,7 +88,13 @@ export function AnthropicPanel({ report }: AnthropicPanelProps) {
         </div>
 
         {/* KPI tiles */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Total Spend</p>
+            <p style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {totalSpendAlias}
+            </p>
+          </div>
           <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
             <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Avg Daily Spend</p>
             <p style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -268,4 +275,3 @@ export function AnthropicPanel({ report }: AnthropicPanelProps) {
     </div>
   );
 }
-
