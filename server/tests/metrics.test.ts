@@ -49,6 +49,56 @@ const priceMap: PriceMap = new Map([[
 ]]);
 
 describe('computeTierBMetrics', () => {
+  it('uses fixed 30-day windows for month-over-month change', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    const dailyCostUsd = Array.from({ length: 90 }, (_, index) => {
+      const date = new Date(start);
+      date.setUTCDate(start.getUTCDate() + index);
+      const day = index + 1;
+      const costUsd = day <= 30 ? 1 : day <= 60 ? 2 : 4;
+      return { date: date.toISOString().slice(0, 10), costUsd };
+    });
+
+    const dailyTokensByModel = dailyCostUsd.map(({ date }) => ({
+      date,
+      model: 'model-a',
+      inputTokens: 10,
+      outputTokens: 5,
+    }));
+
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'openai',
+      periodStart: `${dailyCostUsd[0].date}T00:00:00Z`,
+      periodEnd: `${dailyCostUsd[dailyCostUsd.length - 1].date}T00:00:00Z`,
+      dailyCostUsd,
+      dailyTokensByModel,
+    }), priceMap);
+
+    expect(metrics.momChangePct).toBeCloseTo(100);
+  });
+
+  it('returns null month-over-month change when fewer than 45 spend days exist', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    const dailyCostUsd = Array.from({ length: 44 }, (_, index) => {
+      const date = new Date(start);
+      date.setUTCDate(start.getUTCDate() + index);
+      return { date: date.toISOString().slice(0, 10), costUsd: 2 };
+    });
+
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'openai',
+      dailyCostUsd,
+      dailyTokensByModel: dailyCostUsd.map(({ date }) => ({
+        date,
+        model: 'model-a',
+        inputTokens: 3,
+        outputTokens: 2,
+      })),
+    }), priceMap);
+
+    expect(metrics.momChangePct).toBeNull();
+  });
+
   it('sums Copilot total cost from sessions', () => {
     const metrics = computeTierBMetrics(base({
       sourceId: 'github_copilot',
@@ -71,6 +121,90 @@ describe('computeTierBMetrics', () => {
       copilotSessions: [session('gpt-5.4', 5), session('gpt-5.4', 3)],
     }), priceMap);
     expect(metrics.copilotSessionCount).toBe(2);
+  });
+
+  it('aggregates copilotDailyInputTokens by day across sessions and models', () => {
+    const copilotSessions: NormalizedCopilotSession[] = [
+      {
+        date: '2026-06-01',
+        sourceFile: 'f1.jsonl',
+        models: {
+          'gpt-5.4': {
+            requestCount: 1,
+            requestCost: 2,
+            inputTokens: 100,
+            outputTokens: 20,
+            cacheReadTokens: 10,
+            cacheWriteTokens: 0,
+            reasoningTokens: 0,
+          },
+          'gpt-5.4-mini': {
+            requestCount: 1,
+            requestCost: 1,
+            inputTokens: 50,
+            outputTokens: 15,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            reasoningTokens: 0,
+          },
+        },
+        totalCost: 3,
+      },
+      {
+        date: '2026-06-01',
+        sourceFile: 'f2.jsonl',
+        models: {
+          'gpt-5.5': {
+            requestCount: 1,
+            requestCost: 4,
+            inputTokens: 70,
+            outputTokens: 30,
+            cacheReadTokens: 5,
+            cacheWriteTokens: 0,
+            reasoningTokens: 0,
+          },
+        },
+        totalCost: 4,
+      },
+      {
+        date: '2026-06-02',
+        sourceFile: 'f3.jsonl',
+        models: {
+          'gpt-5.4': {
+            requestCount: 1,
+            requestCost: 2,
+            inputTokens: 40,
+            outputTokens: 10,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            reasoningTokens: 0,
+          },
+        },
+        totalCost: 2,
+      },
+    ];
+
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions,
+    }), priceMap);
+
+    expect(metrics.copilotDailyInputTokens).toEqual([
+      { date: '2026-06-01', inputTokens: 220 },
+      { date: '2026-06-02', inputTokens: 40 },
+    ]);
+  });
+
+  it('computes copilotAvgTokensPerSession as total tokens divided by session count', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [
+        session('gpt-5.4', 3, { inputTokens: 100, outputTokens: 25 }),
+        session('gpt-5.4-mini', 4, { inputTokens: 50, outputTokens: 25 }),
+      ],
+    }), priceMap);
+
+    expect(metrics.copilotAvgTokensPerSession).toBe(100);
   });
 
   it('computes Claude Code cached-token fraction', () => {
@@ -102,6 +236,22 @@ describe('computeTierBMetrics', () => {
 
     expect(metrics.modelBreakdown).toHaveLength(1);
     expect(metrics.modelBreakdown?.every(entry => entry.estimated === true)).toBe(true);
+  });
+
+  it('sets totalSpendUsd to totalActualSpendUsd for OpenAI and copilotTotalCostUsd for Copilot', () => {
+    const openaiMetrics = computeTierBMetrics(base({
+      sourceId: 'openai',
+      dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 10, outputTokens: 5 }],
+      dailyCostUsd: [{ date: '2026-06-01', costUsd: 12.5 }],
+    }), priceMap);
+
+    const copilotMetrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [session('gpt-5.4', 7)],
+    }), priceMap);
+
+    expect(openaiMetrics.totalSpendUsd).toBe(openaiMetrics.totalActualSpendUsd);
+    expect(copilotMetrics.totalSpendUsd).toBe(copilotMetrics.copilotTotalCostUsd);
   });
 
   it('includes cache creation and cache read costs in model cost', () => {
@@ -158,6 +308,35 @@ describe('computeTierBMetrics', () => {
     expect(claudeCode.cachedTokenFractionAnthropic).toBeUndefined();
     expect(claudeCode.totalInputTokensClaudeCode).toBe(150);
     expect(claudeCode.totalInputTokensAnthropic).toBeUndefined();
+  });
+
+  it('sets projectedR1SavingsUsd for Anthropic with cached tokens and omits it for OpenAI', () => {
+    const anthropic = computeTierBMetrics(base({
+      sourceId: 'anthropic',
+      dailyTokensByModel: [{
+        date: '2026-06-01',
+        model: 'model-a',
+        inputTokens: 100,
+        outputTokens: 10,
+        cacheCreationInputTokens: 20,
+        cacheReadInputTokens: 30,
+      }],
+      dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+    }), priceMap);
+
+    const openai = computeTierBMetrics(base({
+      sourceId: 'openai',
+      dailyTokensByModel: [{
+        date: '2026-06-01',
+        model: 'model-a',
+        inputTokens: 100,
+        outputTokens: 10,
+      }],
+      dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+    }), priceMap);
+
+    expect(anthropic.projectedR1SavingsUsd).toBeGreaterThan(0);
+    expect(openai.projectedR1SavingsUsd).toBeUndefined();
   });
 
   // New MF-3 tests: copilotTokenBreakdownByModel

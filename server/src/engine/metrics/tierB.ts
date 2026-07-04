@@ -71,6 +71,7 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
   const totalCacheCreate = Object.values(tokensByModel).reduce((sum, t) => sum + t.cacheCreate, 0);
   const totalCacheRead = Object.values(tokensByModel).reduce((sum, t) => sum + t.cacheRead, 0);
   const totalInputWithCache = totalInput + totalCacheCreate + totalCacheRead;
+  const totalActualTokens = totalInput + totalOutput;
   const aggregateInputOutputRatio = totalOutput > 0 ? totalInput / totalOutput : totalInput > 0 ? totalInput : 1;
 
   // 7.8 Cached token fraction (Anthropic / Claude Code)
@@ -107,11 +108,12 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
   // 7.12 Month-over-month change
   let momChangePct: number | null = null;
   if (dailySpend.length >= 45) {
-    const firstHalf = dailySpend.slice(0, Math.floor(dailySpend.length / 2));
-    const secondHalf = dailySpend.slice(Math.floor(dailySpend.length / 2));
-    const firstSum = firstHalf.reduce((sum, d) => sum + d.spendUsd, 0);
-    const secondSum = secondHalf.reduce((sum, d) => sum + d.spendUsd, 0);
-    if (firstSum > 0) momChangePct = ((secondSum - firstSum) / firstSum) * 100;
+    const sorted = [...dailySpend].sort((a, b) => a.date.localeCompare(b.date));
+    const last30 = sorted.slice(-30);
+    const prev30 = sorted.slice(-60, -30);
+    const last30Sum = last30.reduce((sum, d) => sum + d.spendUsd, 0);
+    const prev30Sum = prev30.reduce((sum, d) => sum + d.spendUsd, 0);
+    if (prev30Sum > 0) momChangePct = ((last30Sum - prev30Sum) / prev30Sum) * 100;
   }
 
   const dayCount = daysInPeriod(data.periodStart, data.periodEnd) ?? Math.max(datesWithTokenData.size, dailySpend.length, 1);
@@ -122,8 +124,15 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
     }))
     .sort((a, b) => b.avgDailyOutputTokens - a.avgDailyOutputTokens);
 
+  const projectedR1SavingsUsd =
+    data.sourceId === 'anthropic' || data.sourceId === 'claude_code'
+      ? computeProjectedR1SavingsUsd(tokensByModel, cachedTokenFraction, priceMap)
+      : undefined;
+
   return {
     totalActualSpendUsd,
+    totalActualTokens,
+    totalSpendUsd: totalActualSpendUsd,
     dailySpend,
     modelBreakdown: modelBreakdown.length > 0 ? modelBreakdown : undefined,
     aggregateInputOutputRatio,
@@ -133,6 +142,7 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
           cachedTokenSavingsUsdAnthropic: cachedTokenSavingsUsd,
           totalInputTokensAnthropic: totalInputWithCache,
           cacheCreationInputTokensAnthropic: totalCacheCreate,
+          projectedR1SavingsUsd,
         }
       : {}),
     ...(data.sourceId === 'claude_code'
@@ -145,6 +155,7 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
           claudeCodeAvgTokensPerSession:
             data.sessionCount && data.sessionCount > 0 ? (totalInputWithCache + totalOutput) / data.sessionCount : undefined,
           claudeCodePeakHourFraction: data.claudeCodePeakHourFraction,
+          projectedR1SavingsUsd,
         }
       : {}),
     avgDailySpendUsd,
@@ -162,6 +173,32 @@ function daysInPeriod(periodStart: string, periodEnd: string): number | null {
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
   return Math.max(1, Math.floor((end.getTime() - start.getTime()) / millisecondsPerDay) + 1);
+}
+
+function computeProjectedR1SavingsUsd(
+  tokensByModel: Record<string, { input: number; output: number; cached: number; cacheCreate: number; cacheRead: number }>,
+  currentCachedFraction: number | undefined,
+  priceMap: PriceMap,
+): number | undefined {
+  const uncachedFraction = 1 - (currentCachedFraction ?? 0);
+  let projectedR1SavingsUsd = 0;
+  let pricedModelCount = 0;
+
+  for (const [model, tokens] of Object.entries(tokensByModel)) {
+    const totalInputTokens = tokens.input + tokens.cacheCreate + tokens.cacheRead;
+    if (totalInputTokens <= 0) continue;
+
+    const price = lookupPrice(priceMap, model);
+    if (!price || price.cache_read_input_token_cost === undefined) {
+      return undefined;
+    }
+
+    projectedR1SavingsUsd +=
+      totalInputTokens * (price.input_cost_per_token - price.cache_read_input_token_cost) * uncachedFraction;
+    pricedModelCount += 1;
+  }
+
+  return pricedModelCount > 0 ? projectedR1SavingsUsd : undefined;
 }
 
 // ─── Copilot pure metric functions (§3.5) ────────────────────────────────────
@@ -288,7 +325,15 @@ export function copilotCachedTokenFraction(sessions: NormalizedCopilotSession[])
 
 function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceMetrics> {
   const sessions = data.copilotSessions ?? [];
-  if (sessions.length === 0) return { copilotTotalCostUsd: 0, copilotSessionCount: 0 };
+  if (sessions.length === 0) {
+    return {
+      copilotTotalCostUsd: 0,
+      copilotSessionCount: 0,
+      copilotDailyInputTokens: [],
+      totalActualTokens: 0,
+      totalSpendUsd: 0,
+    };
+  }
 
   const modelAgg: Record<string, {
     requestCount: number; requestCost: number;
@@ -312,6 +357,27 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
       modelAgg[model].reasoningTokens += m.reasoningTokens;
     }
   }
+
+  // Per-day input token aggregation (for R3 p90 computation)
+  const dailyInputMap = new Map<string, number>();
+  for (const session of sessions) {
+    const sessionInputTokens = Object.values(session.models).reduce(
+      (sum, m) => sum + m.inputTokens, 0
+    );
+    dailyInputMap.set(session.date, (dailyInputMap.get(session.date) ?? 0) + sessionInputTokens);
+  }
+  const copilotDailyInputTokens = Array.from(dailyInputMap.entries())
+    .map(([date, inputTokens]) => ({ date, inputTokens }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const copilotAvgTokensPerSession = sessions.length > 0
+    ? sessions.reduce((sum, s) => {
+        const sessionTokens = Object.values(s.models).reduce(
+          (t, m) => t + m.inputTokens + m.outputTokens, 0
+        );
+        return sum + sessionTokens;
+      }, 0) / sessions.length
+    : undefined;
 
   // §7.16 token breakdown table — sorted desc by requestCost
   const tokenBreakdownByModel = Object.entries(modelAgg)
@@ -340,6 +406,10 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     })),
     aggregate: totalInputTokens > 0 ? totalCacheRead / totalInputTokens : 0,
   };
+  const totalActualTokens = tokenBreakdownByModel.reduce(
+    (sum, model) => sum + model.inputTokens + model.outputTokens,
+    0,
+  );
 
   return {
     copilotTotalCostUsd: totalNetSpend,
@@ -347,5 +417,9 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     copilotTokenBreakdownByModel: tokenBreakdownByModel,
     copilotCachedTokenFraction: cachedFraction,
     copilotSessionCount: sessions.length,
+    copilotAvgTokensPerSession,
+    copilotDailyInputTokens,
+    totalActualTokens,
+    totalSpendUsd: totalNetSpend,
   };
 }
