@@ -3,7 +3,7 @@ import type { PriceMap } from '../src/data/priceMap.js';
 import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
 import { R1 } from '../src/engine/recommendations/R1_promptCaching.js';
 import { R2 } from '../src/engine/recommendations/R2_modelDowngrade.js';
-import { R3 } from '../src/engine/recommendations/R3_verbosity.js';
+import { getP90DailyInputTokens, R3 } from '../src/engine/recommendations/R3_verbosity.js';
 import { R4 } from '../src/engine/recommendations/R4_offPeak.js';
 import type { RuleContext } from '../src/engine/recommendations/index.js';
 import type { NormalizedCopilotSession, SourceMetrics } from '../src/types/index.js';
@@ -298,23 +298,53 @@ describe('recommendation rules', () => {
   });
 
   describe('R3 verbosity', () => {
-    it('fires when p90 daily input tokens and input/output ratio exceed thresholds', () => {
+    it('returns 0 for empty daily input token series', () => {
+      expect(getP90DailyInputTokens([])).toBe(0);
+    });
+
+    it('returns the 90th percentile daily input token count', () => {
+      expect(getP90DailyInputTokens([
+        { date: '2026-06-01', inputTokens: 10 },
+        { date: '2026-06-02', inputTokens: 20 },
+        { date: '2026-06-03', inputTokens: 30 },
+        { date: '2026-06-04', inputTokens: 40 },
+        { date: '2026-06-05', inputTokens: 50 },
+        { date: '2026-06-06', inputTokens: 60 },
+        { date: '2026-06-07', inputTokens: 70 },
+        { date: '2026-06-08', inputTokens: 80 },
+        { date: '2026-06-09', inputTokens: 90 },
+        { date: '2026-06-10', inputTokens: 100 },
+      ])).toBe(90);
+    });
+
+    it('fires for Copilot when p90 daily input tokens and input/output ratio exceed thresholds', () => {
       const cards = R3.evaluate(ctx([source({
+        sourceId: 'github_copilot',
         aggregateInputOutputRatio: 8.1,
-        p90DailyInputTokens: 50_001,
+        copilotDailyInputTokens: [
+          { date: '2026-06-01', inputTokens: 20_000 },
+          { date: '2026-06-02', inputTokens: 30_000 },
+          { date: '2026-06-03', inputTokens: 40_000 },
+          { date: '2026-06-04', inputTokens: 60_000 },
+          { date: '2026-06-05', inputTokens: 70_000 },
+        ],
       } as Partial<SourceMetrics>)]));
 
       expect(cards).toHaveLength(1);
+      expect(cards[0].sourceIds).toEqual(['github_copilot']);
     });
 
-    it('does not fire when either threshold is not met', () => {
+    it('does not fire for Copilot when p90 daily input tokens are below threshold', () => {
       expect(R3.evaluate(ctx([source({
-        aggregateInputOutputRatio: 8,
-        p90DailyInputTokens: 60_000,
-      } as Partial<SourceMetrics>)]))).toHaveLength(0);
-      expect(R3.evaluate(ctx([source({
+        sourceId: 'github_copilot',
         aggregateInputOutputRatio: 8.1,
-        p90DailyInputTokens: 50_000,
+        copilotDailyInputTokens: [
+          { date: '2026-06-01', inputTokens: 10_000 },
+          { date: '2026-06-02', inputTokens: 20_000 },
+          { date: '2026-06-03', inputTokens: 30_000 },
+          { date: '2026-06-04', inputTokens: 40_000 },
+          { date: '2026-06-05', inputTokens: 50_000 },
+        ],
       } as Partial<SourceMetrics>)]))).toHaveLength(0);
     });
   });
@@ -341,9 +371,9 @@ describe('recommendation rules', () => {
       expect(R4.evaluate(ctx([claudeCode({ claudeCodeSessionCount: 19 })]))).toHaveLength(0);
     });
 
-    it('does not fire when peak-hour fraction is below threshold', () => {
+    it('does not fire when peak-hour fraction is at or below threshold', () => {
+      expect(R4.evaluate(ctx([claudeCode({ claudeCodePeakHourFraction: 0.7 })]))).toHaveLength(0);
       expect(R4.evaluate(ctx([claudeCode({ claudeCodePeakHourFraction: 0.69 })]))).toHaveLength(0);
     });
   });
 });
-

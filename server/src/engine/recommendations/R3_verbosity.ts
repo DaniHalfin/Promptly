@@ -5,6 +5,7 @@ type MetricsWithDailyInput = SourceMetrics & {
   p90DailyInputTokens?: number;
   dailyInputTokens?: Array<{ date: string; inputTokens: number }>;
   dailyTokensByModel?: Array<{ date: string; inputTokens?: number }>;
+  copilotDailyInputTokens?: Array<{ date: string; inputTokens: number }>;
 };
 
 export const R3: Rule = {
@@ -14,10 +15,10 @@ export const R3: Rule = {
     const cards: RecommendationResult[] = [];
 
     for (const source of ctx.sources) {
-      if (source.tier !== 'B' || source.sourceId === 'github_copilot') continue;
+      if (source.tier !== 'B') continue;
       if ((source.aggregateInputOutputRatio ?? 0) <= 8) continue;
 
-      const p90DailyInputTokens = getP90DailyInputTokens(source);
+      const p90DailyInputTokens = resolveP90DailyInputTokens(source);
       if (p90DailyInputTokens <= 50_000) {
         continue;
       }
@@ -40,12 +41,16 @@ export const R3: Rule = {
   },
 };
 
-function getP90DailyInputTokens(source: SourceMetrics): number {
+function resolveP90DailyInputTokens(source: SourceMetrics): number {
   const metrics = source as MetricsWithDailyInput;
+  if (source.sourceId === 'github_copilot') {
+    return getP90DailyInputTokens(metrics.copilotDailyInputTokens ?? []);
+  }
+
   if (typeof metrics.p90DailyInputTokens === 'number') return metrics.p90DailyInputTokens;
 
   if (metrics.dailyInputTokens?.length) {
-    return percentile(metrics.dailyInputTokens.map(day => day.inputTokens), 0.9);
+    return getP90DailyInputTokens(metrics.dailyInputTokens);
   }
 
   if (metrics.dailyTokensByModel?.length) {
@@ -53,7 +58,9 @@ function getP90DailyInputTokens(source: SourceMetrics): number {
     for (const record of metrics.dailyTokensByModel) {
       byDate.set(record.date, (byDate.get(record.date) ?? 0) + (record.inputTokens ?? 0));
     }
-    return percentile([...byDate.values()], 0.9);
+    return getP90DailyInputTokens(
+      [...byDate.entries()].map(([date, inputTokens]) => ({ date, inputTokens })),
+    );
   }
 
   // SourceMetrics currently carries aggregate model totals, not daily token buckets.
@@ -64,11 +71,13 @@ function getP90DailyInputTokens(source: SourceMetrics): number {
   return totalInputTokens / computeDataWindowDays(source.periodStart, source.periodEnd);
 }
 
-function percentile(values: number[], p: number): number {
-  const sorted = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
-  if (sorted.length === 0) return 0;
-  const index = Math.ceil(p * sorted.length) - 1;
-  return sorted[Math.min(Math.max(index, 0), sorted.length - 1)];
+export function getP90DailyInputTokens(
+  dailyInputTokens: { date: string; inputTokens: number }[]
+): number {
+  if (dailyInputTokens.length === 0) return 0;
+  const sorted = [...dailyInputTokens].map(d => d.inputTokens).sort((a, b) => a - b);
+  const idx = Math.ceil(sorted.length * 0.9) - 1;
+  return sorted[Math.max(0, idx)];
 }
 
 function computeDataWindowDays(start: string, end: string): number {
