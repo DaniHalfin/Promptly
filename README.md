@@ -43,9 +43,9 @@ npm --workspace client run test
 npx playwright test
 ```
 
-- **Server unit tests:** 44 tests
-- **Client component tests:** 20 tests
-- **End-to-end tests:** 14 tests
+- **Server unit tests:** 99 tests
+- **Client component tests:** 135 tests
+- **End-to-end tests:** 15 tests
 
 ## Project Structure
 
@@ -77,7 +77,7 @@ promptly/
 4. Run the full test bar before opening a pull request.
 5. Open a PR with a clear summary, testing notes, and any relevant screenshots.
 
-All 78 tests must pass before review or merge.
+All 249 tests (234 unit + 15 end-to-end) must pass before review or merge.
 
 ## Docs
 
@@ -112,7 +112,7 @@ Packages the Express server needs to run in production (`server/package.json` �
 | Package | Version | Role in Promptly |
 |---|---|---|
 | `express` | ^4.18.2 | HTTP server framework — hosts the `/api` routes that client panels call for usage data, recommendations, and pricing |
-| `multer` | ^1.4.5-lts.1 | Multipart form-data middleware — handles file uploads when users submit local usage export files (e.g. Claude Code JSON exports) |
+| `multer` | ^1.4.5-lts.1 | Multipart form-data middleware — reserved for future P1 local usage export sources (e.g. ChatGPT export, Claude.ai export) if file-upload ingestion is implemented |
 | `node-fetch` | ^3.3.2 | HTTP client — fetches live model pricing from external APIs at server startup so cost calculations reflect current rates |
 | `tiktoken` | ^1.0.10 | OpenAI's tokenizer — counts tokens in prompts and completions when the raw token count is not supplied by a usage source |
 
@@ -135,7 +135,7 @@ Packages used only during development and testing of the server workspace (`serv
 
 | Package | Version | Role in Promptly |
 |---|---|---|
-| `vitest` | ^4.1.9 | Test runner for all 44 server unit tests — adapter parsing, metric calculations, recommendation rules |
+| `vitest` | ^4.1.9 | Test runner for all 99 server unit tests — adapter parsing, metric calculations, recommendation rules |
 | `@vitest/coverage-v8` | ^4.1.9 | V8-native code coverage reporter plugged into Vitest — generates per-file line/branch coverage for server code |
 | `tsx` | ^4.7.0 | TypeScript execution engine — powers `tsx watch src/index.ts` for zero-compile hot-reload during development |
 | `typescript` | ^5.3.3 | TypeScript compiler — type-checks and compiles the server to `dist/` for production |
@@ -151,7 +151,7 @@ Packages used only during development and testing of the client workspace (`clie
 | Package | Version | Role in Promptly |
 |---|---|---|
 | `vite` | ^5.0.8 | Build tool and dev server — serves the React app on `localhost:5173` with HMR in development and bundles it for production |
-| `vitest` | ^4.1.9 | Test runner for all 20 client component tests — runs in jsdom so components render without a real browser |
+| `vitest` | ^4.1.9 | Test runner for all 135 client component tests — runs in jsdom so components render without a real browser |
 | `@vitejs/plugin-react` | ^4.2.0 | Vite plugin — enables React Fast Refresh and JSX transform during development and build |
 | `@vitest/coverage-v8` | ^4.1.9 | V8 code coverage for client Vitest runs — tracks which component branches are exercised by tests |
 | `typescript` | ^5.3.3 | TypeScript compiler — type-checks client source and produces the JS bundle via `tsc && vite build` |
@@ -159,7 +159,7 @@ Packages used only during development and testing of the client workspace (`clie
 | `postcss` | ^8.4.31 | CSS post-processor — required by Tailwind to transform utility classes at build time |
 | `autoprefixer` | ^10.4.16 | PostCSS plugin — automatically adds vendor prefixes so Tailwind styles work across target browsers |
 | `jsdom` | ^29.1.1 | Browser DOM emulator — provides the `document` / `window` environment that Vitest needs to render and test React components in Node |
-| `@testing-library/react` | ^16.3.2 | React Testing Library — renders components into jsdom and provides `screen`, `within`, and async query helpers used in all 20 client tests |
+| `@testing-library/react` | ^16.3.2 | React Testing Library — renders components into jsdom and provides `screen`, `within`, and async query helpers used in all 135 client tests |
 | `@testing-library/user-event` | ^14.6.1 | Simulates realistic user interactions (clicks, typing, keyboard navigation) in React Testing Library tests |
 | `@testing-library/jest-dom` | ^6.9.1 | Custom DOM matchers (`toBeInTheDocument`, `toHaveValue`, etc.) that make assertion failures readable in component tests |
 | `jest-axe` | ^10.0.0 | Axe accessibility engine wrapped for Jest/Vitest — used in component tests to assert panels meet WCAG accessibility rules |
@@ -173,7 +173,7 @@ Packages in the root `package.json` that coordinate both workspaces (`devDepende
 
 | Package | Version | Role in Promptly |
 |---|---|---|
-| `@playwright/test` | ^1.61.0 | End-to-end test framework — runs all 14 Playwright tests in `e2e/` against the running server and client with fixture mock data |
+| `@playwright/test` | ^1.61.0 | End-to-end test framework — runs all 15 Playwright tests in `e2e/` against the running server and client with fixture mock data |
 | `npm-run-all` | ^4.1.5 | Script orchestrator — `npm run dev` and `npm start` use `--parallel` to launch the server and client workspaces simultaneously |
 
 

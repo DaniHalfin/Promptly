@@ -6,6 +6,14 @@
 
 
 
+### v1.9 (2026-07-04)
+- **Phase 1 — Copilot metric parity and token semantics:** §7 common Tier B metrics now consistently include GitHub Copilot where local `session.shutdown` data provides token and cost fields. §7.2, §7.6, §7.7, §7.8, and §10 clarify provider-aware token math: OpenAI cached tokens and Copilot cache-read/cache-write tokens are subsets of input tokens, while Anthropic and Claude Code cache token categories are additive buckets.
+- **Phase 1 — Copilot session metrics:** §7.14–§7.17 define local-file session count, average tokens per session, per-model request count, and reasoning-token breakdown for GitHub Copilot. §7.15 now defines Copilot average tokens/session as `mean(Σ(inputTokens + outputTokens) per session)` and explicitly excludes cache-token addition.
+- **Phase 2 — Recommendation formulas tightened:** §8 R1 defines the forward-looking projected prompt-cache savings formula per model, including `reuse_factor = 0.5`, cache-read savings, and cache-write overhead. §8 R2 uses §7.13 for average daily output tokens per model and keeps LiteLLM blended price lookup as the pricing source for savings estimates.
+- **Phase 2 — Recommendation source coverage:** §8 R2 includes the GitHub Copilot downgrade path and Copilot model substitution table; §8 R3 applies to all Tier B token sources including Copilot and uses a single aggregate card; §8 R4 remains Claude Code-only and documents local-time evaluation for the peak-hour window.
+- **Phase 3 — Export and report consistency:** §10 JSON export examples and notes reflect Copilot token/cost fields, provider-aware `total_actual_tokens`, and no additive Copilot cache-token math. PDF report requirements retain the four-page structure and assumptions/caveats section.
+- **Phase 4 — Scope and future-source cleanup:** §6 and §12 keep Tier A and Tier C as future placeholders only; no P0 MVP source emits Tier A or Tier C. Future P1 web-export sources remain scoped as ChatGPT export and Claude.ai export.
+
 ### v1.8 (2026-07-01)
 - **§6 MVP scope note added:** Tier A and Tier C are now explicitly defined in the spec for completeness; no MVP sources currently emit these tiers. Tier A is reserved for future proxy/SDK adapters; Tier C for web-UI conversation exports (ChatGPT, Claude.ai).
 - **§7 hybrid restructure:** Common metrics block refactored to list metrics shared across all Tier B sources first, followed by per-source additions. Source-support notation (`[OpenAI]`, `[Anthropic]`, `[Claude Code]`, `[Copilot]`) replaces the earlier pattern of duplicating the full Copilot metrics block alongside the non-Copilot block. Redundant Copilot-specific §7 sections removed where they were now covered by the common block.

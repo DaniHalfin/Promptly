@@ -5,7 +5,6 @@
 **Author:** architect agent
 **Source spec:** spec.md v1.8 (2026-07-01) — §6/§7 alignment pass applied 2026-07-03
 **Status:** Canonical (current)
-**Supersedes:** v1.0 (2026-06-18)
 
 > **Note:** Design Amendment v1.2 (GitHub Copilot adapter: credential-based API → local JSONL file) has been merged into this document. The amendment source document is [`engineering-design-amendment-v1.2.md`](./engineering-design-amendment-v1.2.md) (retained as historical reference).
 
@@ -23,6 +22,7 @@
 8. Open Items for Developer
 9. Spec Ambiguities Flagged
 10. Design Review Notes
+11. Changelog
 
 ---
 
@@ -1482,6 +1482,12 @@ export interface SourceMetrics {
   projectedR1SavingsUsd?: number;
   // Forward-looking estimated monthly savings if caching is adopted, per spec §8 R1 formula.
   // Distinct from cachedTokenSavingsUsd* fields which are backward-looking realized savings.
+  totalActualTokens?: number;
+  // Sum of (inputTokens + outputTokens) across all models for this source.
+  // For Copilot: derived from copilotTokenBreakdownByModel.
+  totalSpendUsd?: number;
+  // Unified spend alias: equals totalActualSpendUsd for non-Copilot Tier B sources;
+  // equals copilotTotalCostUsd for GitHub Copilot.
 
   // Claude Code Tier B fields
   claudeCodeSessionCount?: number;                // §7.14 Session count (Claude Code branch)
@@ -1914,9 +1920,8 @@ The following items were addressed during spec iteration and are fully resolved 
 | A6 | PDF library choice. | `Export/ExportButtons.tsx`, `Export/PrintLayout.tsx` | html2canvas + jsPDF per spec; `window.print()` fallback documented. |
 | A7 | Unknown model names in LiteLLM map. | `engine/metrics/pricing.ts` `lookupPrice()` | Longest-key-wins prefix match, then null + "price unavailable" warning. |
 | A8 | Errored source in report array. | `engine/serializeReport.ts` | Yes. `{ sourceId, tier: null, connected: false, error: "...", metrics: null }`. Frontend hides the panel, surfaces in Sources Processed row. |
-| A9 | §7.24 Copilot vs API comparison: which Tier B source when multiple connected. | `engine/metrics/tierC.ts` | Use the Tier B source with the highest output token volume. Label the chosen reference. |
 | A10 | §7.6 model cost share when LiteLLM misses some models. | `engine/metrics/tierB.ts` `modelCostShare()` | Models with no price grouped under "Unknown" with `estimatedCostShare: 0` and warning surfaced; remaining normalize to sum to 100%. |
-| A11 | §8 R3 trigger direction: `aggregateInputOutputRatio > 8` (input tokens massively exceed output tokens). Applies uniformly to all Tier B sources including Copilot — no source-specific threshold distinction. | `engine/recommendations/R3_verbosity.ts` | `aggregateInputOutputRatio > 8` triggers R3. Per-model evaluation, one card per qualifying model. |
+| A11 | §8 R3 trigger direction: `aggregateInputOutputRatio > 8` (input tokens massively exceed output tokens). Applies uniformly to all Tier B sources including Copilot — no source-specific threshold distinction. | `engine/recommendations/R3_verbosity.ts` | `aggregateInputOutputRatio > 8` triggers R3. Evaluation is aggregate across Tier B sources with token data; generate a single R3 recommendation card, not one card per model. |
 | A12 | `estimated_savings_usd` on all recommendations. | `RecommendationResult` shape | Field is optional/nullable; only R1 and R2 populate. R4 sets `null` explicitly (latency recommendation, not cost). |
 
 ---

@@ -2,11 +2,11 @@
 title: promptly-product-spec-v1-8
 source: spec-draft
 source_type: sub-agent
-tags: [spec, promptly, product, v1.7]
+tags: [spec, promptly, product, v1.9]
 created_at: 2026-06-24T00:48:50.086Z
 ---
 # Promptly Product Spec
-**Version:** 1.8
+**Version:** 1.9
 **Date:** 2026-07-01
 **Author:** spec-draft agent
 **Status:** Draft
@@ -527,7 +527,7 @@ Applies to: All four Tier B sources.
 Applies to: All four Tier B sources.
 - Definition: Percentage change in spend from the prior 30-day period to the current 30-day period, if sufficient data exists.
 - Formula: `MoM_change = (current_30d_spend - prior_30d_spend) / prior_30d_spend * 100`
-- Only shown if the analysis period covers at least 45 days.
+- Only shown if the analysis period includes at least 45 daily data points.
 - Tier: B
 
 **7.13 Average daily output tokens per model (derived)**
@@ -551,6 +551,7 @@ Applies to: Claude Code and GitHub Copilot (local-file sources). Not applicable 
 Applies to: Claude Code and GitHub Copilot (local-file sources). Not applicable to OpenAI and Anthropic — these sources do not expose session-level granularity.
 - Definition: Mean total tokens (input + output) per session over the analysis period.
 - Formula (Claude Code): `avg((input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens) per session)` — cache fields are additive for Claude Code (see §7.2).
+- Formula (GitHub Copilot): `mean(Σ(inputTokens + outputTokens) per session)` across all models in each qualifying `session.shutdown` event — `cacheReadTokens` and `cacheWriteTokens` are subsets of `inputTokens`, not additive.
 - Display: "~N tokens per session (average)"
 - Tier: B
 
@@ -666,7 +667,7 @@ Where:
 - `premium_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map (all Tier B sources including GitHub Copilot)
 - `cheaper_model_price` = blended `(input_cost_per_token + output_cost_per_token) / 2` from the LiteLLM price map for the suggested alternative model; if absent, suppress the savings estimate for that model pair
 - `[X]` = `model_cost_share(premium_model) * 100` (percentage of total source spend, rounded to one decimal place)
-- `[N]` = `output_tokens_per_day(premium_model)` for all Tier B sources including GitHub Copilot (average daily output tokens for the premium model, as defined in §7.12a; for Copilot, derived from `usage.outputTokens` in `modelMetrics` across `session.shutdown` events)
+- `[N]` = `output_tokens_per_day(premium_model)` for all Tier B sources including GitHub Copilot (average daily output tokens for the premium model, as defined in §7.13; for Copilot, derived from `usage.outputTokens` in `modelMetrics` across `session.shutdown` events)
 - `[Y]` = `model_cost_share(premium_model) * (1 - (cheaper_model_price / premium_model_price)) * 100` — percentage of total source spend that would be saved if all calls to the premium model were routed to the cheaper alternative at the same volume
 
 Note: If `cheaper_model_price` is absent for a given model pair, suppress the savings estimate for that pair — omit "Estimated savings: [Y]% if volume holds." from the body for that card.
