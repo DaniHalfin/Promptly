@@ -83,6 +83,13 @@ export interface NormalizedSourceData {
   periodEnd: string;
 }
 
+export interface TierClassification {
+  sourceId: SourceId;
+  tier: Tier | null;
+  /** Human-readable explanation of why this tier was assigned. */
+  reason: string;
+}
+
 // ====== Tier and metrics ======
 
 export interface ModelBreakdownEntry {
@@ -116,6 +123,15 @@ export interface SourceMetrics {
   peakSpendDay?: { date: string; spendUsd: number };
   rollingAvgSpend7dUsd?: number;
   momChangePct?: number | null;
+  projectedR1SavingsUsd?: number;
+  // Forward-looking projected savings if prompt caching is fully adopted.
+  // Set for Anthropic and Claude Code sources only.
+  totalActualTokens?: number;
+  // Sum of (inputTokens + outputTokens) across all models for this source.
+  // For Copilot: derived from copilotTokenBreakdownByModel.
+  totalSpendUsd?: number;
+  // Unified spend alias: equals totalActualSpendUsd for non-Copilot Tier B sources;
+  // equals copilotTotalCostUsd for GitHub Copilot.
   avgDailyOutputTokensPerModel?: {
     model: string;
     avgDailyOutputTokens: number;
@@ -150,6 +166,11 @@ export interface SourceMetrics {
     aggregate: number;
   };
   copilotSessionCount?: number;
+  copilotAvgTokensPerSession?: number;
+  // mean(Σ(inputTokens + outputTokens) per session) across all models.
+  // cacheRead/cacheWrite are subsets of inputTokens, not additive.
+  copilotDailyInputTokens?: { date: string; inputTokens: number }[];
+  // Per-day Σ inputTokens across all models and sessions. Used by R3 getP90DailyInputTokens().
 
   // Tier C (file exports)
   estimatedTotalTokens?: number;
@@ -187,6 +208,17 @@ export interface RecommendationResult {
   sourceIds: SourceId[];
 }
 
+/** A computed §7 metric for inclusion in the report.
+ *  Used internally; metrics are flattened onto SourceMetrics in the public report. */
+export interface InsightResult {
+  id: string;           // e.g. "7.4"
+  sourceId: SourceId;
+  label: string;
+  value: number | string | object;
+  unit?: 'usd' | 'tokens' | 'ratio' | 'percent' | 'date' | 'count';
+  estimated: boolean;
+}
+
 // ====== Full report (export schema) ======
 
 export interface AnalysisReportMetadata {
@@ -212,4 +244,3 @@ export interface AnalysisReport {
   recommendations: RecommendationResult[];
   assumptions: string[];
 }
-
