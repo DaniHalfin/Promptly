@@ -6,23 +6,24 @@ test.describe('connection flow', () => {
     await mockValidationRoutes(page);
   });
 
-  test('page loads and shows connection step UI with all four source cards', async ({ page }) => {
+  test('page loads and shows landing UI with all five source cards', async ({ page }) => {
     await openConnection(page);
 
-    await expect(page.getByRole('heading', { name: 'Connect Your Sources' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AI Token Analytics' })).toBeVisible();
     await expect(sourceCard(page, 'OpenAI')).toBeVisible();
     await expect(sourceCard(page, 'Anthropic')).toBeVisible();
     await expect(sourceCard(page, 'GitHub Copilot')).toBeVisible();
     await expect(sourceCard(page, 'Claude Code')).toBeVisible();
+    await expect(sourceCard(page, 'ChatGPT Export')).toBeVisible();
   });
 
   test('claude_code source card shows enable toggle and no credential field', async ({ page }) => {
     await openConnection(page);
 
     const card = sourceCard(page, 'Claude Code');
-    await expect(card.getByRole('checkbox', { name: 'Enable local Claude Code analysis' })).toBeVisible();
+    await expect(card.getByRole('switch', { name: 'Enable local Claude Code analysis' })).toBeVisible();
     await expect(card.getByPlaceholder('Paste your API key here')).toHaveCount(0);
-    await expect(card.getByText('No API key or file upload is required')).toBeVisible();
+    await expect(card.getByText('Local JSONL logs — no API key or upload required.')).toBeVisible();
   });
 
   test('anthropic source card shows API key input', async ({ page }) => {
@@ -69,9 +70,9 @@ test.describe('connection flow', () => {
     await openConnection(page);
     await connectClaudeCode(page);
 
-    await page.getByRole('button', { name: 'Start Analysis' }).click();
+    await page.getByRole('button', { name: 'Run Analysis →' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Connect Your Sources' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AI Token Analytics' })).toBeVisible();
     await expect(sourceCard(page, 'Claude Code')).toBeVisible();
   });
 });

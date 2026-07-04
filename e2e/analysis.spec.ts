@@ -11,23 +11,25 @@ test.describe('analysis results', () => {
 
   test('ClaudeCodePanel renders session count and peak hour metric', async ({ page }) => {
     await navigateToMockResults(page);
+    const panel = page.locator('.card').filter({ has: page.getByRole('heading', { name: 'Claude Code' }) }).first();
 
     await expect(page.getByRole('heading', { name: 'Claude Code' })).toBeVisible();
-    await expect(page.getByText('Sessions', { exact: true })).toBeVisible();
-    await expect(page.getByText('42', { exact: true })).toBeVisible();
-    await expect(page.getByText('Peak hour sessions')).toBeVisible();
-    await expect(page.getByText('64.0%')).toBeVisible();
+    await expect(panel.getByText('Sessions', { exact: true })).toBeVisible();
+    await expect(panel.getByText('42', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Peak hour sessions')).toBeVisible();
+    await expect(panel.getByText('64.0%')).toBeVisible();
   });
 
   test('CopilotPanel renders total cost and model table', async ({ page }) => {
     await navigateToMockResults(page);
+    const panel = page.locator('.card').filter({ has: page.getByRole('heading', { name: 'GitHub Copilot' }) }).first();
 
     await expect(page.getByRole('heading', { name: 'GitHub Copilot' })).toBeVisible();
-    await expect(page.getByText('Total Cost', { exact: true })).toBeVisible();
-    await expect(page.getByText('$85.25')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Model spend' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'gpt-5.3-codex' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: '$55.41' })).toBeVisible();
+    await expect(panel.getByText('Total Spend', { exact: true })).toBeVisible();
+    await expect(panel.getByText('89', { exact: true })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Model spend' })).toBeVisible();
+    await expect(panel.getByTestId('token-breakdown-table').getByRole('cell', { name: 'GPT-5.3 Codex' })).toBeVisible();
+    await expect(panel.getByTestId('token-breakdown-table').getByRole('cell', { name: '$55.41' })).toBeVisible();
   });
 
   test('OpenAI panel shows estimated disclaimer', async ({ page }) => {

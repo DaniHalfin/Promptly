@@ -9,12 +9,11 @@ export function readFixture<T>(name: string): T {
 
 export async function openConnection(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start Analysis' }).click();
-  await expect(page.getByRole('heading', { name: 'Connect Your Sources' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AI Token Analytics' })).toBeVisible();
 }
 
 export function sourceCard(page: Page, label: string) {
-  return page.locator('.border-2').filter({ has: page.getByRole('heading', { name: label, exact: true }) });
+   return page.getByRole('group', { name: label, exact: true });
 }
 
 export async function mockValidationRoutes(page: Page) {
@@ -55,8 +54,8 @@ export async function mockAnalyzeRoute(page: Page, override?: (report: any) => a
 }
 
 export async function connectClaudeCode(page: Page) {
-  await sourceCard(page, 'Claude Code').getByRole('checkbox', { name: 'Enable local Claude Code analysis' }).check();
-  await expect(sourceCard(page, 'Claude Code').getByText('Connected')).toBeVisible();
+  await sourceCard(page, 'Claude Code').getByRole('switch', { name: 'Enable local Claude Code analysis' }).click();
+  await expect(sourceCard(page, 'Claude Code').getByText('Validated')).toBeVisible();
 }
 
 export async function navigateToMockResults(page: Page) {
@@ -64,6 +63,6 @@ export async function navigateToMockResults(page: Page) {
   await mockAnalyzeRoute(page);
   await openConnection(page);
   await connectClaudeCode(page);
-  await page.getByRole('button', { name: 'Start Analysis' }).click();
+  await page.getByRole('button', { name: 'Run Analysis →' }).click();
   await expect(page.getByRole('heading', { name: 'Analysis Results' })).toBeVisible();
 }
