@@ -968,9 +968,9 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
     rationale: '3–5x cheaper; appropriate for most coding assistance tasks',
   },
   {
-    // API returns "gpt-5.4" and "gpt-5.5" (dots, not hyphens).
-    // Anchored $ removed: handles variants like "gpt-5.4-turbo", "gpt-5.5-turbo".
-    pattern:  /^gpt-5\.4|^gpt-5\.5/i,
+    // Negative lookahead (?!-mini) prevents the downgrade *target* (gpt-5.4-mini)
+    // from matching and triggering an R2 card for itself.
+    pattern:  /^gpt-5\.4(?!-mini)|^gpt-5\.5(?!-mini)/i,
     cheaper:  'gpt-5.4-mini',
     rationale: '5–20x cheaper; equivalent quality for code completion and short queries',
   },
@@ -1069,7 +1069,7 @@ function getP90DailyInputTokens(source: SourceMetrics): number | null {
 }
 ```
 
-The R3 trigger condition for Copilot uses `aggregateInputOutputRatio < 1.5` (same threshold as other sources), where `aggregateInputOutputRatio` is computed by `computeCopilotTierBMetrics()` via F3 (see §3.5).
+The R3 trigger condition for Copilot uses `aggregateInputOutputRatio > 8`, where `aggregateInputOutputRatio` is computed by `computeCopilotTierBMetrics()` via F3 (see §3.5).
 
 ### 3.7 LiteLLM Price Map Integration
 
@@ -1476,7 +1476,8 @@ export interface SourceMetrics {
   peakSpendDay?: { date: string; spendUsd: number };
   rollingAvgSpend7dUsd?: number;
   momChangePct?: number | null;
-  avgDailyOutputTokensPerModel?: Record<string, number>;
+  avgDailyOutputTokensPerModel?: { model: string; avgDailyOutputTokens: number }[];
+  // Array pre-sorted descending by avgDailyOutputTokens.
   // Computed as model.outputTokens / periodDays; used by R2 to evaluate per-model output token rate.
   projectedR1SavingsUsd?: number;
   // Forward-looking estimated monthly savings if caching is adopted, per spec §8 R1 formula.

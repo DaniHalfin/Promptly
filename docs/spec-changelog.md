@@ -6,6 +6,10 @@
 
 
 
+### v1.8 (2026-07-01)
+- **§6 MVP scope note added:** Tier A and Tier C are now explicitly defined in the spec for completeness; no MVP sources currently emit these tiers. Tier A is reserved for future proxy/SDK adapters; Tier C for web-UI conversation exports (ChatGPT, Claude.ai).
+- **§7 hybrid restructure:** Common metrics block refactored to list metrics shared across all Tier B sources first, followed by per-source additions. Source-support notation (`[OpenAI]`, `[Anthropic]`, `[Claude Code]`, `[Copilot]`) replaces the earlier pattern of duplicating the full Copilot metrics block alongside the non-Copilot block. Redundant Copilot-specific §7 sections removed where they were now covered by the common block.
+
 ### v1.7 (2026-06-24)
 - **GitHub Copilot source rewritten to use local session JSONL files; API-based approach removed.** The previous approach (classic PAT → GitHub billing API → `netAmount` from `usageItems[]`) excluded org-licensed users who lacked org-admin/billing-manager access, and provided no token counts. The new approach reads `~/.copilot/session-state/*/events.jsonl` — no credentials required. The VS Code Copilot extension delegates to the embedded Copilot CLI; all session data is in `~/.copilot`, consistent with the Claude Code local-file pattern.
 - **§4 Step 2** — GitHub Copilot connection method changed from "Token entry (GitHub PAT)" to "Local file read (auto); no input required." Validation note added mirroring the Claude Code pattern.
@@ -66,5 +70,4 @@
 Initial release. Passed spec-critique gates (B1-B8 resolved); manual doc-consistency review complete.
 
 ---
-
 
