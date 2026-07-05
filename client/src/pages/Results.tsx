@@ -172,7 +172,7 @@ export function Results() {
         WebkitBackdropFilter: 'blur(8px)',
       }}>
         <button
-          onClick={() => dispatch({ phase: 'connection' })}
+          onClick={() => dispatch({ phase: 'landing' })}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-body)', padding: 0 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

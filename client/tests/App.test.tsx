@@ -11,9 +11,6 @@ import { SessionContext } from '../src/context/SessionContext.js';
 vi.mock('../src/pages/Landing.js', () => ({
   Landing: () => <div data-testid="landing-page">Landing</div>,
 }));
-vi.mock('../src/pages/Connection.js', () => ({
-  Connection: () => <div data-testid="connection-page">Connection</div>,
-}));
 vi.mock('../src/pages/Analysis.js', () => ({
   Analysis: () => <div data-testid="analysis-page">Analysis</div>,
 }));
@@ -51,10 +48,15 @@ describe('App routing', () => {
     expect(screen.getByTestId('landing-page')).toBeInTheDocument();
   });
 
-  it('renders Connection for phase=connection — NOT Landing', () => {
+  it('does not import or render Connection', () => {
+    // Connection is retired: no supported phase renders a connection page,
+    // and a stray 'connection' phase string must not render anything.
     renderWithPhase('connection');
-    expect(screen.getByTestId('connection-page')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-page')).not.toBeInTheDocument();
     expect(screen.queryByTestId('landing-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('analysis-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('results-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('error-page')).not.toBeInTheDocument();
   });
 
   it('renders Analysis for phase=analyzing', () => {

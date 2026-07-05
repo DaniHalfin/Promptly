@@ -2,7 +2,7 @@
  * 3.2 — Analysis.tsx per-source progress tests
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from './msw/server.js';
@@ -136,5 +136,62 @@ describe('Analysis — per-source progress', () => {
     });
 
     expect(screen.queryByTestId('source-progress-openai')).not.toBeInTheDocument();
+  });
+
+  it('returns to landing when cancelled', async () => {
+    const { dispatch } = renderAnalysis({
+      openai: { status: 'connected', credential: 'sk-test' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+
+    expect(dispatch).toHaveBeenCalledWith({ phase: 'landing' });
+  });
+
+  it('dispatches landing with per-source errors when all sources fail', async () => {
+    server.use(
+      http.post('/api/analyze/recommendations', () => {
+        return HttpResponse.json({
+          ...mockReport,
+          sources: [
+            { source_id: 'openai', tier: null, connected: false, error: 'Invalid credentials', metrics: null },
+          ],
+          cross_source_summary: { ...mockReport.cross_source_summary, allSourcesFailed: true },
+        });
+      }),
+    );
+
+    const { dispatch } = renderAnalysis({
+      openai: { status: 'connected', credential: 'sk-bad' },
+    });
+
+    await waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: 'landing',
+          analysisErrors: expect.arrayContaining([
+            expect.objectContaining({ sourceId: 'openai', error: 'Invalid credentials' }),
+          ]),
+        }),
+      );
+    }, { timeout: 3000 });
+  });
+
+  it('dispatches results when at least one source succeeds', async () => {
+    server.use(
+      http.post('/api/analyze/recommendations', () => {
+        return HttpResponse.json(mockReport); // allSourcesFailed: false
+      }),
+    );
+
+    const { dispatch } = renderAnalysis({
+      openai: { status: 'connected', credential: 'sk-good' },
+    });
+
+    await waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'results' }),
+      );
+    }, { timeout: 3000 });
   });
 });

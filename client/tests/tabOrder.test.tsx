@@ -59,7 +59,7 @@ vi.mock('../api/client.js', () => ({
 function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknown> = {}) {
   const { container } = render(
     <SessionContext.Provider value={{
-      state: { phase: 'connection', sources: { [sourceId]: { status: 'pending', ...sourceState } } },
+      state: { phase: 'landing', sources: { [sourceId]: { status: 'pending', ...sourceState } } },
       dispatch: vi.fn(),
       updateSource: vi.fn(),
       clearSession: vi.fn(),

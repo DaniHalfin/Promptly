@@ -2,7 +2,7 @@
  * 3.3 — Results page tests: ADR-9 narrative layout
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Results } from '../src/pages/Results';
 import { useSession } from '../src/context/SessionContext.js';
@@ -128,5 +128,19 @@ describe('Results — ADR-9 narrative layout', () => {
     } as any);
     render(<Results />);
     expect(screen.getByTestId('analysis-header')).toHaveAttribute('data-spend-label', 'Estimated spend');
+  });
+
+  it('returns to landing when Back is clicked', () => {
+    const dispatch = vi.fn();
+    vi.mocked(useSession).mockReturnValueOnce({
+      state: { report: mockReport as any },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null },
+    } as any);
+    render(<Results />);
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+    expect(dispatch).toHaveBeenCalledWith({ phase: 'landing' });
   });
 });

@@ -12,7 +12,7 @@ function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknow
   const updateSource = vi.fn();
   const value = {
     state: {
-      phase: 'connection',
+      phase: 'landing',
       sources: {
         [sourceId]: { status: 'pending', ...sourceState },
       },
@@ -194,13 +194,6 @@ describe('SourceCard', () => {
     const sw = screen.getByRole('switch');
     // Initially not validating → no aria-disabled
     expect(sw).not.toHaveAttribute('aria-disabled');
-  });
-
-  it('date inputs in Connection page are bound to their labels via htmlFor/id — WP-2', () => {
-    // Tested structurally: labels have htmlFor matching input ids (Connection.tsx)
-    // This is a code-level assertion — verified by TypeScript compilation + visual inspection
-    // RTL would need Connection component in scope; covered by TypeScript + review
-    expect(true).toBe(true); // placeholder — WP-2 Connection change verified via TypeScript build
   });
 
   // ── WP-3: Error announcement ────────────────────────────────────────────

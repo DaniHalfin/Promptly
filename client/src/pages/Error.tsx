@@ -14,7 +14,7 @@ export function Error() {
         <p className="text-slate-600 mb-6">{state.analysisError || 'An unknown error occurred'}</p>
 
         <div className="flex gap-4">
-          <button className="primary flex-1" onClick={() => dispatch({ phase: 'connection' })}>
+          <button className="primary flex-1" onClick={() => dispatch({ phase: 'landing' })}>
             Try Again
           </button>
           <button className="secondary flex-1" onClick={() => dispatch({ phase: 'landing', sources: {} })}>

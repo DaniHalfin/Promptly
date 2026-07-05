@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSession } from './context/SessionContext.js';
 import { Landing } from './pages/Landing.js';
-import { Connection } from './pages/Connection.js';
 import { Analysis } from './pages/Analysis.js';
 import { Results } from './pages/Results.js';
 import { Error } from './pages/Error.js';
@@ -25,7 +24,6 @@ export function App() {
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)' }}>
       <main id="main-content">
         {(state.phase === 'landing' || !state.phase) && <Landing />}
-        {state.phase === 'connection' && <Connection />}
         {state.phase === 'analyzing' && <Analysis />}
         {state.phase === 'results' && <Results />}
         {state.phase === 'error' && <Error />}

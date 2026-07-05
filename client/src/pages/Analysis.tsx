@@ -28,7 +28,7 @@ export function Analysis() {
 
   const handleCancel = () => {
     abortControllerRef.current?.abort();
-    dispatch({ phase: 'connection' });
+    dispatch({ phase: 'landing' });
   };
 
   // WP-12: Respect prefers-reduced-motion for step icon animations
@@ -96,11 +96,18 @@ export function Analysis() {
 
         if (!controller.signal.aborted) {
           setBuildingStep('generating');
-          dispatch(
-            report.cross_source_summary.allSourcesFailed
-              ? { phase: 'connection', report }
-              : { phase: 'results', report }
-          );
+          if (report.cross_source_summary.allSourcesFailed) {
+            const analysisErrors = report.sources
+              .filter(source => source.error || ((source.metrics?.warnings?.length ?? 0) > 0))
+              .map(source => ({
+                sourceId: source.source_id,
+                error: source.error,
+                warnings: source.metrics?.warnings ?? [],
+              }));
+            dispatch({ phase: 'landing', report, analysisErrors });
+          } else {
+            dispatch({ phase: 'results', report });
+          }
         }
       } catch (err) {
         if (controller.signal.aborted) return;
