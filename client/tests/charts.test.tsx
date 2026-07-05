@@ -169,3 +169,47 @@ describe('TokenRatioBar (WP-9)', () => {
     expect(texts.some((t) => t?.includes('Cached Tokens'))).toBe(false);
   });
 });
+
+// ── Empty-state styling (Batch 2) ────────────────────────────────────────────
+// Tailwind is inert in this project (no @tailwind directives), so empty states
+// must be styled with inline CSS vars, not utility classes like bg-slate-50.
+
+describe('chart empty states use CSS vars, not inert Tailwind', () => {
+  it('DailySpendLine empty state is themed and free of inert Tailwind classes', () => {
+    render(<DailySpendLine data={[]} />);
+    const empty = screen.getByTestId('chart-empty');
+    expect(empty).toHaveStyle({
+      background: 'var(--color-bg-inset)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    });
+    expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
+    const text = screen.getByText('No data available');
+    expect(text).toHaveStyle({ color: 'var(--text-muted)' });
+    expect(text.className).not.toMatch(/text-slate-500/);
+  });
+
+  it('ConversationLengthBar empty state (no data) is themed and Tailwind-free', () => {
+    render(<ConversationLengthBar data={[]} />);
+    const empty = screen.getByTestId('chart-empty');
+    expect(empty).toHaveStyle({ background: 'var(--color-bg-inset)' });
+    expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
+    expect(screen.getByText('No data available')).toHaveStyle({ color: 'var(--text-muted)' });
+  });
+
+  it('ConversationLengthBar empty state (all-zero counts) is themed and Tailwind-free', () => {
+    render(<ConversationLengthBar data={[{ bucket: '1-5', count: 0 }]} />);
+    const empty = screen.getByTestId('chart-empty');
+    expect(empty).toHaveStyle({ background: 'var(--color-bg-inset)' });
+    expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200/);
+  });
+
+  it('TokenRatioBar empty state is themed and Tailwind-free', () => {
+    render(<TokenRatioBar inputTokens={0} outputTokens={0} cachedTokens={0} />);
+    const empty = screen.getByTestId('chart-empty');
+    expect(empty).toHaveStyle({ background: 'var(--color-bg-inset)' });
+    expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
+    expect(screen.getByText('No data available')).toHaveStyle({ color: 'var(--text-muted)' });
+  });
+});

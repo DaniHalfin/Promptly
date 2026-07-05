@@ -57,8 +57,19 @@ export function TokenRatioBar({
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-        <p className="text-slate-500">No data available</p>
+      <div
+        data-testid="chart-empty"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '20rem',
+          background: 'var(--color-bg-inset)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid rgba(255, 255, 255, 0.07)',
+        }}
+      >
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
       </div>
     );
   }
