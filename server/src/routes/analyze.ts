@@ -6,6 +6,7 @@ import { classifyTier } from '../engine/tiers.js';
 import { computeSourceMetrics, computeCrossSourceMetrics, selectTopRecommendation } from '../engine/metrics/index.js';
 import { generateRecommendations } from '../engine/recommendations/index.js';
 import { AnalysisReport, SourceReport, SourceConfig, SourceMetrics, SourceId } from '../types/index.js';
+import { parseAndValidateDateWindow } from '../lib/dateWindow.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 const router = Router();
@@ -76,6 +77,7 @@ async function runSourceAdapter(
       connected: adapterResult.connected,
       error: adapterResult.error ? adapterResult.error.message : null,
       metrics,
+      warnings: adapterResult.warnings,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -124,6 +126,10 @@ router.post('/analyze/:sourceId', upload.any(), async (req: Request, res: Respon
   try {
     const { sourceId } = req.params;
     const { startDate, endDate } = req.body ?? {};
+    const window = parseAndValidateDateWindow(startDate, endDate);
+    if (!window.ok) {
+      return res.status(400).json({ error: window.error });
+    }
     const report = await runSourceAdapter(sourceId, req, startDate, endDate);
     res.json(report);
   } catch (err: unknown) {
@@ -137,6 +143,14 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
     const { config: configStr } = req.body;
     const config = JSON.parse(configStr);
     const priceMap = await loadPriceMap();
+
+    // Validate each source's analysis window up front (A4: reject invalid windows with 400)
+    for (const src of config.sources as SourceConfig[]) {
+      const window = parseAndValidateDateWindow(src.startDate, src.endDate);
+      if (!window.ok) {
+        return res.status(400).json({ error: `Invalid analysis window for ${src.sourceId}: ${window.error}` });
+      }
+    }
 
     // Run all adapters in parallel
     const results = await Promise.allSettled(

@@ -425,6 +425,44 @@ input[type="search"] {
   box-sizing: border-box;
 }
 
+/* ─── Date range picker (react-day-picker) ──────────────────────────────── */
+/* Tailwind is inert in this app; theme DayPicker with CSS vars + overrides */
+.promptly-day-picker {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: var(--color-accent);
+  --rdp-background-color: var(--color-accent-muted);
+  --rdp-accent-color-dark: var(--color-accent);
+  --rdp-background-color-dark: var(--color-accent-muted);
+  --rdp-outline: 2px solid var(--color-accent);
+  --rdp-outline-selected: 2px solid var(--color-accent);
+  margin: 0;
+  color: var(--text-primary);
+}
+.promptly-day-picker .rdp-caption_label,
+.promptly-day-picker .rdp-head_cell {
+  color: var(--text-secondary);
+}
+.promptly-day-picker .rdp-day {
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+}
+.promptly-day-picker .rdp-day_selected,
+.promptly-day-picker .rdp-day_selected:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+.promptly-day-picker .rdp-day_range_middle {
+  background: var(--color-accent-muted);
+  color: var(--color-accent-light);
+}
+.promptly-day-picker .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background: var(--color-bg-hover, rgba(255,255,255,0.06));
+}
+.promptly-day-picker .rdp-day_disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
 /* ─── Progress bar (Analysis page) ──────────────────────────────────────── */
 /* WP-12: Class-based so @media (prefers-reduced-motion) can suppress the transition */
 .progress-fill {

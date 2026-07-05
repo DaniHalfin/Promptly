@@ -191,4 +191,68 @@ describe('analyze routes', () => {
     );
     expect(hasClaudeDisabled).toBe(true);
   });
+
+  // ── A4: server-side date-window validation ────────────────────────────────
+  it('returns 400 when endDate is in the future', async () => {
+    const today = new Date();
+    const future = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10)
+      .toISOString().split('T')[0];
+    const res = await fetch(`${baseUrl}/api/analyze/openai`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: '2026-01-01', endDate: future }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/future/i);
+  });
+
+  it('returns 400 when startDate is after endDate', async () => {
+    const res = await fetch(`${baseUrl}/api/analyze/openai`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: '2026-05-20', endDate: '2026-05-01' }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/on or before/i);
+  });
+
+  it('returns 400 when any source has invalid analysis window', async () => {
+    const today = new Date();
+    const future = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10)
+      .toISOString().split('T')[0];
+    const formData = new FormData();
+    formData.append('config', JSON.stringify({
+      sources: [
+        { sourceId: 'openai', hasCredential: true, startDate: '2026-01-01', endDate: '2026-01-31' },
+        { sourceId: 'anthropic', hasCredential: true, startDate: '2026-01-01', endDate: future },
+      ],
+    }));
+    const res = await fetch(`${baseUrl}/api/analyze`, { method: 'POST', body: formData });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/anthropic/i);
+  });
+
+  it('preserves adapter warnings on SourceReport when tier is null', async () => {
+    const emptyDir = join(tmpdir(), `copilot-warn-${Date.now()}`);
+    mkdirSync(emptyDir, { recursive: true });
+    process.env.COPILOT_SESSION_STATE_DIR = emptyDir;
+    try {
+      const res = await fetch(`${baseUrl}/api/analyze/github_copilot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      expect(res.status).toBe(200);
+      const report = await res.json() as SourceReport;
+      expect(report.tier).toBeNull();
+      expect(Array.isArray(report.warnings)).toBe(true);
+      expect((report.warnings ?? []).length).toBeGreaterThan(0);
+    } finally {
+      delete process.env.COPILOT_SESSION_STATE_DIR;
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  }, 15_000);
 });

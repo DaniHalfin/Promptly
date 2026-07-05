@@ -256,6 +256,7 @@ export interface SourceReport {
   connected: boolean;
   error: string | null;
   metrics: SourceMetrics | null;
+  warnings?: string[];
 }
 
 // ====== Recommendations ======

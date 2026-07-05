@@ -1,15 +1,46 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { DayPicker, type DateRange } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
 import { useSession } from '../context/SessionContext.js';
 import { SourceCard } from '../components/SourceCard.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
 import type { SourceConfig, SourceId } from '../types/index.js';
+import {
+  PERIOD_PRESETS,
+  type PeriodMode,
+  getPresetRange,
+  parseIsoDate,
+  toIsoDate,
+  countInclusiveDays,
+  validateDateRange,
+} from '../lib/dateRange.js';
+
+const MOM_MIN_DAYS = 60;
 
 export function Landing() {
   const { state, dispatch } = useSession();
-  const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 86400000 * 30).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('last_60');
+  const defaultRange = useMemo(() => getPresetRange('last_60'), []);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>({
+    from: parseIsoDate(defaultRange.start),
+    to: parseIsoDate(defaultRange.end),
   });
+  const [dateError, setDateError] = useState<string | null>(null);
+
+  const effectiveDateRange = useMemo(
+    () => periodMode === 'custom'
+      ? {
+          start: customRange?.from ? toIsoDate(customRange.from) : '',
+          end: customRange?.to ? toIsoDate(customRange.to) : '',
+        }
+      : getPresetRange(periodMode),
+    [periodMode, customRange]
+  );
+
+  const presetLabel = PERIOD_PRESETS.find(p => p.id === periodMode)?.label ?? 'Custom';
+  const inclusiveDays = countInclusiveDays(effectiveDateRange);
+  const showMomNudge = inclusiveDays > 0 && inclusiveDays < MOM_MIN_DAYS;
 
   const hasAnyEnabled = Object.values(state.sources).some(
     s => s?.enabled || s?.status === 'connected' || s?.status === 'ready'
@@ -23,11 +54,18 @@ export function Landing() {
   const sourceConfig = (sourceId: SourceId, hasCredential: boolean): SourceConfig => ({
     sourceId,
     hasCredential,
-    startDate: dateRange.start,
-    endDate: dateRange.end,
+    startDate: effectiveDateRange.start,
+    endDate: effectiveDateRange.end,
   });
 
   const handleAnalyze = () => {
+    const rangeError = validateDateRange(effectiveDateRange);
+    if (rangeError) {
+      setDateError(rangeError);
+      return;
+    }
+    setDateError(null);
+
     const config: { sources: SourceConfig[] } = {
       sources: [
         isActive('openai') ? sourceConfig('openai', true) : null,
@@ -124,39 +162,86 @@ export function Landing() {
             }}>
               Analysis Period
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                {/* WP-2: htmlFor/id binding so labels are programmatically associated with their inputs */}
-                <label
-                  htmlFor="landing-start-date"
-                  style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}
-                >
-                  Start Date
-                </label>
-                <input
-                  id="landing-start-date"
-                  type="date"
-                  value={dateRange.start}
-                  onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="landing-end-date"
-                  style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}
-                >
-                  End Date
-                </label>
-                <input
-                  id="landing-end-date"
-                  type="date"
-                  value={dateRange.end}
-                  onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
+
+            {/* Preset selector */}
+            <div
+              role="group"
+              aria-label="Analysis period presets"
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
+            >
+              {PERIOD_PRESETS.map(preset => {
+                const selected = periodMode === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    data-testid={`period-preset-${preset.id}`}
+                    aria-pressed={selected}
+                    onClick={() => { setPeriodMode(preset.id); setDateError(null); }}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      borderRadius: 'var(--radius-pill)',
+                      cursor: 'pointer',
+                      border: selected ? '1px solid var(--color-accent-border)' : '1px solid rgba(255,255,255,0.12)',
+                      background: selected ? 'var(--color-accent-muted)' : 'transparent',
+                      color: selected ? 'var(--color-accent-light)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Period summary */}
+            <p
+              data-testid="period-summary"
+              style={{ margin: '0 0 4px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+            >
+              {presetLabel}
+              {effectiveDateRange.start && effectiveDateRange.end
+                ? ` · ${effectiveDateRange.start} – ${effectiveDateRange.end}`
+                : ' · select a range'}
+            </p>
+
+            {/* MoM nudge */}
+            {showMomNudge && (
+              <p
+                role="note"
+                data-testid="mom-window-nudge"
+                style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-warning-text)' }}
+              >
+                Add more days to enable month-over-month comparison.
+              </p>
+            )}
+
+            {/* Custom range calendar */}
+            {periodMode === 'custom' && (
+              <div style={{ marginTop: 12 }}>
+                <DayPicker
+                  mode="range"
+                  selected={customRange}
+                  onSelect={(range) => { setCustomRange(range); setDateError(null); }}
+                  disabled={{ after: new Date() }}
+                  toDate={new Date()}
+                  defaultMonth={customRange?.from ?? parseIsoDate(effectiveDateRange.start || toIsoDate(new Date()))}
+                  className="promptly-day-picker"
+                />
+              </div>
+            )}
+
+            {/* Inline date error */}
+            {dateError && (
+              <p
+                role="alert"
+                data-testid="date-range-error"
+                style={{ margin: '8px 0 0', fontSize: '0.75rem', color: 'var(--color-critical-text)' }}
+              >
+                {dateError}
+              </p>
+            )}
           </div>
 
           {/* Source cards — WP-1: h2 so SourceCard h3 headings have a valid parent heading */}
