@@ -5,19 +5,51 @@ export function Error() {
   const { state, dispatch } = useSession();
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
+    <div
+      data-testid="error-page"
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        background: 'var(--color-bg-base)',
+      }}
+    >
+      <div style={{
+        width: '100%',
+        maxWidth: 448,
+        textAlign: 'center',
+        background: 'var(--color-bg-surface)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '32px 24px',
+      }}>
         {/* WP-2: aria-hidden — decorative emoji has no information value for AT users */}
-        <div className="mb-6 text-6xl text-red-500" aria-hidden="true">⚠️</div>
+        <div style={{ marginBottom: 24, fontSize: '3.75rem', lineHeight: 1, color: 'var(--color-critical-text)' }} aria-hidden="true">⚠️</div>
         {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
-        <h1 className="text-3xl font-bold mb-4 text-slate-900" tabIndex={-1} data-focus-on-mount style={{ outline: 'none' }}>Analysis Failed</h1>
-        <p className="text-slate-600 mb-6">{state.analysisError || 'An unknown error occurred'}</p>
+        <h1
+          tabIndex={-1}
+          data-focus-on-mount
+          style={{
+            outline: 'none',
+            margin: '0 0 16px',
+            fontSize: 'var(--text-title)',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+          }}
+        >
+          Analysis Failed
+        </h1>
+        <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>
+          {state.analysisError || 'An unknown error occurred'}
+        </p>
 
-        <div className="flex gap-4">
-          <button className="primary flex-1" onClick={() => dispatch({ phase: 'landing' })}>
+        <div data-testid="error-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button className="primary" style={{ flex: '1 1 160px' }} onClick={() => dispatch({ phase: 'landing' })}>
             Try Again
           </button>
-          <button className="secondary flex-1" onClick={() => dispatch({ phase: 'landing', sources: {} })}>
+          <button className="secondary" style={{ flex: '1 1 160px' }} onClick={() => dispatch({ phase: 'landing', sources: {} })}>
             Start Over
           </button>
         </div>
@@ -25,3 +57,4 @@ export function Error() {
     </div>
   );
 }
+

@@ -168,8 +168,13 @@ describe('SourceCard', () => {
   it('renders styled upload area for file-type source with correct aria-label — WP-2', () => {
     renderSourceCard('chatgpt_export');
 
-    // WP-2: aria-label now matches the visible text (WCAG 2.5.3 Label-in-name)
-    expect(screen.getByRole('button', { name: /click or drag a .json or .jsonl file here/i })).toBeInTheDocument();
+    // WP-2/B1: aria-label matches the visible text exactly (WCAG 2.5.3 Label-in-name)
+    const upload = screen.getByRole('button', { name: 'Click or drag a .json or .jsonl file here' });
+    expect(upload).toBeInTheDocument();
+    // Visible text must equal the accessible name (no "/" slash copy)
+    expect(upload).toHaveTextContent('Click or drag a .json or .jsonl file here');
+    expect(upload.textContent).not.toMatch(/\.json \/ \.jsonl/);
+    expect(upload.getAttribute('aria-label')).toBe('Click or drag a .json or .jsonl file here');
 
     // No file selected yet — no clear button
     expect(screen.queryByRole('button', { name: /clear file/i })).not.toBeInTheDocument();

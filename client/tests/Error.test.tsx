@@ -41,4 +41,24 @@ describe('Error page', () => {
     renderError();
     expect(screen.getByText('Something broke')).toBeInTheDocument();
   });
+
+  it('renders centered themed error card without Tailwind dependency', () => {
+    renderError();
+    // Outer container is centered and full-height via inline CSS vars (no inert Tailwind)
+    const page = screen.getByTestId('error-page');
+    expect(page).toHaveStyle({
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    });
+    // Heading uses the themed primary text token
+    expect(screen.getByRole('heading', { name: /Analysis Failed/i })).toHaveStyle({
+      color: 'var(--text-primary)',
+    });
+    // Action row is a flex row
+    expect(screen.getByTestId('error-actions')).toHaveStyle({ display: 'flex' });
+    // No inert Tailwind utility classes remain on the root
+    expect(page.className).not.toMatch(/min-h-screen|items-center|justify-center/);
+  });
 });

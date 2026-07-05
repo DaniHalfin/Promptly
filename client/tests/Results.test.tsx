@@ -140,7 +140,10 @@ describe('Results — ADR-9 narrative layout', () => {
       abortControllerRef: { current: null },
     } as any);
     render(<Results />);
-    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+    const back = screen.getByRole('button', { name: /Back/i });
+    // A2: Back button meets the 44px touch target minimum
+    expect(back).toHaveStyle({ minHeight: '44px' });
+    fireEvent.click(back);
     expect(dispatch).toHaveBeenCalledWith({ phase: 'landing' });
   });
 });

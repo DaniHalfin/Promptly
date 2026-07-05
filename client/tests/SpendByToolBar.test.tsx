@@ -56,6 +56,13 @@ describe('SpendByToolBar', () => {
     expect(screen.queryByText(/~\s*$/)).toBeNull();
   });
 
+  it('uses Spend column header instead of Estimated Spend', () => {
+    render(<SpendByToolBar data={entries} />);
+    // W1: sr-only data table header should not expose actual-vs-estimated internals
+    expect(screen.getByRole('columnheader', { name: 'Spend' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /Estimated Spend/i })).toBeNull();
+  });
+
   it('renders empty state message when no entries', () => {
     render(<SpendByToolBar data={[]} />);
     expect(screen.getByText(/No spend data available/)).toBeInTheDocument();

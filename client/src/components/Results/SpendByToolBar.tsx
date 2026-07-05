@@ -23,7 +23,7 @@ export function SpendByToolBar({ data }: SpendByToolBarProps) {
       <figcaption className="sr-only">
         <table>
           <thead>
-            <tr><th scope="col">Tool</th><th scope="col">Estimated Spend</th><th scope="col">Percentage</th></tr>
+            <tr><th scope="col">Tool</th><th scope="col">Spend</th><th scope="col">Percentage</th></tr>
           </thead>
           <tbody>
             {sorted.map(entry => (

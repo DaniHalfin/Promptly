@@ -345,13 +345,13 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             }}
             role="button"
             tabIndex={0}
-            /* WP-2: aria-label matches visible text exactly (WCAG 2.5.3 Label-in-name) */
+            /* WP-2: aria-label and visible text match exactly (WCAG 2.5.3 Label-in-name) */
             aria-label="Click or drag a .json or .jsonl file here"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           >
             <span className="upload-area-icon">📂</span>
             <span className="upload-area-label">
-              Click or drag a .json / .jsonl file here
+              Click or drag a .json or .jsonl file here
             </span>
           </div>
           <input

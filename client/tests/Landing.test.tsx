@@ -11,14 +11,16 @@ import { getPresetRange, getYtdRange, toIsoDate, validateDateRange } from '../sr
 vi.mock('../src/components/ThemeToggle.js', () => ({ ThemeToggle: () => null }));
 vi.mock('../src/components/SourceCard.js', () => ({ SourceCard: () => null }));
 
-const validateMock = vi.fn(async (sourceId: string, startDate?: string, endDate?: string) => ({
+const fullValidationResult = {
   valid: true,
-  sourceId,
+  sourceId: 'openai',
   availability: 'full' as const,
   daysAvailable: 60,
   daysRequested: 60,
   warnings: [] as string[],
-}));
+};
+
+const validateMock = vi.fn().mockResolvedValue(fullValidationResult);
 
 vi.mock('../src/api/client.js', () => ({
   apiClient: {
@@ -47,10 +49,13 @@ function renderLanding(sources: Record<string, unknown> = { openai: { ...fullOpe
 }
 
 describe('Landing — A1 presets & config', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockResolvedValue(fullValidationResult);
+  });
 
   it('defaults to Last 60 days and hides custom range picker', () => {
-    renderLanding();
+    renderLanding({});
     const last60 = screen.getByTestId('period-preset-last_60');
     expect(last60).toHaveAttribute('aria-pressed', 'true');
     // Custom DayPicker grid is not rendered by default
@@ -58,13 +63,13 @@ describe('Landing — A1 presets & config', () => {
   });
 
   it('renders Last 7/30/60/90/YTD/Custom presets', () => {
-    renderLanding();
+    renderLanding({});
     for (const id of ['last_7', 'last_30', 'last_60', 'last_90', 'ytd', 'custom']) {
       expect(screen.getByTestId(`period-preset-${id}`)).toBeInTheDocument();
     }
   });
 
-  it('passes derived Last 60 day range into pending analysis config', () => {
+  it('passes derived Last 60 day range into pending analysis config', async () => {
     const { dispatch } = renderLanding();
     fireEvent.click(screen.getByRole('button', { name: /Run Analysis/i }));
     expect(dispatch).toHaveBeenCalledTimes(1);
@@ -73,9 +78,10 @@ describe('Landing — A1 presets & config', () => {
     const src = arg.pendingAnalysis.config.sources.find((s: any) => s.sourceId === 'openai');
     expect(src.startDate).toBe(expected.start);
     expect(src.endDate).toBe(expected.end);
+    await waitFor(() => expect(validateMock).toHaveBeenCalled());
   });
 
-  it('derives YTD from Jan 1 through today', () => {
+  it('derives YTD from Jan 1 through today', async () => {
     const { dispatch } = renderLanding();
     fireEvent.click(screen.getByTestId('period-preset-ytd'));
     fireEvent.click(screen.getByRole('button', { name: /Run Analysis/i }));
@@ -85,9 +91,10 @@ describe('Landing — A1 presets & config', () => {
     expect(src.startDate).toBe(ytd.start);
     expect(src.startDate.endsWith('-01-01')).toBe(true);
     expect(src.endDate).toBe(ytd.end);
+    await waitFor(() => expect(validateMock).toHaveBeenCalled());
   });
 
-  it('passes selected custom range into pending analysis config', () => {
+  it('passes selected custom range into pending analysis config', async () => {
     const { dispatch } = renderLanding();
     fireEvent.click(screen.getByTestId('period-preset-custom'));
     // DayPicker renders; pick two enabled days to form a range
@@ -107,26 +114,30 @@ describe('Landing — A1 presets & config', () => {
     const src = arg.pendingAnalysis.config.sources.find((s: any) => s.sourceId === 'openai');
     expect(src.startDate).toBe(start);
     expect(src.endDate).toBe(end);
+    await waitFor(() => expect(validateMock).toHaveBeenCalled());
   });
 });
 
 describe('Landing — A2 MoM nudge & validation', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockResolvedValue(fullValidationResult);
+  });
 
   it('shows MoM nudge for Last 7 days', () => {
-    renderLanding();
+    renderLanding({});
     fireEvent.click(screen.getByTestId('period-preset-last_7'));
     expect(screen.getByTestId('mom-window-nudge')).toBeInTheDocument();
   });
 
   it('shows MoM nudge for Last 30 days', () => {
-    renderLanding();
+    renderLanding({});
     fireEvent.click(screen.getByTestId('period-preset-last_30'));
     expect(screen.getByTestId('mom-window-nudge')).toBeInTheDocument();
   });
 
   it('does not show MoM nudge for Last 60 days', () => {
-    renderLanding();
+    renderLanding({});
     expect(screen.queryByTestId('mom-window-nudge')).toBeNull();
   });
 
@@ -140,7 +151,7 @@ describe('Landing — A2 MoM nudge & validation', () => {
     expect(err).toBe('End date cannot be in the future.');
   });
 
-  it('surfaces an inline error and does not dispatch when custom range is incomplete', () => {
+  it('surfaces an inline error and does not dispatch when custom range is incomplete', async () => {
     // Genuine Landing gate: switching to Custom then clearing to a single-ended
     // range makes effectiveDateRange incomplete; Run Analysis must block + warn.
     const { dispatch } = renderLanding();
@@ -161,6 +172,7 @@ describe('Landing — A2 MoM nudge & validation', () => {
       expect(screen.getByTestId('date-range-error')).toBeInTheDocument();
       expect(dispatch).not.toHaveBeenCalled();
     }
+    await waitFor(() => expect(validateMock).toHaveBeenCalled());
   });
 
   it('blocks analysis + inline error when custom start is after end', () => {
@@ -168,6 +180,30 @@ describe('Landing — A2 MoM nudge & validation', () => {
     // from the picker; validateDateRange (called by handleAnalyze) is the guard.
     const err = validateDateRange({ start: '2026-05-20', end: '2026-05-10' });
     expect(err).toBe('Start date must be on or before the end date.');
+  });
+});
+
+describe('Landing — B3/A2 layout & touch targets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockResolvedValue(fullValidationResult);
+  });
+
+  it('reserves scroll padding for fixed action footer', () => {
+    renderLanding({});
+    expect(screen.getByTestId('landing-action-footer')).toHaveStyle({ position: 'fixed', bottom: '0px' });
+    // jsdom drops calc()/env() from serialized inline style, so the reserved
+    // padding is mirrored to a data attribute for deterministic assertion.
+    const reserved = screen.getByTestId('landing-content').getAttribute('data-scroll-padding-bottom') ?? '';
+    expect(reserved).toContain('220px');
+    expect(reserved).toContain('safe-area-inset-bottom');
+  });
+
+  it('date preset buttons meet touch target', () => {
+    renderLanding({});
+    for (const id of ['last_7', 'last_30', 'last_60', 'last_90', 'ytd', 'custom']) {
+      expect(screen.getByTestId(`period-preset-${id}`)).toHaveStyle({ minHeight: '44px' });
+    }
   });
 });
 

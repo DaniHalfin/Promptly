@@ -19,6 +19,11 @@ import {
 const MOM_MIN_DAYS = 60;
 const VALIDATION_SPINNER_DELAY_MS = 200;
 
+/* B3: reserved scroll space so content clears the fixed action footer at all
+   font sizes / mobile widths, including the iOS safe-area inset. */
+const ACTION_FOOTER_RESERVED_HEIGHT = 220;
+const ACTION_FOOTER_PADDING_BOTTOM = 'calc(16px + env(safe-area-inset-bottom, 0px))';
+
 const SOURCE_LABELS: Record<string, string> = {
   github_copilot: 'GitHub Copilot',
   claude_code: 'Claude Code',
@@ -220,13 +225,17 @@ export function Landing() {
       </div>
 
       {/* Main content */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '48px 24px 160px', /* WP-8: 160px ensures last card is clear of the ~116px fixed footer bar at all font sizes */
-      }}>
+      <div
+        data-testid="landing-content"
+        data-scroll-padding-bottom={`calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`}
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: `48px 24px calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`, /* B3: clears fixed footer at all font sizes + safe-area inset */
+        }}
+      >
         <div style={{ width: '100%', maxWidth: 520 }}>
           {/* Hero text */}
           {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
@@ -289,7 +298,8 @@ export function Landing() {
                     aria-pressed={selected}
                     onClick={() => { setPeriodMode(preset.id); setDateError(null); }}
                     style={{
-                      padding: '6px 12px',
+                      minHeight: 44,
+                      padding: '8px 14px',
                       fontSize: '0.8125rem',
                       fontWeight: 500,
                       borderRadius: 'var(--radius-pill)',
@@ -405,18 +415,21 @@ export function Landing() {
       </div>
 
       {/* Sticky action footer — always visible regardless of scroll position */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        padding: '12px 24px 16px',
-        background: 'var(--color-bg-elevated)',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-      }}>
+      <div
+        data-testid="landing-action-footer"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          padding: `12px 24px ${ACTION_FOOTER_PADDING_BOTTOM}`,
+          background: 'var(--color-bg-elevated)',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      >
         <div style={{ maxWidth: 520, margin: '0 auto' }}>
           {/* E4: visible re-validation indicator when validation exceeds ~200ms */}
           {showValidationSpinner && (
