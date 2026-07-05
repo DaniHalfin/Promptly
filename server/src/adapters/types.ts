@@ -39,8 +39,23 @@ export interface AdapterContext {
   abortSignal?: AbortSignal;
 }
 
+/**
+ * Result of an adapter's validate() call.
+ *
+ * Discriminated union on `valid` so TypeScript enforces the contract:
+ *   - valid: true  → `daysAvailable` is REQUIRED (a defined number) and `error` is null.
+ *   - valid: false → `daysAvailable` MUST be absent and `error` carries the failure.
+ *
+ * This removes the `?? 0` footgun in the /validate route: a valid result can no
+ * longer silently omit `daysAvailable`. A source with no usable data must report
+ * `daysAvailable: 0` explicitly, which the route maps to availability: 'none'.
+ */
+export type AdapterValidateResult =
+  | { valid: true; daysAvailable: number; error: null }
+  | { valid: false; daysAvailable?: never; error: AdapterError };
+
 export interface SourceAdapter {
   id: SourceId;
-  validate(ctx: AdapterContext): Promise<{ valid: boolean; error: AdapterError | null; daysAvailable?: number }>;
+  validate(ctx: AdapterContext): Promise<AdapterValidateResult>;
   run(ctx: AdapterContext): Promise<AdapterResult>;
 }

@@ -26,7 +26,11 @@ const chatgptExportAdapter: SourceAdapter = {
   id: 'chatgpt_export',
 
   async validate() {
-    return { valid: true, error: null };
+    // ChatGPT export is validated per-upload by the dedicated multipart route,
+    // which inspects the actual file. At adapter-validate time no file is
+    // available, so report the standard rolling-window default. A valid result
+    // must always carry a defined daysAvailable (discriminated-union contract).
+    return { valid: true, error: null, daysAvailable: 30 };
   },
 
   async run(ctx: AdapterContext): Promise<AdapterResult> {

@@ -82,4 +82,18 @@ describe('validate route — availability normalization (E2)', () => {
     expect(body.daysRequested).toBe(40);
     expect(body.errorMessage).toMatch(/No data/i);
   });
+
+  // Batch 1 (1c): discriminated-union footgun guard. An adapter that returns the
+  // fully-typed valid result `{ valid: true, error: null, daysAvailable: 0 }`
+  // must be normalized to availability: 'none' by the route — proving the old
+  // `daysAvailable ?? 0` fallback can no longer mask a zero-coverage source now
+  // that the type requires daysAvailable on every valid result.
+  it('maps a valid-but-zero-coverage adapter result to availability none', async () => {
+    const { status, body } = await validate('none_src', '2026-03-01', '2026-03-31');
+    expect(status).toBe(400);
+    expect(body.valid).toBe(false);
+    expect(body.availability).toBe('none');
+    expect(body.daysAvailable).toBe(0);
+    expect(body.daysRequested).toBeGreaterThan(0);
+  });
 });
