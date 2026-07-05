@@ -1,5 +1,102 @@
-import { AnalysisRequest, CrossSourceSummary, RecommendationId, RecommendationResult, SourceReport, TrendStatus, SpendByToolEntry, DailySpendEntry } from '../../types/index.js';
+import { AnalysisRequest, CrossSourceSummary, RecommendationId, RecommendationResult, SourceReport, TrendStatus, SpikeCallout, SpendByToolEntry, DailySpendEntry } from '../../types/index.js';
 import { PriceMap } from '../../data/priceMap.js';
+
+const TREND_REQUIRED_DAYS = 60;
+const TREND_WINDOW_DAYS = 30;
+const SPIKE_MIN_DAYS = 3;
+const SPIKE_THRESHOLD_MULTIPLIER = 2;
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Universal MoM spend trend from merged daily spend.
+ * Requires ≥60 calendar days of coverage; compares the last 30 days vs the prior 30.
+ * Tier-independent: any source that emits dailySpend contributes.
+ */
+export function computeSpendTrend(daily: DailySpendEntry[]): TrendStatus {
+  const required_days = TREND_REQUIRED_DAYS;
+  if (daily.length === 0) {
+    return {
+      status: 'insufficient_data',
+      observed_days: 0,
+      required_days,
+      message: 'No daily spend data available for trend computation.',
+    };
+  }
+
+  const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date));
+  const firstMs = new Date(sorted[0].date).getTime();
+  const lastMs = new Date(sorted[sorted.length - 1].date).getTime();
+  const spanDays = Math.round((lastMs - firstMs) / MS_PER_DAY) + 1;
+
+  if (spanDays < required_days) {
+    return {
+      status: 'insufficient_data',
+      observed_days: spanDays,
+      required_days,
+      message: `Only ${spanDays} day${spanDays !== 1 ? 's' : ''} of spend coverage; ${required_days} required for trend analysis.`,
+    };
+  }
+
+  // Anchor windows at the last observed date: last 30 days vs prior 30 days.
+  const currentStartMs = lastMs - (TREND_WINDOW_DAYS - 1) * MS_PER_DAY;
+  const priorStartMs = currentStartMs - TREND_WINDOW_DAYS * MS_PER_DAY;
+  let currentSum = 0;
+  let priorSum = 0;
+  for (const d of sorted) {
+    const t = new Date(d.date).getTime();
+    if (t >= currentStartMs && t <= lastMs) {
+      currentSum += d.spend_usd;
+    } else if (t >= priorStartMs && t < currentStartMs) {
+      priorSum += d.spend_usd;
+    }
+  }
+
+  if (priorSum === 0) {
+    return {
+      status: 'no_prior_spend',
+      observed_days: spanDays,
+      required_days,
+      message: 'No spend in the prior 30-day period; cannot compute trend.',
+    };
+  }
+
+  const mom_change_pct = ((currentSum - priorSum) / priorSum) * 100;
+  const sign = mom_change_pct >= 0 ? '+' : '';
+  return {
+    status: 'available',
+    mom_change_pct,
+    observed_days: spanDays,
+    required_days,
+    message: `Month-over-month change: ${sign}${mom_change_pct.toFixed(1)}%`,
+  };
+}
+
+/**
+ * Universal spend spike from merged daily spend.
+ * Fires when peak day spend ≥ 2× average AND there are ≥3 days of data.
+ */
+export function computeSpendSpike(daily: DailySpendEntry[]): SpikeCallout | null {
+  if (daily.length < SPIKE_MIN_DAYS) return null;
+
+  const total = daily.reduce((s, d) => s + d.spend_usd, 0);
+  const average = total / daily.length;
+  if (average <= 0) return null;
+
+  let peak = daily[0];
+  for (const d of daily) {
+    if (d.spend_usd > peak.spend_usd) peak = d;
+  }
+
+  if (peak.spend_usd < SPIKE_THRESHOLD_MULTIPLIER * average) return null;
+
+  const multiple = peak.spend_usd / average;
+  return {
+    date: peak.date,
+    spend_usd: peak.spend_usd,
+    multiple_of_average: multiple,
+    message: `Spike detected on ${peak.date}: $${peak.spend_usd.toFixed(2)} (${multiple.toFixed(1)}× daily average of $${average.toFixed(2)}).`,
+  };
+}
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   openai: 'OpenAI',
@@ -203,22 +300,11 @@ export function computeCrossSourceMetrics(reports: SourceReport[], _priceMap: Pr
       ...(has_tier_c ? { includes_estimated_tier_c: true } : {}),
     }));
 
-  // ── Trend and spike: propagate from Tier C source if available ──────────
-  let trend: TrendStatus = {
-    status: 'insufficient_data',
-    observed_days: 0,
-    required_days: 30,
-    message: 'No activity data available for trend computation.',
-  };
-  let spike_callout = null;
-
-  for (const r of reports) {
-    if (r.tier === 'C' && r.metrics?.trend) {
-      trend = r.metrics.trend;
-      spike_callout = r.metrics.spike_callout ?? null;
-      break;
-    }
-  }
+  // ── Trend and spike: universal, computed from merged daily_spend ─────────
+  // Any source emitting dailySpend contributes (tier-independent). MoM trend
+  // needs ≥60 days of coverage (last 30 vs prior 30); spike needs ≥3 days.
+  const trend = computeSpendTrend(daily_spend);
+  const spike_callout = computeSpendSpike(daily_spend);
 
   return {
     total_actual_spend_usd,

@@ -41,6 +41,11 @@ const session = (model: string, requestCost: number, extra?: Partial<{
   totalCost: requestCost,
 });
 
+const sessionOn = (date: string, model: string, requestCost: number): NormalizedCopilotSession => ({
+  ...session(model, requestCost),
+  date,
+});
+
 const priceMap: PriceMap = new Map([[
   'model-a',
   {
@@ -298,6 +303,45 @@ describe('computeTierBMetrics', () => {
 
     expect(openaiMetrics.totalSpendUsd).toBe(openaiMetrics.totalActualSpendUsd);
     expect(copilotMetrics.totalSpendUsd).toBe(copilotMetrics.copilotTotalCostUsd);
+  });
+
+  it('Copilot: aggregates dailySpend by session date', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [
+        sessionOn('2026-06-01', 'gpt-5.4', 3),
+        sessionOn('2026-06-01', 'gpt-5.4-mini', 2),
+        sessionOn('2026-06-02', 'gpt-5.4', 4),
+      ],
+    }), priceMap);
+
+    expect(metrics.dailySpend).toEqual([
+      { date: '2026-06-01', spendUsd: 5 },
+      { date: '2026-06-02', spendUsd: 4 },
+    ]);
+  });
+
+  it('Copilot: sets models_identified from model breakdown', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [
+        sessionOn('2026-06-01', 'gpt-5.4', 5),
+        sessionOn('2026-06-02', 'gpt-5.4-mini', 3),
+      ],
+    }), priceMap);
+
+    expect(metrics.models_identified).toEqual(expect.arrayContaining(['gpt-5.4', 'gpt-5.4-mini']));
+    expect(metrics.models_identified).toHaveLength(2);
+  });
+
+  it('Copilot: empty dailySpend + models_identified when no sessions', () => {
+    const metrics = computeTierBMetrics(base({
+      sourceId: 'github_copilot',
+      copilotSessions: [],
+    }), priceMap);
+
+    expect(metrics.dailySpend).toEqual([]);
+    expect(metrics.models_identified).toEqual([]);
   });
 
   it('includes cache creation and cache read costs in model cost', () => {
@@ -1113,5 +1157,74 @@ describe('Cross-source daily spend', () => {
     // No Tier C daily spend entries since total_conversations = 0
     const tierCDays = summary.daily_spend.filter(d => d.includes_estimated_tier_c);
     expect(tierCDays).toHaveLength(0);
+  });
+
+  it('includes Copilot Tier B dailySpend in cross-source daily_spend', () => {
+    const reports = [
+      tierBReport('github_copilot', {
+        spend: 8,
+        dailySpend: [
+          { date: '2026-06-01', spendUsd: 3 },
+          { date: '2026-06-02', spendUsd: 5 },
+        ],
+      }),
+    ];
+    const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
+    const d1 = summary.daily_spend.find(d => d.date === '2026-06-01');
+    const d2 = summary.daily_spend.find(d => d.date === '2026-06-02');
+    expect(d1?.spend_usd).toBeCloseTo(3);
+    expect(d2?.spend_usd).toBeCloseTo(5);
+  });
+});
+
+// ── C2: universal trend/spike from merged daily_spend ──────────────────────
+function spendDays(startISO: string, count: number, spendPerDay: (i: number) => number) {
+  const start = new Date(startISO).getTime();
+  return Array.from({ length: count }, (_, i) => ({
+    date: new Date(start + i * 86_400_000).toISOString().split('T')[0],
+    spendUsd: spendPerDay(i),
+  }));
+}
+
+describe('Cross-source universal trend and spike', () => {
+  it('computes MoM trend from merged daily spend with 60 days', () => {
+    // prior 30 days @ $1, last 30 days @ $2 → +100% MoM
+    const dailySpend = spendDays('2026-04-01', 60, i => (i < 30 ? 1 : 2));
+    const reports = [tierBReport('openai', { spend: 90, dailySpend })];
+    const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
+    expect(summary.trend.status).toBe('available');
+    if (summary.trend.status === 'available') {
+      expect(summary.trend.mom_change_pct).toBeCloseTo(100, 0);
+    }
+  });
+
+  it('applies same 60-day threshold for Tier B-only data', () => {
+    // Only 30 days of coverage → below the universal 60-day requirement
+    const dailySpend = spendDays('2026-06-01', 30, () => 5);
+    const reports = [tierBReport('anthropic', { spend: 150, dailySpend })];
+    const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
+    expect(summary.trend.status).toBe('insufficient_data');
+  });
+
+  it('creates spike_callout from merged daily_spend when peak ≥2× avg', () => {
+    const dailySpend = [
+      { date: '2026-06-01', spendUsd: 1 },
+      { date: '2026-06-02', spendUsd: 1 },
+      { date: '2026-06-03', spendUsd: 10 },
+    ];
+    const reports = [tierBReport('openai', { spend: 12, dailySpend })];
+    const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
+    expect(summary.spike_callout).not.toBeNull();
+    expect(summary.spike_callout?.date).toBe('2026-06-03');
+  });
+
+  it('returns null when fewer than 3 daily spend days exist', () => {
+    const dailySpend = [
+      { date: '2026-06-01', spendUsd: 1 },
+      { date: '2026-06-02', spendUsd: 10 },
+    ];
+    const reports = [tierBReport('openai', { spend: 11, dailySpend })];
+    const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
+    expect(summary.spike_callout).toBeNull();
   });
 });

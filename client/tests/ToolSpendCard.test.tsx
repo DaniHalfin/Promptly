@@ -115,4 +115,61 @@ describe('ToolSpendCard', () => {
     render(<ToolSpendCard source={errSource} recommendations={[]} />);
     expect(screen.getByText(/Invalid API key/)).toBeInTheDocument();
   });
+
+  it('does not expose Tier B or Tier C labels', () => {
+    const { container } = render(<ToolSpendCard source={openaiSource} recommendations={[]} spendEntry={spendEntry} />);
+    expect(container.textContent).not.toMatch(/Tier\s+[BC]\b/);
+  });
+
+  it('renders spend without tilde or estimated sublabel', () => {
+    const { container } = render(<ToolSpendCard source={chatgptSource} recommendations={[]} />);
+    // Tier C spend renders as a plain figure with a "Spend" label — no ~, no "estimated"
+    expect(screen.getByText('$12.50')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/~/);
+    expect(container.textContent).not.toMatch(/estimated/i);
+  });
+
+  it('renders model chips from copilotModelCostBreakdown fallback', () => {
+    const copilotSource = makeSource('github_copilot', 'B', {
+      copilotTotalCostUsd: 42,
+      copilotSessionCount: 3,
+      totalActualTokens: 1500,
+      copilotModelCostBreakdown: [
+        { model: 'gpt-5.4', costUsd: 30, costShare: 0.7 },
+        { model: 'gpt-5.4-mini', costUsd: 12, costShare: 0.3 },
+      ],
+    });
+    render(<ToolSpendCard source={copilotSource} recommendations={[]} />);
+    expect(screen.getByText('gpt-5.4')).toBeInTheDocument();
+    expect(screen.getByText('gpt-5.4-mini')).toBeInTheDocument();
+  });
+
+  it('renders mini spend trend when dailySpend exists (Tier B)', () => {
+    const tierBWithTrend = makeSource('openai', 'B', {
+      totalActualSpendUsd: 50,
+      dailySpend: [
+        { date: '2026-01-01', spendUsd: 20 },
+        { date: '2026-01-02', spendUsd: 30 },
+      ],
+    });
+    render(<ToolSpendCard source={tierBWithTrend} recommendations={[]} />);
+    expect(screen.getByTestId('spend-trend-openai')).toBeInTheDocument();
+    // Tier B must NOT render the conversation activity line
+    expect(screen.queryByTestId('daily-conversation-activity-line')).not.toBeInTheDocument();
+  });
+
+  it('renders source-specific key metrics without calculation caveats', () => {
+    const copilotSource = makeSource('github_copilot', 'B', {
+      copilotTotalCostUsd: 42,
+      copilotSessionCount: 4,
+      totalActualTokens: 2000,
+      copilotAvgTokensPerSession: 500,
+    });
+    const { container } = render(<ToolSpendCard source={copilotSource} recommendations={[]} />);
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Total tokens')).toBeInTheDocument();
+    // No calculation-caveat copy
+    expect(container.textContent).not.toMatch(/estimated/i);
+    expect(container.textContent).not.toMatch(/\(est\.\)/);
+  });
 });

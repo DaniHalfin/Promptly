@@ -23,21 +23,98 @@ const recBorderColor = (rec: RecommendationResult) => {
   return 'var(--color-info)';
 };
 
+const fmtUsd = (n: number) => `$${n.toFixed(2)}`;
+const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
+
+/** Minimal accessible spend trend surface for Tier B sources that emit dailySpend. */
+function MiniSpendTrend({ sourceId, data }: { sourceId: string; data: Array<{ date: string; spendUsd: number }> }) {
+  return (
+    <figure
+      data-testid={`spend-trend-${sourceId}`}
+      aria-label="Daily spend trend"
+      style={{ margin: 0 }}
+    >
+      <figcaption className="sr-only">
+        <table>
+          <thead>
+            <tr><th scope="col">Date</th><th scope="col">Spend (USD)</th></tr>
+          </thead>
+          <tbody>
+            {data.map(d => (
+              <tr key={d.date}>
+                <td>{d.date}</td>
+                <td>${d.spendUsd.toFixed(4)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </figcaption>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 32 }}>
+        {(() => {
+          const peak = data.reduce((m, d) => Math.max(m, d.spendUsd), 0) || 1;
+          return data.map(d => (
+            <div
+              key={d.date}
+              title={`${d.date}: ${fmtUsd(d.spendUsd)}`}
+              style={{
+                flex: 1,
+                minWidth: 2,
+                height: `${Math.max(2, (d.spendUsd / peak) * 32)}px`,
+                background: 'var(--color-accent)',
+                borderRadius: 1,
+              }}
+            />
+          ));
+        })()}
+      </div>
+    </figure>
+  );
+}
+
 export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpendCardProps) {
   const { source_id, tier, metrics, error } = source;
   const displayName = SOURCE_DISPLAY_NAMES[source_id] ?? source_id;
   const isTierC = source_id === 'chatgpt_export' || source_id === 'claude_export';
+  const isCopilot = source_id === 'github_copilot';
+  const m = (metrics as any) ?? {};
 
-  // Derive spend display
+  // Derive spend display (canonical — no estimated/actual distinction shown)
   const spend = spendEntry?.estimated_spend_usd
-    ?? (metrics as any)?.totalSpendUsd
-    ?? (metrics as any)?.totalActualSpendUsd
-    ?? (metrics as any)?.copilotTotalCostUsd
-    ?? (metrics as any)?.estimated_relative_cost_usd;
-  const isEstimated = spendEntry?.is_estimated ?? isTierC;
+    ?? m.totalSpendUsd
+    ?? m.totalActualSpendUsd
+    ?? m.copilotTotalCostUsd
+    ?? m.estimated_relative_cost_usd;
 
-  const dailyActivity = (metrics as any)?.daily_conversation_activity ?? [];
-  const modelsIdentified: string[] = (metrics as any)?.models_identified ?? [];
+  // Models: models_identified → modelBreakdown → copilotModelCostBreakdown fallback
+  const modelsIdentified: string[] = m.models_identified?.length
+    ? m.models_identified
+    : m.modelBreakdown?.length
+      ? m.modelBreakdown.map((e: any) => e.model)
+      : m.copilotModelCostBreakdown?.length
+        ? m.copilotModelCostBreakdown.map((e: any) => e.model)
+        : [];
+
+  const dailyActivity = m.daily_conversation_activity ?? [];
+  const dailySpend: Array<{ date: string; spendUsd: number }> = m.dailySpend ?? [];
+
+  // Source-specific key metrics — factual, no calculation caveats.
+  const keyMetrics: Array<{ label: string; value: string }> = [];
+  if (isCopilot) {
+    if (m.copilotSessionCount != null) keyMetrics.push({ label: 'Sessions', value: fmtInt(m.copilotSessionCount) });
+    if (m.totalActualTokens != null) keyMetrics.push({ label: 'Total tokens', value: fmtInt(m.totalActualTokens) });
+    if (m.copilotAvgTokensPerSession != null) keyMetrics.push({ label: 'Avg tokens/session', value: fmtInt(m.copilotAvgTokensPerSession) });
+  } else if (isTierC) {
+    if (m.total_conversations != null) keyMetrics.push({ label: 'Conversations', value: fmtInt(m.total_conversations) });
+    if (m.total_messages != null) keyMetrics.push({ label: 'Messages', value: fmtInt(m.total_messages) });
+    if (m.active_days != null) keyMetrics.push({ label: 'Active days', value: fmtInt(m.active_days) });
+    if (m.estimated_token_volume != null) keyMetrics.push({ label: 'Token volume', value: fmtInt(m.estimated_token_volume) });
+  } else {
+    // OpenAI / Anthropic / Claude Code
+    if (m.totalActualTokens != null) keyMetrics.push({ label: 'Total tokens', value: fmtInt(m.totalActualTokens) });
+    if (m.avgDailySpendUsd != null) keyMetrics.push({ label: 'Avg daily spend', value: fmtUsd(m.avgDailySpendUsd) });
+    const cacheSavings = m.cachedTokenSavingsUsdAnthropic ?? m.cachedTokenSavingsUsdClaudeCode;
+    if (cacheSavings != null && cacheSavings > 0) keyMetrics.push({ label: 'Cache savings', value: fmtUsd(cacheSavings) });
+  }
 
   return (
     <div
@@ -51,20 +128,13 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
           <h3 style={{ margin: '0 0 2px', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
             {displayName}
           </h3>
-          {tier && (
-            <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              Tier {tier}
-            </span>
-          )}
         </div>
         {spend != null && (
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {isEstimated ? '~' : ''}${spend.toFixed(2)}
+              {fmtUsd(spend)}
             </div>
-            {isEstimated && (
-              <div style={{ fontSize: '0.6875rem', color: 'var(--color-warning-text)' }}>estimated</div>
-            )}
+            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Spend</div>
           </div>
         )}
       </div>
@@ -76,25 +146,47 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
         </p>
       )}
 
+      {/* Key metrics */}
+      {keyMetrics.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
+          {keyMetrics.map(km => (
+            <div key={km.label}>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {km.label}
+              </div>
+              <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {km.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Models */}
       {modelsIdentified.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Models</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {modelsIdentified.map(m => (
-              <span key={m} style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', color: 'var(--text-secondary)' }}>
-                {m}
+            {modelsIdentified.map((mdl: string) => (
+              <span key={mdl} style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', color: 'var(--text-secondary)' }}>
+                {mdl}
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Daily conversation activity sparkline — Tier C only */}
+      {/* Trend sparkline: Tier C conversation activity, or Tier B daily spend */}
       {isTierC && dailyActivity.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Daily Activity</div>
           <DailyConversationActivityLine data={dailyActivity} />
+        </div>
+      )}
+      {!isTierC && dailySpend.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Daily Spend</div>
+          <MiniSpendTrend sourceId={source_id} data={dailySpend} />
         </div>
       )}
 

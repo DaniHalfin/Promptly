@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DailySpendEntry, TrendStatus, SpikeCallout } from '../../types/index.js';
+import { DailySpendLine } from './charts/DailySpendLine.js';
 
 interface SpendingTrendSectionProps {
   dailySpend: DailySpendEntry[];
@@ -77,33 +78,19 @@ export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: Spendi
         </div>
       )}
 
-      {/* Daily spend chart — simple sr-only table for now; visual chart can be added */}
+      {/* Daily spend chart — wired to the existing accessible DailySpendLine */}
       {dailySpend.length > 0 ? (
         <div className="card" style={{ padding: '20px 24px' }}>
-          {/* sr-only data table */}
-          <figure aria-label="Daily spend trend">
-            <figcaption className="sr-only">
-              <table>
-                <thead>
-                  <tr><th>Date</th><th>Spend (USD)</th></tr>
-                </thead>
-                <tbody>
-                  {dailySpend.map(entry => (
-                    <tr key={entry.date}>
-                      <td>{entry.date}</td>
-                      <td>${entry.spend_usd.toFixed(4)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </figcaption>
-            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              {dailySpend.length} days of data
-            </div>
-          </figure>
+          <DailySpendLine
+            data={dailySpend.map(entry => ({ date: entry.date, costUsd: entry.spend_usd }))}
+          />
         </div>
       ) : (
-        <div className="card" style={{ padding: '20px 24px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+        <div
+          data-testid="spending-trend-empty"
+          className="card"
+          style={{ padding: '20px 24px', color: 'var(--text-muted)', fontSize: '0.875rem' }}
+        >
           No daily spend data available.
         </div>
       )}

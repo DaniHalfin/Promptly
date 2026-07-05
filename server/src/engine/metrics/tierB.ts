@@ -330,6 +330,8 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
       copilotTotalCostUsd: 0,
       copilotSessionCount: 0,
       copilotDailyInputTokens: [],
+      dailySpend: [],
+      models_identified: [],
       totalActualTokens: 0,
       totalSpendUsd: 0,
     };
@@ -411,6 +413,17 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     0,
   );
 
+  // Universal daily spend — aggregate net spend by session date so Copilot
+  // participates in the cross-source daily_spend / trend / spike path.
+  const dailySpendMap = new Map<string, number>();
+  for (const session of sessions) {
+    dailySpendMap.set(session.date, (dailySpendMap.get(session.date) ?? 0) + session.totalCost);
+  }
+  const dailySpend = Array.from(dailySpendMap.entries())
+    .map(([date, spendUsd]) => ({ date, spendUsd }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const models_identified = tokenBreakdownByModel.map(entry => entry.model);
+
   return {
     copilotTotalCostUsd: totalNetSpend,
     copilotModelCostBreakdown: modelCostBreakdown,
@@ -419,6 +432,8 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     copilotSessionCount: sessions.length,
     copilotAvgTokensPerSession,
     copilotDailyInputTokens,
+    dailySpend,
+    models_identified,
     totalActualTokens,
     totalSpendUsd: totalNetSpend,
   };

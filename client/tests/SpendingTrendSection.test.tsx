@@ -69,7 +69,20 @@ describe('SpendingTrendSection', () => {
     expect(screen.getByTestId('spending-trend-section')).toBeInTheDocument();
   });
 
-  it('renders with empty dailySpend (no crash)', () => {
+  it('renders DailySpendLine when dailySpend has entries', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    // The wired DailySpendLine renders a <figure> labelled "Daily spend over time"
+    expect(screen.getByLabelText(/Daily spend over time/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('spending-trend-empty')).not.toBeInTheDocument();
+  });
+
+  it('shows empty message when no dailySpend entries exist', () => {
     render(
       <SpendingTrendSection
         dailySpend={[]}
@@ -78,6 +91,10 @@ describe('SpendingTrendSection', () => {
       />
     );
     expect(screen.getByTestId('spending-trend-section')).toBeInTheDocument();
+    // Empty-state message shown; no wired DailySpendLine figure
+    expect(screen.getByTestId('spending-trend-empty')).toBeInTheDocument();
+    expect(screen.getByText(/No daily spend data available/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Daily spend over time/i)).not.toBeInTheDocument();
   });
 
   it('does not render ChatGPT-specific estimate copy', () => {
