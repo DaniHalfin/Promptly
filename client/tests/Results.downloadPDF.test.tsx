@@ -53,6 +53,10 @@ vi.mock('react-dom/client', () => ({
 // ─── Component mocks ──────────────────────────────────────────────────────────
 vi.mock('../src/components/export/PrintLayout.js',             () => ({ PrintLayout:      () => null }));
 vi.mock('../src/components/ThemeToggle.js',                    () => ({ ThemeToggle:       () => null }));
+vi.mock('../src/components/Results/AnalysisHeader.js',         () => ({ AnalysisHeader:    () => <div data-testid="analysis-header" /> }));
+vi.mock('../src/components/Results/MoneyByToolSection.js',     () => ({ MoneyByToolSection: () => <div data-testid="money-by-tool-section" /> }));
+vi.mock('../src/components/Results/SpendingTrendSection.js',   () => ({ SpendingTrendSection: () => <div data-testid="spending-trend-section" /> }));
+vi.mock('../src/components/Results/ToolSpendCard.js',          () => ({ ToolSpendCard:     () => <div data-testid="tool-spend-card" /> }));
 vi.mock('../src/components/Results/panels/OpenAIPanel.js',     () => ({ OpenAIPanel:       () => null }));
 vi.mock('../src/components/Results/panels/AnthropicPanel.js',  () => ({ AnthropicPanel:    () => null }));
 vi.mock('../src/components/Results/panels/CopilotPanel.js',    () => ({ CopilotPanel:      () => null }));

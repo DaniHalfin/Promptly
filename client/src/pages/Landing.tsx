@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { useSession } from '../context/SessionContext.js';
 import { SourceCard } from '../components/SourceCard.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
-import { apiClient } from '../api/client.js';
 import type { SourceConfig, SourceId } from '../types/index.js';
 
 export function Landing() {
-  const { state, dispatch, abortControllerRef } = useSession();
-  const [dateRange] = useState({
+  const { state, dispatch } = useSession();
+  const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 86400000 * 30).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
   });
@@ -28,44 +27,18 @@ export function Landing() {
     endDate: dateRange.end,
   });
 
-  const handleAnalyze = async () => {
-    try {
-      const config: { sources: SourceConfig[] } = {
-        sources: [
-          isActive('openai') ? sourceConfig('openai', true) : null,
-          isActive('anthropic') ? sourceConfig('anthropic', true) : null,
-          (isActive('github_copilot') || state.sources.github_copilot?.enabled) ? sourceConfig('github_copilot', false) : null,
-          isActive('chatgpt_export') ? sourceConfig('chatgpt_export', false) : null,
-          (isActive('claude_code') || state.sources.claude_code?.enabled) ? sourceConfig('claude_code', false) : null,
-        ].filter((source): source is SourceConfig => source !== null),
-      };
+  const handleAnalyze = () => {
+    const config: { sources: SourceConfig[] } = {
+      sources: [
+        isActive('openai') ? sourceConfig('openai', true) : null,
+        isActive('anthropic') ? sourceConfig('anthropic', true) : null,
+        (isActive('github_copilot') || state.sources.github_copilot?.enabled) ? sourceConfig('github_copilot', false) : null,
+        isActive('chatgpt_export') ? sourceConfig('chatgpt_export', false) : null,
+        (isActive('claude_code') || state.sources.claude_code?.enabled) ? sourceConfig('claude_code', false) : null,
+      ].filter((source): source is SourceConfig => source !== null),
+    };
 
-      dispatch({ phase: 'analyzing' });
-
-      const credentials = {
-        openai: state.sources.openai?.credential,
-        anthropic: state.sources.anthropic?.credential,
-      };
-
-      const files = {
-        chatgpt_export: state.sources.chatgpt_export?.file,
-      };
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      try {
-        const report = await apiClient.analyze(config, credentials, files, controller.signal);
-        if (!controller.signal.aborted) {
-          dispatch(report.cross_source_summary.allSourcesFailed ? { phase: 'connection', report } : { phase: 'results', report });
-        }
-      } finally {
-        abortControllerRef.current = null;
-      }
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
-      dispatch({ phase: 'error', analysisError: (err as Error).message });
-    }
+    dispatch({ phase: 'analyzing', pendingAnalysis: { config } });
   };
 
   return (
@@ -127,11 +100,64 @@ export function Landing() {
           <p style={{
             fontSize: '1rem',
             color: 'var(--text-secondary)',
-            marginBottom: 40,
+            marginBottom: 32,
             lineHeight: 1.6,
           }}>
             Understand exactly what you spend on AI tokens — locally, with no data leaving your machine.
           </p>
+
+          {/* Date range picker */}
+          <div style={{
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '16px',
+            marginBottom: 24,
+          }}>
+            <h2 style={{
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              margin: '0 0 12px',
+            }}>
+              Analysis Period
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                {/* WP-2: htmlFor/id binding so labels are programmatically associated with their inputs */}
+                <label
+                  htmlFor="landing-start-date"
+                  style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}
+                >
+                  Start Date
+                </label>
+                <input
+                  id="landing-start-date"
+                  type="date"
+                  value={dateRange.start}
+                  onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="landing-end-date"
+                  style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}
+                >
+                  End Date
+                </label>
+                <input
+                  id="landing-end-date"
+                  type="date"
+                  value={dateRange.end}
+                  onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Source cards — WP-1: h2 so SourceCard h3 headings have a valid parent heading */}
           <h2 style={{

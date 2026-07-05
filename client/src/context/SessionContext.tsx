@@ -27,11 +27,16 @@ type SourceState = (ApiSourceState | FileSourceState | LocalSourceState) & {
   enabled?: boolean;
 };
 
+export interface PendingAnalysis {
+  config: { sources: SourceConfig[] };
+}
+
 interface SessionState {
   phase?: 'landing' | 'connection' | 'analyzing' | 'results' | 'error';
   sources: Partial<Record<SourceId, SourceState>>;
   report?: AnalysisReport;
   analysisError?: string;
+  pendingAnalysis?: PendingAnalysis;
 }
 
 interface SessionContextType {

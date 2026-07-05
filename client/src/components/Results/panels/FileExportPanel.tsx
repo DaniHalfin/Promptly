@@ -1,7 +1,6 @@
 import React from 'react';
-import { formatTokenCount } from '../../../lib/formatters.js';
 import { SourceReport } from '../../../types/index.js';
-import { ConversationLengthBar } from '../charts/ConversationLengthBar.js';
+import { DailyConversationActivityLine } from '../DailyConversationActivityLine.js';
 import { TierUpgradeNudge } from '../../common/TierUpgradeNudge.js';
 
 interface FileExportPanelProps {
@@ -9,205 +8,153 @@ interface FileExportPanelProps {
 }
 
 export function FileExportPanel({ report }: FileExportPanelProps) {
-  const { metrics, tier, source_id } = report;
+  const { metrics, source_id } = report;
 
   const isAnthropic   = source_id === 'claude_export';
   const displayName   = isAnthropic ? 'Claude.ai (Export)' : 'ChatGPT (Export)';
-  const gradientFrom  = isAnthropic ? 'from-orange-400' : 'from-green-400';
-  const gradientTo    = isAnthropic ? 'to-red-600'      : 'to-green-600';
-  // Computed CSS-variable color for the estimated cost figure
   const accentColor   = isAnthropic ? 'var(--color-warning-text)' : 'var(--color-positive-text)';
 
-  // ── Empty / no-metrics state ─────────────────────────────────────────────
+  // Empty / no-metrics state
   if (!metrics) {
     return (
-      <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
-        <div className="flex items-center mb-4">
-          <div className={`w-8 h-8 bg-gradient-to-br ${gradientFrom} ${gradientTo} rounded-full mr-3`} />
-          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {displayName}
-          </h2>
-        </div>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>No data available</p>
+      <div className="card">
+        <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px' }}>
+          {displayName}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)', margin: 0 }}>No data available</p>
       </div>
     );
   }
 
-  // ── Zero-data state ──────────────────────────────────────────────────────
-  if (!metrics.conversationCount && !metrics.estimatedTotalTokens) {
+  // Canonical Tier C fields
+  const totalConversations  = metrics.total_conversations ?? 0;
+  const totalMessages       = metrics.total_messages ?? 0;
+  const activeDays          = metrics.active_days ?? 0;
+  const modelsIdentified    = metrics.models_identified ?? [];
+  const estimatedCost       = metrics.estimated_relative_cost_usd ?? 0;
+  const dailyActivity       = metrics.daily_conversation_activity ?? [];
+  const estimatedTokenVol   = metrics.estimated_token_volume ?? 0;
+  // Average conversation length is DERIVED: not a stored field
+  const avgConvLength       = totalConversations > 0 ? Math.round(totalMessages / totalConversations) : 0;
+
+  // Zero-data state
+  if (totalConversations === 0 && estimatedTokenVol === 0) {
     return (
-      <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
-        <div className="flex items-center mb-4">
-          <div className={`w-8 h-8 bg-gradient-to-br ${gradientFrom} ${gradientTo} rounded-full mr-3`} />
-          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {displayName}
-          </h2>
-        </div>
-        <p
-          className="text-center py-8"
-          style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}
-        >
-          No conversations in this period
+      <div className="card">
+        <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px' }}>
+          {displayName}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-body)', margin: 0 }}>
+          No conversations found in this period
         </p>
       </div>
     );
   }
 
-  // ── Main render ──────────────────────────────────────────────────────────
-  const conversationCount      = metrics.conversationCount || 0;
-  const estimatedTokens        = metrics.estimatedTotalTokens || 0;
-  const avgLength              = metrics.avgConversationLengthTokens || 0;
-  const conversationHistogram  = metrics.conversationLengthHistogram || [];
-  const estimatedCost          = metrics.estimatedRelativeCostUsd || 0;
-  const assistantShare         = metrics.assistantTokenShare || 0;
-  const userShare              = metrics.userTokenShare || 0;
-
   return (
-    <div className="border rounded-lg p-6" style={{ background: 'var(--color-bg-surface)' }}>
-
+    <div className="card">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <div className={`w-8 h-8 bg-gradient-to-br ${gradientFrom} ${gradientTo} rounded-full mr-3`} />
-          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {displayName}
-          </h2>
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>
+          {displayName}
+        </h2>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          Tier C · Estimated from conversation activity
+        </p>
       </div>
 
-      <p className="mb-6" style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>
-        Estimated from {metrics.baselineModelAssumption || 'export file analysis'}
-      </p>
+      {/* Canonical Tier C metrics grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
 
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Conversations</p>
-          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {conversationCount.toLocaleString()}
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Total Conversations</p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {totalConversations.toLocaleString()}
           </p>
         </div>
-        <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Total Tokens</p>
-          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {formatTokenCount(estimatedTokens)}
+
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Total Messages</p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {totalMessages.toLocaleString()}
           </p>
         </div>
-        <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Avg Conversation Length</p>
-          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {formatTokenCount(avgLength)}
+
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Active Days</p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {activeDays}
           </p>
         </div>
-        <div className="rounded p-4" style={{ background: 'var(--color-bg-inset)' }}>
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>Estimated Cost</p>
-          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: accentColor }}>
+
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Avg Messages / Conversation</p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {avgConvLength}
+          </p>
+        </div>
+
+        {/* Estimated cost: always labeled with ~ and "estimated" */}
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>
+            Estimated Cost <span style={{ color: 'var(--color-warning-text)' }}>(estimated)</span>
+          </p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: accentColor, margin: 0 }}>
             ~${estimatedCost.toFixed(2)}
           </p>
         </div>
-      </div>
 
-      {/* Token Distribution */}
-      {(userShare > 0 || assistantShare > 0) && (
-        <div
-          className="mb-6 p-4 rounded-lg border"
-          style={{ background: 'var(--color-accent-muted)', borderColor: 'var(--color-accent-border)' }}
-        >
-          <h3 className="mb-4" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Token Distribution
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between mb-2" style={{ fontSize: 'var(--text-body)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Assistant Tokens</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {(assistantShare * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div
-                className="w-full rounded-full h-2"
-                style={{ background: 'var(--color-accent-border)' }}
-              >
-                <div
-                  className="h-2 rounded-full"
-                  style={{ width: `${assistantShare * 100}%`, background: 'var(--color-accent)' }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-2" style={{ fontSize: 'var(--text-body)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>User Tokens</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {(userShare * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div
-                className="w-full rounded-full h-2"
-                style={{ background: 'var(--color-accent-border)' }}
-              >
-                <div
-                  className="h-2 rounded-full"
-                  style={{ width: `${userShare * 100}%`, background: 'var(--color-info)' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Activity Distribution */}
-      {conversationHistogram.length > 0 && (
-        <div className="mb-6">
-          <h3 className="mb-4" style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Conversation Length Distribution
-          </h3>
-          <ConversationLengthBar data={conversationHistogram} />
-        </div>
-      )}
-
-      {/* Long Conversation Indicator */}
-      {metrics.longConversationFraction && (
-        <div
-          className="mb-6 p-4 rounded-lg border"
-          style={{ background: 'var(--color-bg-inset)', borderColor: 'var(--color-accent-border)' }}
-        >
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-secondary)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {(metrics.longConversationFraction * 100).toFixed(1)}%
-            </span>{' '}
-            of conversations are longer than 1000 tokens
+        {/* Estimated token volume: always labeled */}
+        <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>
+            Token Volume <span style={{ color: 'var(--color-warning-text)' }}>(estimated)</span>
+          </p>
+          <p style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            ~{estimatedTokenVol.toLocaleString()}
           </p>
         </div>
+
+      </div>
+
+      {/* Models identified */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+          Models Identified
+        </p>
+        {modelsIdentified.length > 0 ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {modelsIdentified.map(m => (
+              <span key={m} style={{ fontSize: '0.8125rem', padding: '2px 10px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', color: 'var(--text-secondary)' }}>
+                {m}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            Model data not available in export
+          </p>
+        )}
+      </div>
+
+      {/* Daily conversation activity sparkline */}
+      {dailyActivity.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Daily Activity
+          </p>
+          <DailyConversationActivityLine data={dailyActivity} />
+        </div>
       )}
+
+      {/* Unavailable rows for actual billing fields */}
+      <div style={{ background: 'var(--color-bg-inset)', padding: '12px 14px', borderRadius: 'var(--radius-md)', marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          Actual billing spend, session cost, cache savings, and dominant model are not available from export data.
+        </p>
+      </div>
 
       {/* Upgrade Nudge — Tier C only */}
       <TierUpgradeNudge sourceId={source_id} currentTier="C" />
-
-      {/* Insights */}
-      <div
-        className="mt-6 p-4 rounded-lg border"
-        style={{ background: 'var(--color-positive-muted)', borderColor: 'var(--color-positive)' }}
-      >
-        <p className="mb-3" style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--color-positive-text)' }}>
-          Quick Insights
-        </p>
-        <ul className="space-y-2" style={{ fontSize: 'var(--text-body)', color: 'var(--color-positive-text)' }}>
-          <li>
-            • Average conversation:{' '}
-            <span style={{ fontWeight: 600 }}>{formatTokenCount(avgLength)} tokens</span>
-          </li>
-          {conversationCount > 100 && (
-            <li>• High conversation volume—consider organizing by topic or use case</li>
-          )}
-          {assistantShare > 0.7 && (
-            <li>• High assistant token ratio—model is being heavily utilized</li>
-          )}
-          {estimatedCost > 10 && (
-            <li>• Significant estimated cost—API connection could provide cost optimization insights</li>
-          )}
-        </ul>
-      </div>
     </div>
   );
 }
-

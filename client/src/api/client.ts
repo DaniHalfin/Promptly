@@ -1,4 +1,4 @@
-import { SourceId, AnalysisReport } from '../types/index.js';
+import { SourceId, AnalysisReport, SourceReport } from '../types/index.js';
 
 class APIClient {
   private baseURL = import.meta.env.VITE_API_URL ?? '/api';
@@ -40,6 +40,48 @@ class APIClient {
       throw new Error(result.errorMessage || 'Validation failed');
     }
     return result;
+  }
+
+  /** Per-source analysis call: POST /api/analyze/:sourceId */
+  async analyzeSource(
+    sourceId: SourceId,
+    credential?: string,
+    file?: File,
+    startDate?: string,
+    endDate?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceReport> {
+    const headers: Record<string, string> = {};
+    if (sourceId === 'openai' && credential) headers['x-credential-openai'] = credential;
+    if (sourceId === 'anthropic' && credential) headers['x-credential-anthropic'] = credential;
+
+    const formData = new FormData();
+    if (startDate) formData.append('startDate', startDate);
+    if (endDate) formData.append('endDate', endDate);
+    if (file) formData.append(sourceId, file);
+
+    const response = await fetch(`${this.baseURL}/analyze/${sourceId}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal,
+    });
+
+    if (!response.ok) throw new Error(`Analysis failed for ${sourceId}: ${response.statusText}`);
+    return response.json() as Promise<SourceReport>;
+  }
+
+  /** Combine settled source reports into a full AnalysisReport with recommendations */
+  async analyzeRecommendations(sources: SourceReport[], signal?: AbortSignal): Promise<AnalysisReport> {
+    const response = await fetch(`${this.baseURL}/analyze/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sources }),
+      signal,
+    });
+
+    if (!response.ok) throw new Error(`Recommendations failed: ${response.statusText}`);
+    return response.json() as Promise<AnalysisReport>;
   }
 
   async analyze(config: any, credentials: Record<string, any>, files: Record<string, File | undefined>, signal?: AbortSignal) {
