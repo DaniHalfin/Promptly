@@ -16,6 +16,19 @@ export interface AdapterResult {
   warnings: string[];
 }
 
+/** Nullable credential type — file-based adapters (chatgpt_export) accept null. */
+export type AdapterCredentials = string | null;
+
+/** Connection options passed to adapters (ED v2.0 §3.2/§3.3.4). */
+export interface AdapterConnectOptions {
+  startDate?: Date;
+  endDate?: Date;
+  uploadedFile?: Buffer | null;
+  options?: Record<string, unknown>;
+  priceMap: PriceMap;
+  abortSignal?: AbortSignal;
+}
+
 export interface AdapterContext {
   credential?: string;
   startDate?: Date;

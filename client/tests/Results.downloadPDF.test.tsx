@@ -73,6 +73,13 @@ const mockReport = {
   ],
   cross_source_summary: {
     total_actual_spend_usd: 80,
+    total_estimated_spend_usd: 0,
+    total_actual_tokens: 0,
+    total_estimated_tokens: 0,
+    daily_spend: [],
+    spend_by_tool: [],
+    trend: { status: 'insufficient_data' as const, observed_days: 0, required_days: 30, message: 'Phase 0 stub' },
+    spike_callout: null,
     allSourcesFailed: false,
   },
   recommendations: [],

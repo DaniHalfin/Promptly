@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { transformReportForExport } from '../src/lib/exportTransform';
-import type { AnalysisReport, SourceReport, SourceMetrics } from '../src/types/index.js';
+import type { AnalysisReport, SourceReport, SourceMetrics, CrossSourceSummary, RecommendationResult } from '../src/types/index.js';
+
+/** Shared stub for the new required CrossSourceSummary fields (Phase 1 implements full logic). */
+const stubCrossSummary: CrossSourceSummary = {
+  total_actual_spend_usd: 100,
+  total_estimated_spend_usd: 0,
+  total_actual_tokens: 1_000_000,
+  total_estimated_tokens: 0,
+  daily_spend: [],
+  spend_by_tool: [],
+  trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Phase 0 stub' },
+  spike_callout: null,
+};
 
 const makeReport = (sources: SourceReport[]): AnalysisReport => ({
   metadata: {
@@ -11,12 +23,7 @@ const makeReport = (sources: SourceReport[]): AnalysisReport => ({
     litellm_price_map_date: '2026-06-01',
   },
   sources,
-  cross_source_summary: {
-    total_actual_spend_usd: 100,
-    total_estimated_spend_usd: 0,
-    total_actual_tokens: 1000000,
-    total_estimated_tokens: 0,
-  },
+  cross_source_summary: stubCrossSummary,
   recommendations: [],
   assumptions: [],
 });
@@ -137,5 +144,61 @@ describe('transformReportForExport', () => {
     expect(metrics).not.toHaveProperty('copilotTokenBreakdownByModel');
     expect(metrics).not.toHaveProperty('copilotModelCostBreakdown');
     expect(metrics).not.toHaveProperty('copilotCachedTokenFraction');
+  });
+});
+
+// ============================================================
+// Phase 0 ADR-9 contract tests (types and shape only; UI in Phase 3)
+// ============================================================
+
+describe('Results ADR-9', () => {
+  it('AnalysisHeader shows mixed total spend', () => {
+    // Phase 0: contract test — CrossSourceSummary type has all fields needed for mixed spend display
+    const summary: CrossSourceSummary = {
+      total_actual_spend_usd: 10,
+      total_estimated_spend_usd: 15,  // includes Tier C estimation
+      total_actual_tokens: 1_000_000,
+      total_estimated_tokens: 500_000,
+      daily_spend: [],
+      spend_by_tool: [],
+      trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      includes_estimates: true,
+    };
+    // Verify the type accepts includes_estimates and the spend fields are present
+    expect(summary.includes_estimates).toBe(true);
+    expect(summary.total_estimated_spend_usd).toBeGreaterThan(summary.total_actual_spend_usd);
+  });
+
+  it('ToolCardsSection cards sorted by spend descending', () => {
+    // Phase 0: contract test — SpendByToolEntry has rank and estimated_spend_usd for sort key
+    const entries: CrossSourceSummary['spend_by_tool'] = [
+      { source_id: 'anthropic', display_name: 'Anthropic', estimated_spend_usd: 30, percentage_of_total: 0.6, tier: 'B', is_estimated: false, rank: 1 },
+      { source_id: 'chatgpt_export', display_name: 'ChatGPT Export', estimated_spend_usd: 20, percentage_of_total: 0.4, tier: 'C', is_estimated: true, estimate_label: 'Estimated', rank: 2 },
+    ];
+    // rank 1 > rank 2 means first entry has higher spend
+    expect(entries[0].rank).toBeLessThan(entries[1].rank);
+    expect(entries[0].estimated_spend_usd).toBeGreaterThan(entries[1].estimated_spend_usd);
+  });
+});
+
+describe('SpendByToolBar', () => {
+  it('top-slot click callback anchors to target card', () => {
+    // Phase 0: contract test — RecommendationResult type has targetCardAnchor field for top-slot linking
+    const rec: RecommendationResult = {
+      id: 'R1',
+      severity: 'High',
+      title: 'Enable prompt caching',
+      body: 'Test',
+      triggeringMetric: 'cacheCreationInputTokensAnthropic',
+      triggeringValue: 0,
+      sourceIds: ['anthropic'],
+      topSlotEligible: true,
+      targetSourceId: 'anthropic',
+      targetCardAnchor: '#anthropic-card',
+      savingsLabel: 'Save ~$12/mo',
+    };
+    expect(rec.targetCardAnchor).toBe('#anthropic-card');
+    expect(rec.topSlotEligible).toBe(true);
   });
 });

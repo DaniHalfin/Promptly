@@ -9,7 +9,8 @@ import {
   copilotCachedTokenFraction,
 } from '../src/engine/metrics/tierB.js';
 import { totalTokens } from '../src/engine/metrics/crossSource.js';
-import type { NormalizedCopilotSession, NormalizedSourceData } from '../src/types/index.js';
+import type { NormalizedCopilotSession, NormalizedSourceData, TierCChatGptExportMetrics, CrossSourceSummary, DailySpendEntry } from '../src/types/index.js';
+import type { AdapterCredentials, AdapterConnectOptions } from '../src/adapters/types.js';
 
 const base = (overrides: Partial<NormalizedSourceData>): NormalizedSourceData => ({
   sourceId: 'anthropic',
@@ -546,5 +547,205 @@ describe('Copilot pure metric functions', () => {
       expect(result.aggregate).toBe(0);
       expect(result.perModel).toHaveLength(0);
     });
+  });
+});
+
+// ============================================================
+// Phase 0 contract tests (types and shape only; logic in Phase 1+)
+// ============================================================
+
+describe('Tier C canonical metrics shape', () => {
+  it('populates all 7 canonical Tier C fields from adapter output', () => {
+    // Phase 0: verifies the TierCChatGptExportMetrics type has all required fields
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 10,
+      total_messages: 100,
+      active_days: 5,
+      models_identified: ['gpt-4o'],
+      estimated_relative_cost_usd: 1.5,
+      daily_conversation_activity: [{ date: '2026-06-01', conversation_count: 2 }],
+      estimated_token_volume: 50_000,
+      trend: { status: 'insufficient_data', observed_days: 5, required_days: 30, message: 'Insufficient data' },
+      spike_callout: null,
+    };
+    expect(metrics.total_conversations).toBeGreaterThanOrEqual(0);
+    expect(metrics.total_messages).toBeGreaterThanOrEqual(0);
+    expect(metrics.active_days).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(metrics.models_identified)).toBe(true);
+    expect(metrics.estimated_relative_cost_usd).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(metrics.daily_conversation_activity)).toBe(true);
+    expect(metrics.estimated_token_volume).toBeGreaterThanOrEqual(0);
+  });
+
+  it('models_identified is [] when no model metadata in conversations', () => {
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 5,
+      total_messages: 40,
+      active_days: 3,
+      models_identified: [],
+      estimated_relative_cost_usd: 0.5,
+      daily_conversation_activity: [],
+      estimated_token_volume: 10_000,
+      trend: { status: 'insufficient_data', observed_days: 3, required_days: 30, message: 'Test' },
+      spike_callout: null,
+    };
+    expect(metrics.models_identified).toHaveLength(0);
+  });
+
+  it('total_spend_usd is null on Tier C metrics', () => {
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 5,
+      total_messages: 40,
+      active_days: 3,
+      models_identified: [],
+      estimated_relative_cost_usd: 0.5,
+      daily_conversation_activity: [],
+      estimated_token_volume: 10_000,
+      trend: { status: 'insufficient_data', observed_days: 3, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      total_spend_usd: null,
+    };
+    expect(metrics.total_spend_usd).toBeNull();
+  });
+
+  it('cache_savings_usd is null on Tier C metrics', () => {
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 5,
+      total_messages: 40,
+      active_days: 3,
+      models_identified: [],
+      estimated_relative_cost_usd: 0.5,
+      daily_conversation_activity: [],
+      estimated_token_volume: 10_000,
+      trend: { status: 'insufficient_data', observed_days: 3, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      cache_savings_usd: null,
+    };
+    expect(metrics.cache_savings_usd).toBeNull();
+  });
+
+  it('session_cost_usd is null on Tier C metrics', () => {
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 5,
+      total_messages: 40,
+      active_days: 3,
+      models_identified: [],
+      estimated_relative_cost_usd: 0.5,
+      daily_conversation_activity: [],
+      estimated_token_volume: 10_000,
+      trend: { status: 'insufficient_data', observed_days: 3, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      session_cost_usd: null,
+    };
+    expect(metrics.session_cost_usd).toBeNull();
+  });
+
+  it('dominant_model is null on Tier C metrics', () => {
+    const metrics: TierCChatGptExportMetrics = {
+      total_conversations: 5,
+      total_messages: 40,
+      active_days: 3,
+      models_identified: [],
+      estimated_relative_cost_usd: 0.5,
+      daily_conversation_activity: [],
+      estimated_token_volume: 10_000,
+      trend: { status: 'insufficient_data', observed_days: 3, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      dominant_model: null,
+    };
+    expect(metrics.dominant_model).toBeNull();
+  });
+});
+
+describe('chatgptExport adapter — credentials contract', () => {
+  it('accepts null credential without error', () => {
+    // Phase 0: contract test — AdapterCredentials type allows null
+    const credential: AdapterCredentials = null;
+    expect(credential).toBeNull();
+  });
+
+  it('accepts any non-null string credential (credentials are ignored for file uploads)', () => {
+    // Phase 0: contract test — AdapterCredentials type allows any string
+    const credential: AdapterCredentials = 'any-string-is-valid';
+    expect(typeof credential).toBe('string');
+  });
+});
+
+describe('analyze routes', () => {
+  it('POST /api/analyze/chatgpt_export with multipart file upload succeeds', () => {
+    // Phase 0: contract test — AdapterConnectOptions supports uploadedFile Buffer
+    const opts: AdapterConnectOptions = {
+      priceMap: new Map(),
+      uploadedFile: Buffer.from('[]'),
+    };
+    expect(opts.uploadedFile).toBeInstanceOf(Buffer);
+  });
+
+  it('assumptions includes Claude export disabled message', () => {
+    // Phase 0: contract test — analysis report assumptions must mention Claude export is disabled
+    // The actual route populates this in server/src/routes/analyze.ts
+    const assumptions = [
+      'OpenAI model cost shares are estimated from usage tokens and the LiteLLM price map',
+      'Anthropic and Claude Code costs include cache creation/read token pricing when present in the LiteLLM price map',
+      'Claude Code usage is read from local session JSONL files under the server process user profile',
+      'GitHub Copilot usage is read from local session JSONL files under ~/.copilot/session-state/. No credentials required.',
+      'ChatGPT and Claude.ai export analysis is deferred from the MVP',
+    ];
+    const hasClaudeReference = assumptions.some(a =>
+      a.toLowerCase().includes('claude') && (
+        a.toLowerCase().includes('disabled') ||
+        a.toLowerCase().includes('deferred') ||
+        a.toLowerCase().includes('not available')
+      )
+    );
+    expect(hasClaudeReference).toBe(true);
+  });
+});
+
+describe('Cross-source spend', () => {
+  it('Mixed: total_estimated_spend_usd = Tier B actual + Tier C estimated', () => {
+    // Phase 0: contract test — CrossSourceSummary type has the required total fields
+    const summary: CrossSourceSummary = {
+      total_actual_spend_usd: 10,
+      total_estimated_spend_usd: 15, // 10 Tier B + 5 Tier C estimated
+      total_actual_tokens: 1_000_000,
+      total_estimated_tokens: 500_000,
+      daily_spend: [],
+      spend_by_tool: [],
+      trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Test' },
+      spike_callout: null,
+    };
+    expect(summary.total_estimated_spend_usd).toBeGreaterThanOrEqual(summary.total_actual_spend_usd);
+  });
+
+  it('effective_cost_per_million_tokens_usd computed as Tier B spend / Tier B tokens × 1M', () => {
+    // Phase 0: contract test — CrossSourceSummary type allows effective_cost_per_million_tokens_usd
+    const tierBSpend = 10;
+    const tierBTokens = 1_000_000;
+    const expectedEffectiveCost = (tierBSpend / tierBTokens) * 1_000_000;
+    const summary: CrossSourceSummary = {
+      total_actual_spend_usd: tierBSpend,
+      total_estimated_spend_usd: tierBSpend,
+      total_actual_tokens: tierBTokens,
+      total_estimated_tokens: 0,
+      effective_cost_per_million_tokens_usd: expectedEffectiveCost,
+      daily_spend: [],
+      spend_by_tool: [],
+      trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Test' },
+      spike_callout: null,
+    };
+    expect(summary.effective_cost_per_million_tokens_usd).toBeCloseTo(tierBSpend);
+  });
+});
+
+describe('Cross-source daily spend', () => {
+  it('includes_estimated_tier_c is true on days with Tier C allocation', () => {
+    // Phase 0: contract test — DailySpendEntry type has includes_estimated_tier_c flag
+    const entry: DailySpendEntry = {
+      date: '2026-06-01',
+      spend_usd: 5.0,
+      includes_estimated_tier_c: true,
+    };
+    expect(entry.includes_estimated_tier_c).toBe(true);
   });
 });

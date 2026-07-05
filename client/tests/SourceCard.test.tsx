@@ -150,6 +150,21 @@ describe('SourceCard', () => {
     expect(screen.getAllByText(/validated/i)).toHaveLength(1);
   });
 
+  // ── 0.6 Phase 0 contract: claude_export stays disabled ────────────────────
+
+  it('claude_export card shows disabled state and cannot be activated', () => {
+    // Phase 0 (0.6): disabled UI must remain disabled — no enable toggle, no file upload
+    renderSourceCard('claude_export');
+
+    expect(screen.getByRole('heading', { name: 'Claude Export' })).toBeInTheDocument();
+    // Disabled indicator must be present
+    expect(screen.getByText(/currently disabled/i)).toBeInTheDocument();
+    // No switch to enable it
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    // No file upload path available
+    expect(screen.queryByRole('button', { name: /click or drag/i })).not.toBeInTheDocument();
+  });
+
   it('renders styled upload area for file-type source with correct aria-label — WP-2', () => {
     renderSourceCard('chatgpt_export');
 

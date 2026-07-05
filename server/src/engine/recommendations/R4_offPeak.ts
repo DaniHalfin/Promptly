@@ -1,8 +1,14 @@
 import { RecommendationResult } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
+// TODO: Phase 2 — R4 is removed from RecommendationId; this file will be deleted in Phase 2.
+// Using type assertion to allow 'R4' until deletion.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const R4_ID = 'R4' as any;
+
 export const R4: Rule = {
-  id: 'R4',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  id: R4_ID,
   severity: 'Low',
   evaluate(ctx: RuleContext): RecommendationResult[] {
     const claudeCode = ctx.sources.find(source => source.sourceId === 'claude_code');
@@ -18,7 +24,8 @@ export const R4: Rule = {
 
     return [
       {
-        id: 'R4',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        id: R4_ID,
         severity: 'Low',
         title: 'Most Claude Code sessions run during peak hours',
         body:
@@ -28,7 +35,7 @@ export const R4: Rule = {
         triggeringValue: peakFraction,
         estimatedSavingsUsd: null,
         sourceIds: ['claude_code'],
-      },
+      } as RecommendationResult,
     ];
   },
 };

@@ -1,4 +1,4 @@
-import { AnalysisRequest, CrossSourceSummary, SourceReport } from '../../types/index.js';
+import { AnalysisRequest, CrossSourceSummary, SourceReport, TrendStatus } from '../../types/index.js';
 import { PriceMap, lookupPrice } from '../../data/priceMap.js';
 
 export function totalActualSpendUsd(sources: SourceReport[]): number {
@@ -74,10 +74,22 @@ export function computeCrossSourceMetrics(reports: SourceReport[], priceMap: Pri
     totalEstimatedSpend += userTokens * price.input_cost_per_token + assistantTokens * price.output_cost_per_token;
   }
 
+  // TODO: Phase 1 — implement daily_spend, spend_by_tool, trend, spike_callout
+  const stubTrend: TrendStatus = {
+    status: 'insufficient_data',
+    observed_days: 0,
+    required_days: 30,
+    message: 'Trend data will be computed in Phase 1',
+  };
+
   return {
     total_actual_spend_usd: totalActualSpendUsd(reports),
     total_estimated_spend_usd: totalEstimatedSpend,
     total_actual_tokens: tokenTotals.actual,
     total_estimated_tokens: tokenTotals.estimated,
+    daily_spend: [],
+    spend_by_tool: [],
+    trend: stubTrend,
+    spike_callout: null,
   };
 }

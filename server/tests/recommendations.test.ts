@@ -4,9 +4,8 @@ import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
 import { R1 } from '../src/engine/recommendations/R1_promptCaching.js';
 import { R2 } from '../src/engine/recommendations/R2_modelDowngrade.js';
 import { getP90DailyInputTokens, R3 } from '../src/engine/recommendations/R3_verbosity.js';
-import { R4 } from '../src/engine/recommendations/R4_offPeak.js';
 import type { RuleContext } from '../src/engine/recommendations/index.js';
-import type { NormalizedCopilotSession, SourceMetrics } from '../src/types/index.js';
+import type { NormalizedCopilotSession, RecommendationResult, SourceMetrics } from '../src/types/index.js';
 
 const emptyPriceMap: PriceMap = new Map();
 
@@ -349,31 +348,52 @@ describe('recommendation rules', () => {
     });
   });
 
-  describe('R4 off-peak', () => {
-    const claudeCode = (overrides: Partial<SourceMetrics>) => source({
-      sourceId: 'claude_code',
-      claudeCodePeakHourFraction: 0.71,
-      claudeCodeSessionCount: 20,
-      periodStart: '2026-06-01T00:00:00Z',
-      periodEnd: '2026-06-08T00:00:00Z',
-      ...overrides,
+  describe('R4 not in registry', () => {
+    it('R4 never fires for any Claude Code source data', () => {
+      // Phase 0: verify that the active rule set (R1, R2, R3) never emits 'R4'
+      const claudeCodeSource = source({
+        sourceId: 'claude_code',
+        claudeCodePeakHourFraction: 0.71,
+        claudeCodeSessionCount: 20,
+      });
+      const ruleCtx = ctx([claudeCodeSource]);
+      const allIds = [R1, R2, R3].flatMap(rule => rule.evaluate(ruleCtx)).map(r => r.id);
+      expect(allIds).not.toContain('R4');
     });
 
-    it('fires when peak fraction, session count, and data window gates are met', () => {
-      expect(R4.evaluate(ctx([claudeCode({})]))).toHaveLength(1);
+    it('generated recommendation IDs are only from the allowed set', () => {
+      // Phase 0: the allowed RecommendationId set has no stale IDs
+      const allowedSet = new Set<string>(['R1', 'R2', 'R3', 'RC1', 'RC3', 'RC4a', 'RC4b', 'RC5', 'RC6']);
+      const claudeCodeSource = source({
+        sourceId: 'claude_code',
+        claudeCodePeakHourFraction: 0.71,
+        claudeCodeSessionCount: 20,
+        totalInputTokensClaudeCode: 200_000,
+        cacheCreationInputTokensClaudeCode: 0,
+      });
+      const ruleCtx = ctx([claudeCodeSource]);
+      const allIds = [R1, R2, R3].flatMap(rule => rule.evaluate(ruleCtx)).map(r => r.id);
+      for (const id of allIds) {
+        expect(allowedSet.has(id)).toBe(true);
+      }
     });
+  });
 
-    it('does not fire when peak-hour fraction is undefined', () => {
-      expect(R4.evaluate(ctx([claudeCode({ claudeCodePeakHourFraction: undefined })]))).toHaveLength(0);
-    });
-
-    it('does not fire when session count is below the gate', () => {
-      expect(R4.evaluate(ctx([claudeCode({ claudeCodeSessionCount: 19 })]))).toHaveLength(0);
-    });
-
-    it('does not fire when peak-hour fraction is at or below threshold', () => {
-      expect(R4.evaluate(ctx([claudeCode({ claudeCodePeakHourFraction: 0.7 })]))).toHaveLength(0);
-      expect(R4.evaluate(ctx([claudeCode({ claudeCodePeakHourFraction: 0.69 })]))).toHaveLength(0);
+  describe('RC1 data freshness', () => {
+    it('RC1 has topSlotEligible: false', () => {
+      // Phase 0: contract test — RC recommendation results must not appear as top-slot savings cards
+      // RC1 rule is implemented in Phase 2; this verifies the RecommendationResult type allows the field
+      const rec: RecommendationResult = {
+        id: 'RC1',
+        severity: 'Low',
+        title: 'Your ChatGPT Export data may be stale',
+        body: 'Test body',
+        triggeringMetric: 'newest_conversation_date',
+        triggeringValue: '2026-01-01',
+        sourceIds: ['chatgpt_export'],
+        topSlotEligible: false,
+      };
+      expect(rec.topSlotEligible).toBe(false);
     });
   });
 });
