@@ -35,6 +35,25 @@ describe('A1: contrast tokens', () => {
   });
 });
 
+describe('Batch 4: light-mode semantic *-text overrides', () => {
+  // The default (dark) --color-critical-text / --color-positive-text are pale
+  // colors tuned for dark surfaces (~75–78% L). Without a light-mode override
+  // they drop to ~1.5–1.9:1 on the 15%-tint muted badge background → invisible.
+  const light = css.slice(css.indexOf('[data-theme="light"]'));
+
+  it('light mode darkens --color-critical-text for AA on pale badge backgrounds', () => {
+    expect(light).toMatch(/--color-critical-text:\s*oklch\(48% 0\.18 25\)/);
+  });
+
+  it('light mode darkens --color-positive-text for AA on pale badge backgrounds', () => {
+    expect(light).toMatch(/--color-positive-text:\s*oklch\(45% 0\.14 155\)/);
+  });
+
+  it('light mode retains the darkened --color-warning-text override', () => {
+    expect(light).toMatch(/--color-warning-text:\s*oklch\(42% 0\.15 65\)/);
+  });
+});
+
 describe('A1: skip link', () => {
   it('.skip-link uses themed primary text color', () => {
     expect(ruleBody(css, '.skip-link {')).toMatch(/color:\s*var\(--text-primary\)/);

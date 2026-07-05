@@ -66,7 +66,13 @@
   --text-secondary:    oklch(45% 0.04 245);
   /* A1: light-theme muted text must still clear AA on white/elevated surfaces */
   --text-muted:        oklch(54% 0.03 245);
+  /* Batch 4: semantic *-text tokens default to LIGHT values tuned for dark
+     surfaces. On light backgrounds those pale reds/greens drop to ~1.5–1.9:1
+     on the 15%-tint muted badge backgrounds (invisible). Darken them here so
+     validation badges and semantic messages clear WCAG AA in light mode. */
   --color-warning-text:   oklch(42% 0.15 65);
+  --color-critical-text:  oklch(48% 0.18 25);
+  --color-positive-text:  oklch(45% 0.14 155);
   /* WP-10: light-mode input border — 0.35 opacity for WCAG non-text contrast */
   --color-input-border: rgba(0, 0, 0, 0.30);
 }

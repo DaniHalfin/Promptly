@@ -389,4 +389,39 @@ describe('SourceCard — E5 validation badges', () => {
     expect(badge).toHaveAttribute('data-validation-status', 'validating');
     expect(badge.textContent).toMatch(/Revalidating/i);
   });
+
+  // ── Batch 4: dark/light-mode legibility of badges + error text ────────────
+  it('no-data badge uses the themed critical-text token (readable in both modes)', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'none', daysAvailable: 0, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    // Batch 4: --color-critical-text now has a darkened light-mode override so
+    // the badge clears WCAG AA on the pale muted background (was ~1.9:1).
+    expect(badge).toHaveStyle({ color: 'var(--color-critical-text)' });
+  });
+
+  it('revalidating badge border is theme-aware (no hardcoded white rgba)', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
+    const badge = screen.getByTestId('source-validation-badge');
+    // Hardcoded rgba(255,255,255,0.12) was invisible in light mode; now uses the
+    // theme-aware input-border token (white-alpha in dark, black-alpha in light).
+    const border = badge.getAttribute('style') ?? '';
+    expect(border).toContain('var(--color-input-border)');
+    expect(border).not.toContain('rgba(255,255,255,0.12)');
+  });
+
+  it('error message uses the themed critical-text token (AA in both modes)', () => {
+    renderSourceCard('openai', { status: 'error', credential: 'sk', error: 'Invalid or expired API key' });
+    const err = screen.getByRole('alert');
+    expect(err.textContent).toMatch(/Invalid or expired API key/);
+    // Was --color-critical (4.0–4.4:1, under AA for 14px body); now critical-text (7:1+).
+    expect(err).toHaveStyle({ color: 'var(--color-critical-text)' });
+  });
+
+  it('validate button spans full width via inline style, not inert Tailwind w-full', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk' });
+    const btn = screen.getByRole('button', { name: /^validate$/i });
+    expect(btn).toHaveStyle({ width: '100%' });
+    expect(btn.className).not.toMatch(/w-full/);
+    expect(btn).toHaveClass('secondary');
+  });
 });

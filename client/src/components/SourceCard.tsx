@@ -288,7 +288,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           />
           {/* WP-3: aria-describedby on button so screen readers announce error when button is focused after a failed attempt */}
           <button
-            className="secondary w-full"
+            className="secondary"
+            style={{ width: '100%' }}
             onClick={handleValidate}
             disabled={validating || !source?.credential}
             aria-describedby={source?.error ? `${sourceId}-error` : undefined}
@@ -406,7 +407,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         <p
           id={`${sourceId}-error`}
           role="alert"
-          style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}
+          style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical-text)', marginTop: 8 }}
         >
           {source.error}
         </p>
@@ -434,7 +435,7 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
         data-testid="source-validation-badge"
         data-validation-status="validating"
         aria-live="polite"
-        style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.12)' }}
+        style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
       >
         Revalidating…
       </span>
