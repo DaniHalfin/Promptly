@@ -79,4 +79,33 @@ describe('SpendingTrendSection', () => {
     );
     expect(screen.getByTestId('spending-trend-section')).toBeInTheDocument();
   });
+
+  it('does not render ChatGPT-specific estimate copy', () => {
+    const withEstimate: DailySpendEntry[] = [
+      { date: '2026-01-01', spend_usd: 5.0, includes_estimated_tier_c: true },
+      { date: '2026-01-02', spend_usd: 8.0, includes_estimated_tier_c: true },
+    ];
+    render(
+      <SpendingTrendSection
+        dailySpend={withEstimate}
+        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    expect(screen.queryByText(/includes ChatGPT Export estimates/i)).toBeNull();
+  });
+
+  it('does not append est marker to daily spend values', () => {
+    const withEstimate: DailySpendEntry[] = [
+      { date: '2026-01-01', spend_usd: 5.0, includes_estimated_tier_c: true },
+    ];
+    const { container } = render(
+      <SpendingTrendSection
+        dailySpend={withEstimate}
+        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    expect(container.textContent).not.toMatch(/\(est\.\)/);
+  });
 });

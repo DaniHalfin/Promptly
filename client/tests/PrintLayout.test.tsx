@@ -119,6 +119,9 @@ describe('PrintLayout — ADR-9 narrative structure', () => {
     render(<PrintLayout report={report} />);
     // Total estimated spend is 89.25 (positive), so uses that
     expect(screen.getByText(/89\.25/)).toBeInTheDocument();
+    // includes_estimates:true → hero label is "Estimated spend", with no tilde
+    expect(screen.getByText(/Estimated spend/i)).toBeInTheDocument();
+    expect(screen.queryByText(/~\$89\.25/)).toBeNull();
   });
 
   it('§2 — renders Spend by Tool section with source bars', () => {
@@ -144,12 +147,33 @@ describe('PrintLayout — ADR-9 narrative structure', () => {
     expect(screen.getAllByText('ChatGPT Export').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('§4 — renders Tier C canonical fields (estimated label)', () => {
+  it('prints Estimated spend without tilde or caveat', () => {
     render(<PrintLayout report={report} />);
-    // Tier C section should show estimated cost with ~ label
-    expect(screen.getByText(/Est\. Cost/)).toBeInTheDocument();
-    // ~$4.00 appears in both §2 bar and §4 card — getAllByText
-    expect(screen.getAllByText(/~\$4\.00/).length).toBeGreaterThanOrEqual(1);
+    // Tier C canonical field renders a plain dollar figure — no ~, no (est.)
+    expect(screen.getAllByText(/\$4\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/~\$4\.00/)).toBeNull();
+    expect(screen.queryByText(/\(est\.\)/)).toBeNull();
+    expect(screen.queryByText(/Includes ChatGPT Export estimated/i)).toBeNull();
+  });
+
+  it('does not print actual/estimated distinction in source rows', () => {
+    render(<PrintLayout report={report} />);
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\(est\.\)/);
+    expect(text).not.toMatch(/Est\. Cost/);
+    expect(text).not.toMatch(/Incl\. Estimates/);
+    expect(text).not.toMatch(/~\$/);
+  });
+
+  it('prints Spend when no estimates are included', () => {
+    const noEstimates: AnalysisReport = {
+      ...report,
+      cross_source_summary: { ...report.cross_source_summary, includes_estimates: false },
+    };
+    render(<PrintLayout report={noEstimates} />);
+    // Hero label line: "Spend · N sources · ..." (not "Estimated spend")
+    expect(screen.getByText(/^Spend · \d+ source/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Estimated spend/i)).toBeNull();
   });
 
   it('§5 — renders Recommendations section', () => {

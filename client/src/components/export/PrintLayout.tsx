@@ -12,7 +12,7 @@ export function PrintLayout({ report }: PrintLayoutProps) {
   const meta  = report.metadata;
 
   const totalSpend    = (css.total_estimated_spend_usd ?? 0) > 0 ? css.total_estimated_spend_usd : css.total_actual_spend_usd;
-  const isEstimated   = (css.includes_estimates ?? false) || (css.total_estimated_spend_usd ?? 0) > 0;
+  const spendLabel: 'Spend' | 'Estimated spend' = css.includes_estimates === true ? 'Estimated spend' : 'Spend';
   const sourceCount   = report.sources.filter(s => !s.error).length;
   // Parse a date-only string (YYYY-MM-DD) as local noon to avoid UTC-to-local off-by-one.
   const parseDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T12:00:00`) : new Date(d);
@@ -66,16 +66,11 @@ export function PrintLayout({ report }: PrintLayoutProps) {
   const AnalysisHeader = () => (
     <div style={{ textAlign: 'center', marginBottom: 32 }}>
       <div style={{ fontSize: 40, fontWeight: 800, color: '#0066cc', marginBottom: 4 }}>
-        {isEstimated ? '~' : ''}${(totalSpend ?? 0).toFixed(2)}
+        ${(totalSpend ?? 0).toFixed(2)}
       </div>
       <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {isEstimated ? 'Estimated' : 'Total'} AI Spend · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
+        {spendLabel} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
       </p>
-      {isEstimated && (
-        <p style={{ fontSize: 11, color: '#d97706', margin: '4px 0 0' }}>
-          ~ Includes ChatGPT Export estimated from conversation activity
-        </p>
-      )}
       {css.top_recommendation && (
         <div style={{ display: 'inline-block', marginTop: 16, padding: '10px 16px', border: '1px solid #0066cc', borderRadius: 8, textAlign: 'left', maxWidth: 480 }}>
           <p style={{ ...label, color: '#0066cc' }}>Top Recommendation</p>
@@ -98,13 +93,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
             <div style={{ flex: 1, height: 16, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
-                background: e.is_estimated ? '#f59e0b' : '#0066cc',
+                background: '#0066cc',
                 width: `${((e.estimated_spend_usd ?? 0) / maxSpend) * 100}%`,
                 borderRadius: 4,
               }} />
             </div>
             <div style={{ width: 80, textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#111827', flexShrink: 0 }}>
-              {e.is_estimated ? '~' : ''}${(e.estimated_spend_usd ?? 0).toFixed(2)}
+              ${(e.estimated_spend_usd ?? 0).toFixed(2)}
             </div>
           </div>
         ))}
@@ -131,7 +126,6 @@ export function PrintLayout({ report }: PrintLayoutProps) {
             <tr style={{ background: '#f3f4f6' }}>
               <th style={{ textAlign: 'left', padding: '6px 8px', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Date</th>
               <th style={{ textAlign: 'right', padding: '6px 8px', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Spend</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Incl. Estimates</th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +133,6 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               <tr key={row.date} style={{ borderBottom: '1px solid #f3f4f6' }}>
                 <td style={{ padding: '5px 8px', color: '#374151' }}>{row.date}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>${(row.spend_usd ?? 0).toFixed(2)}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: '#9ca3af' }}>{row.includes_estimated_tier_c ? 'yes' : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -170,7 +163,7 @@ export function PrintLayout({ report }: PrintLayoutProps) {
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#111827' }}>{name}</h3>
           {spend && (
             <span style={{ fontSize: 18, fontWeight: 700, color: '#0066cc' }}>
-              {spend.is_estimated ? '~' : ''}${(spend.estimated_spend_usd ?? 0).toFixed(2)}
+              ${(spend.estimated_spend_usd ?? 0).toFixed(2)}
             </span>
           )}
         </div>
@@ -218,14 +211,14 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               )}
               {(m as any).estimated_relative_cost_usd !== undefined && (
                 <div style={cell}>
-                  <p style={label}>Est. Cost <span style={{ color: '#d97706' }}>(est.)</span></p>
-                  <p style={value}>~${((m as any).estimated_relative_cost_usd as number).toFixed(2)}</p>
+                  <p style={label}>Relative Cost</p>
+                  <p style={value}>${((m as any).estimated_relative_cost_usd as number).toFixed(2)}</p>
                 </div>
               )}
               {(m as any).estimated_token_volume !== undefined && (
                 <div style={cell}>
-                  <p style={label}>Token Vol. <span style={{ color: '#d97706' }}>(est.)</span></p>
-                  <p style={value}>~{((m as any).estimated_token_volume as number).toLocaleString()}</p>
+                  <p style={label}>Token Vol.</p>
+                  <p style={value}>{((m as any).estimated_token_volume as number).toLocaleString()}</p>
                 </div>
               )}
             </div>

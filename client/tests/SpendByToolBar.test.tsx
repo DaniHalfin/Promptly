@@ -48,10 +48,12 @@ describe('SpendByToolBar', () => {
     expect(fill.style.width).toBe('50%');
   });
 
-  it('renders ~ prefix for estimated entries', () => {
+  it('does not render a tilde prefix on spend values', () => {
     render(<SpendByToolBar data={entries} />);
-    // chatgpt_export is estimated — its amount should show ~ prefix
-    expect(screen.getByText(/~\$20\.00/)).toBeInTheDocument();
+    // Uniform terminology (D6): no ~ prefix even for Tier C estimated entries.
+    expect(screen.getAllByText(/\$20\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/~\$20\.00/)).toBeNull();
+    expect(screen.queryByText(/~\s*$/)).toBeNull();
   });
 
   it('renders empty state message when no entries', () => {

@@ -135,7 +135,7 @@ export function Results() {
   const totalSpend = (css.total_estimated_spend_usd || 0) > 0
     ? css.total_estimated_spend_usd
     : css.total_actual_spend_usd;
-  const isEstimated = (css.includes_estimates ?? false) || (css.total_estimated_spend_usd ?? 0) > 0;
+  const heroSpendLabel: 'Spend' | 'Estimated spend' = css.includes_estimates === true ? 'Estimated spend' : 'Spend';
   const sourceCount = report.sources.filter(s => !s.error).length;
 
   // Analysis period from metadata
@@ -206,10 +206,10 @@ export function Results() {
         {/* § 1 — AnalysisHeader */}
         <AnalysisHeader
           totalSpend={totalSpend}
+          spendLabel={heroSpendLabel}
           dateRange={{ start: periodStart, end: periodEnd }}
           sourceCount={sourceCount}
           topRecommendation={css.top_recommendation}
-          isEstimated={isEstimated}
         />
 
         {/* § 2 — MoneyByToolSection */}

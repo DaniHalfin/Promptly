@@ -8,13 +8,13 @@ interface TopRecommendation {
 
 interface AnalysisHeaderProps {
   totalSpend: number;
+  spendLabel: 'Spend' | 'Estimated spend';
   dateRange: { start: string; end: string };
   sourceCount: number;
   topRecommendation?: TopRecommendation;
-  isEstimated?: boolean;
 }
 
-export function AnalysisHeader({ totalSpend, dateRange, sourceCount, topRecommendation, isEstimated }: AnalysisHeaderProps) {
+export function AnalysisHeader({ totalSpend, spendLabel, dateRange, sourceCount, topRecommendation }: AnalysisHeaderProps) {
   const priorityColor = (priority: string) => {
     if (priority === 'High') return 'var(--color-critical)';
     if (priority === 'Medium') return 'var(--color-warning)';
@@ -25,18 +25,13 @@ export function AnalysisHeader({ totalSpend, dateRange, sourceCount, topRecommen
     <div data-testid="analysis-header" style={{ marginBottom: 32, textAlign: 'center' }}>
       {/* Total spend hero */}
       <div className="kpi-hero num" style={{ color: 'var(--color-accent)', marginBottom: 4 }}>
-        {isEstimated ? '~' : ''}${totalSpend.toFixed(2)}
+        ${totalSpend.toFixed(2)}
       </div>
       <p style={{ fontSize: 'var(--text-note)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-        {isEstimated ? 'Estimated' : 'Total'} AI Spend
+        {spendLabel}
         {' · '}{sourceCount} {sourceCount === 1 ? 'source' : 'sources'}
         {' · '}{dateRange.start} – {dateRange.end}
       </p>
-      {isEstimated && (
-        <p style={{ fontSize: '0.75rem', color: 'var(--color-warning-text)', marginTop: 4 }}>
-          ~ Includes ChatGPT Export estimated from conversation activity
-        </p>
-      )}
 
       {/* Top recommendation callout */}
       {topRecommendation && (

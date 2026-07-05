@@ -10,7 +10,7 @@ import { useSession } from '../src/context/SessionContext.js';
 // Mock all sub-components and dependencies
 vi.mock('../src/components/export/PrintLayout.js',           () => ({ PrintLayout: () => null }));
 vi.mock('../src/components/ThemeToggle.js',                  () => ({ ThemeToggle: () => null }));
-vi.mock('../src/components/Results/AnalysisHeader.js',       () => ({ AnalysisHeader: () => <div data-testid="analysis-header" /> }));
+vi.mock('../src/components/Results/AnalysisHeader.js',       () => ({ AnalysisHeader: (props: { spendLabel?: string }) => <div data-testid="analysis-header" data-spend-label={props.spendLabel} /> }));
 vi.mock('../src/components/Results/MoneyByToolSection.js',   () => ({ MoneyByToolSection: () => <div data-testid="money-by-tool-section" /> }));
 vi.mock('../src/components/Results/SpendingTrendSection.js', () => ({ SpendingTrendSection: () => <div data-testid="spending-trend-section" /> }));
 vi.mock('../src/components/Results/ToolSpendCard.js', () => ({
@@ -106,5 +106,27 @@ describe('Results — ADR-9 narrative layout', () => {
     });
     const { container } = render(<Results />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('passes Spend label when summary does not include estimates', () => {
+    // Default mockReport has no includes_estimates flag → 'Spend'
+    render(<Results />);
+    expect(screen.getByTestId('analysis-header')).toHaveAttribute('data-spend-label', 'Spend');
+  });
+
+  it('passes Estimated spend label when summary includes estimates', () => {
+    const estimatedReport = {
+      ...mockReport,
+      cross_source_summary: { ...mockReport.cross_source_summary, includes_estimates: true },
+    };
+    vi.mocked(useSession).mockReturnValueOnce({
+      state: { report: estimatedReport as any },
+      dispatch: vi.fn(),
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null },
+    } as any);
+    render(<Results />);
+    expect(screen.getByTestId('analysis-header')).toHaveAttribute('data-spend-label', 'Estimated spend');
   });
 });

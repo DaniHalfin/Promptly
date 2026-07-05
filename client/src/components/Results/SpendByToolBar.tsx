@@ -29,7 +29,7 @@ export function SpendByToolBar({ data }: SpendByToolBarProps) {
             {sorted.map(entry => (
               <tr key={entry.source_id}>
                 <td>{entry.display_name}</td>
-                <td>${entry.estimated_spend_usd.toFixed(2)}{entry.is_estimated ? ' (estimated)' : ''}</td>
+                <td>${entry.estimated_spend_usd.toFixed(2)}</td>
                 <td>{entry.percentage_of_total.toFixed(1)}%</td>
               </tr>
             ))}
@@ -45,17 +45,9 @@ export function SpendByToolBar({ data }: SpendByToolBarProps) {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8125rem' }}>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                   {entry.display_name}
-                  {entry.is_estimated && (
-                    <span
-                      title="Estimated spend"
-                      style={{ marginLeft: 4, color: 'var(--color-warning-text)', fontSize: '0.75rem' }}
-                    >
-                      ~
-                    </span>
-                  )}
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {entry.is_estimated ? '~' : ''}${entry.estimated_spend_usd.toFixed(2)}
+                  ${entry.estimated_spend_usd.toFixed(2)}
                   <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
                     {entry.percentage_of_total.toFixed(1)}%
                   </span>

@@ -91,7 +91,7 @@ export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: Spendi
                   {dailySpend.map(entry => (
                     <tr key={entry.date}>
                       <td>{entry.date}</td>
-                      <td>${entry.spend_usd.toFixed(4)}{entry.includes_estimated_tier_c ? ' (est.)' : ''}</td>
+                      <td>${entry.spend_usd.toFixed(4)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -99,11 +99,6 @@ export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: Spendi
             </figcaption>
             <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
               {dailySpend.length} days of data
-              {dailySpend.some(d => d.includes_estimated_tier_c) && (
-                <span style={{ marginLeft: 8, color: 'var(--color-warning-text)', fontSize: '0.75rem' }}>
-                  ~ includes ChatGPT Export estimates
-                </span>
-              )}
             </div>
           </figure>
         </div>

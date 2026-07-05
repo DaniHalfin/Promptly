@@ -8,6 +8,7 @@ import { AnalysisHeader } from '../src/components/Results/AnalysisHeader';
 
 const baseProps = {
   totalSpend: 99.42,
+  spendLabel: 'Spend' as const,
   dateRange: { start: '2026-01-01', end: '2026-01-31' },
   sourceCount: 2,
 };
@@ -42,12 +43,24 @@ describe('AnalysisHeader', () => {
     expect(screen.queryByTestId('top-recommendation-callout')).not.toBeInTheDocument();
   });
 
-  it('renders estimated label when isEstimated=true', () => {
-    render(<AnalysisHeader {...baseProps} isEstimated />);
-    // "Estimated" appears in the hero label — getAllByText since disclaimer also mentions it
-    expect(screen.getAllByText(/Estimated/i).length).toBeGreaterThanOrEqual(1);
-    // Hero figure has ~ prefix — check for ~$ in the overall text
-    expect(screen.getByText(/~\$99\.42/)).toBeInTheDocument();
+  it('renders Estimated spend without a tilde', () => {
+    render(<AnalysisHeader {...baseProps} spendLabel="Estimated spend" />);
+    // Label reads "Estimated spend"
+    expect(screen.getByText(/Estimated spend/i)).toBeInTheDocument();
+    // Hero figure has NO ~ prefix
+    expect(screen.getByText(/\$99\.42/)).toBeInTheDocument();
+    expect(screen.queryByText(/~\$99\.42/)).not.toBeInTheDocument();
+  });
+
+  it('renders Spend when no estimates are included', () => {
+    render(<AnalysisHeader {...baseProps} spendLabel="Spend" />);
+    expect(screen.getByText(/\bSpend\b/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Estimated spend/i)).not.toBeInTheDocument();
+  });
+
+  it('does not render ChatGPT Export estimate note', () => {
+    render(<AnalysisHeader {...baseProps} spendLabel="Estimated spend" />);
+    expect(screen.queryByText(/Includes ChatGPT Export estimated/i)).not.toBeInTheDocument();
   });
 
   it('renders singular "source" when sourceCount is 1', () => {
