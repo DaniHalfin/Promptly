@@ -63,7 +63,11 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// Only start the server when this file is run directly (not when imported by tests)
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] === __filename || process.argv[1]?.endsWith('index.js')) {
+  main().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}

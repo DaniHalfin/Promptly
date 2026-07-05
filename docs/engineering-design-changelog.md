@@ -3,6 +3,14 @@
 > **Reference file.** The canonical engineering design is [`engineering-design.md`](./engineering-design.md).  
 > This file records changes between versions. For spec changes, see [`spec-changelog.md`](./spec-changelog.md).
 
+### v2.0 (2026-07-04)
+
+- Updated to reflect spec v2.2.
+- Added `chatgpt_export` as active Tier C MVP source.
+- Added `TierCChatGptExportMetrics` type, `RC1`/`RC3`/`RC4a`/`RC4b`/`RC5`/`RC6` recommendation IDs, uniform card model, ADR-9 (narrative page pivot), updated adapter interface for file upload.
+- Removed obsolete dedicated ChatGPT export source-card stub (never built — implemented via `SourceCard.tsx`).
+- Removed R4.
+- Updated `total_estimated_spend_usd` to include Tier C contributions.
 ### v1.3 (2026-07-03)
 
 - **[§3.5]** `crossSource.ts:totalTokens()` — documented Copilot branch requirement: must read `copilotTokenBreakdownByModel` (not `modelBreakdown`) to avoid silently excluding Copilot tokens from cross-source aggregates. (F1)
@@ -40,3 +48,5 @@
 ### v1.0
 
 - Initial release.
+
+

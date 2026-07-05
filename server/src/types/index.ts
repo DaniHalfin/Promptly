@@ -81,6 +81,22 @@ export interface NormalizedSourceData {
   claudeCodePeakHourFraction?: number;
   periodStart: string;
   periodEnd: string;
+  /**
+   * ChatGPT Export canonical pre-computed aggregates (Phase 1+).
+   * Stored instead of raw conversations to preserve privacy.
+   * Never contains message text, titles, or per-message content.
+   */
+  chatgptAggregates?: {
+    total_conversations: number;
+    total_messages: number;
+    active_days: number;
+    models_identified: string[];
+    daily_conversation_activity: DailyConversationActivityEntry[];
+    estimated_token_volume: number;
+    estimated_user_tokens: number;
+    estimated_assistant_tokens: number;
+    newest_conversation_date?: string;
+  };
 }
 
 export interface TierClassification {
@@ -192,6 +208,9 @@ export interface SourceMetrics {
   daily_conversation_activity?: DailyConversationActivityEntry[];
   estimated_token_volume?: number;
   newest_conversation_date?: string;
+  // Tier C trend and spike (computed by tierC.ts from daily_conversation_activity)
+  trend?: TrendStatus;
+  spike_callout?: SpikeCallout | null;
 }
 
 // ====== Tier C (ChatGPT Export) canonical types (spec v2.2 §7.19–§7.25) ======
