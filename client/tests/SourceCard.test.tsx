@@ -350,3 +350,38 @@ describe('SourceCard', () => {
     });
   });
 });
+// ── E5: Inline validation badges ─────────────────────────────────────────
+describe('SourceCard — E5 validation badges', () => {
+  it('validation badge: shows data available for full validation', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'full');
+    expect(badge.textContent).toMatch(/Data available/i);
+  });
+
+  it('validation badge: shows partial data with day count', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'partial', daysAvailable: 18, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'partial');
+    expect(badge.textContent).toMatch(/18 days/);
+    // Fuller warning line under the card
+    const warning = screen.getByTestId('openai-partial-warning');
+    expect(warning.textContent).toMatch(/18 of 60 days available/);
+  });
+
+  it('validation badge: shows no data in range + exclusion explanation', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'none', daysAvailable: 0, daysRequested: 60, excluded: true } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'none');
+    expect(badge.textContent).toMatch(/No data in range/i);
+    const excluded = screen.getByTestId('openai-excluded');
+    expect(excluded.textContent).toMatch(/excluded from analysis/i);
+  });
+
+  it('validation badge: shows revalidating indicator', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'validating');
+    expect(badge.textContent).toMatch(/Revalidating/i);
+  });
+});

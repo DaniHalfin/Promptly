@@ -105,10 +105,31 @@ describe('validate route', () => {
       body: formData,
     });
     expect(res.status).toBe(200);
-    const body = await res.json() as { valid: boolean; error?: string };
+    const body = await res.json() as { valid: boolean; error?: string; availability?: string; daysRequested?: number };
     expect(body.valid).toBe(false);
     // Must surface a message about the period mismatch
     expect(typeof body.error).toBe('string');
     expect(body.error!.toLowerCase()).toContain('period');
+    // E2: normalized no-data availability metadata
+    expect(body.availability).toBe('none');
+    expect(body.daysRequested).toBe(28); // 2026-02-01 .. 2026-02-28 inclusive
+  });
+
+  it('POST /api/sources/openai/validate returns 400 for invalid future date window', async () => {
+    // A future end date is rejected by the shared date-window guard before the
+    // adapter is invoked, regardless of credentials.
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const iso = future.toISOString().slice(0, 10);
+    const res = await fetch(`${baseUrl}/api/sources/openai/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: '2026-01-01', endDate: iso }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { valid: boolean; availability?: string; errorCode?: string };
+    expect(body.valid).toBe(false);
+    expect(body.availability).toBe('none');
+    expect(body.errorCode).toBe('INVALID_DATE_WINDOW');
   });
 });

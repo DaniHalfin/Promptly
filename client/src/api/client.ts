@@ -1,5 +1,18 @@
 import { SourceId, AnalysisReport, SourceReport } from '../types/index.js';
 
+export type ValidationAvailability = 'full' | 'partial' | 'none';
+
+export interface ValidateSourceResult {
+  valid: boolean;
+  sourceId: SourceId;
+  availability: ValidationAvailability;
+  daysAvailable?: number;
+  daysRequested?: number;
+  warnings?: string[];
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 class APIClient {
   private baseURL = import.meta.env.VITE_API_URL ?? '/api';
   private headers: Record<string, string> = {};
@@ -26,20 +39,49 @@ class APIClient {
     return fetch(`${this.baseURL}/price-map/meta`).then(r => r.json());
   }
 
-  async validate(sourceId: SourceId, startDate?: string, endDate?: string) {
+  async validate(sourceId: SourceId, startDate?: string, endDate?: string): Promise<ValidateSourceResult> {
     const response = await fetch(`${this.baseURL}/sources/${sourceId}/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...this.headers },
       body: JSON.stringify({ startDate, endDate }),
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    const result = await response.json().catch(() => ({} as Record<string, unknown>));
+
+    // Normalize availability from the server response. The server returns
+    // `availability` directly; fall back to deriving it if an older/edge
+    // response is received. Structured no-data responses (HTTP 400 with
+    // valid:false) are returned, not thrown — only transport errors throw.
+    const valid = result.valid === true;
+    const daysAvailable = typeof result.daysAvailable === 'number' ? result.daysAvailable : undefined;
+    const daysRequested = typeof result.daysRequested === 'number' ? result.daysRequested : undefined;
+
+    let availability: ValidationAvailability;
+    if (result.availability === 'full' || result.availability === 'partial' || result.availability === 'none') {
+      availability = result.availability;
+    } else if (!valid || (daysAvailable ?? 0) === 0) {
+      availability = 'none';
+    } else if (daysRequested !== undefined && (daysAvailable ?? 0) < daysRequested) {
+      availability = 'partial';
+    } else {
+      availability = 'full';
+    }
+
+    // Throw only for unexpected transport/server failures (e.g. 5xx) where the
+    // response body carries no structured validation contract.
+    if (!response.ok && result.availability === undefined && result.valid === undefined) {
       throw new Error(result.errorMessage || `Validation failed: ${response.statusText}`);
     }
-    if (result.valid === false) {
-      throw new Error(result.errorMessage || 'Validation failed');
-    }
-    return result;
+
+    return {
+      valid,
+      sourceId,
+      availability,
+      daysAvailable,
+      daysRequested,
+      warnings: Array.isArray(result.warnings) ? result.warnings : undefined,
+      errorCode: typeof result.errorCode === 'string' ? result.errorCode : undefined,
+      errorMessage: typeof result.errorMessage === 'string' ? result.errorMessage : undefined,
+    };
   }
 
   /** Per-source analysis call: POST /api/analyze/:sourceId */

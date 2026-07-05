@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { getAdapter } from '../adapters/registry.js';
 import { loadPriceMap } from '../data/priceMap.js';
+import { parseAndValidateDateWindow, countInclusiveDays } from '../lib/dateWindow.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -52,7 +53,12 @@ router.post('/chatgpt_export/validate', upload.single('file'), async (req: Reque
       });
 
       if (!hasConvInPeriod) {
-        return res.json({ valid: false, error: 'No conversations found in the selected period' });
+        return res.json({
+          valid: false,
+          error: 'No conversations found in the selected period',
+          availability: 'none',
+          daysRequested: countInclusiveDays(startDate, endDate),
+        });
       }
     }
 
@@ -75,23 +81,61 @@ router.post('/:sourceId/validate', async (req: Request, res: Response, next) => 
 
     const adapter = getAdapter(sourceId);
     if (!adapter) {
-      return res.status(400).json({ valid: false, errorCode: 'UNKNOWN_SOURCE', errorMessage: `Unknown source: ${sourceId}` });
+      return res.status(400).json({ valid: false, sourceId, availability: 'none', errorCode: 'UNKNOWN_SOURCE', errorMessage: `Unknown source: ${sourceId}` });
+    }
+
+    // E2: reject invalid/future/reversed date windows up front (matches Unit A4 analyze guard).
+    const parsedWindow = parseAndValidateDateWindow(startDate, endDate);
+    if (!parsedWindow.ok) {
+      return res.status(400).json({
+        valid: false,
+        sourceId,
+        availability: 'none',
+        errorCode: 'INVALID_DATE_WINDOW',
+        errorMessage: parsedWindow.error,
+      });
     }
 
     const priceMap = await loadPriceMap();
     const result = await adapter.validate({
       credential,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+      startDate: parsedWindow.startDate,
+      endDate: parsedWindow.endDate,
       priceMap,
     });
 
+    const daysRequested = countInclusiveDays(startDate, endDate);
+
     if (result.valid) {
-      res.json({ valid: true, sourceId, daysAvailable: result.daysAvailable || 30, warnings: [] });
+      const daysAvailable = result.daysAvailable ?? 0;
+      const availability = daysAvailable === 0
+        ? 'none'
+        : daysRequested > 0 && daysAvailable < daysRequested
+          ? 'partial'
+          : 'full';
+      const warnings = availability === 'partial'
+        ? [`Partial data: ${daysAvailable} of ${daysRequested} days available.`]
+        : [];
+
+      if (availability === 'none') {
+        return res.status(400).json({
+          valid: false,
+          sourceId,
+          availability: 'none',
+          daysAvailable: 0,
+          daysRequested,
+          errorMessage: 'No data in selected range',
+        });
+      }
+
+      return res.json({ valid: true, sourceId, availability, daysAvailable, daysRequested, warnings });
     } else {
       res.status(400).json({
         valid: false,
         sourceId,
+        availability: 'none',
+        daysAvailable: 0,
+        daysRequested,
         errorCode: result.error?.code,
         errorMessage: result.error?.message,
       });

@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DayPicker, type DateRange } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { useSession } from '../context/SessionContext.js';
 import { SourceCard } from '../components/SourceCard.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { apiClient } from '../api/client.js';
 import type { SourceConfig, SourceId } from '../types/index.js';
 import {
   PERIOD_PRESETS,
@@ -16,9 +17,19 @@ import {
 } from '../lib/dateRange.js';
 
 const MOM_MIN_DAYS = 60;
+const VALIDATION_SPINNER_DELAY_MS = 200;
+
+const SOURCE_LABELS: Record<string, string> = {
+  github_copilot: 'GitHub Copilot',
+  claude_code: 'Claude Code',
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  chatgpt_export: 'ChatGPT Export',
+  claude_export: 'Claude Export',
+};
 
 export function Landing() {
-  const { state, dispatch } = useSession();
+  const { state, dispatch, updateSource } = useSession();
 
   const [periodMode, setPeriodMode] = useState<PeriodMode>('last_60');
   const defaultRange = useMemo(() => getPresetRange('last_60'), []);
@@ -27,6 +38,7 @@ export function Landing() {
     to: parseIsoDate(defaultRange.end),
   });
   const [dateError, setDateError] = useState<string | null>(null);
+  const [showValidationSpinner, setShowValidationSpinner] = useState(false);
 
   const effectiveDateRange = useMemo(
     () => periodMode === 'custom'
@@ -42,18 +54,121 @@ export function Landing() {
   const inclusiveDays = countInclusiveDays(effectiveDateRange);
   const showMomNudge = inclusiveDays > 0 && inclusiveDays < MOM_MIN_DAYS;
 
-  const hasAnyEnabled = Object.values(state.sources).some(
-    s => s?.enabled || s?.status === 'connected' || s?.status === 'ready'
+  // ── E4: which sources are enabled and should be validated for this range ──
+  const enabledSourceIds = useMemo(
+    () => (Object.keys(state.sources) as SourceId[]).filter(id => {
+      const s = state.sources[id];
+      return s?.status === 'connected' || s?.status === 'ready' || s?.enabled || ((s as { file?: File })?.file != null);
+    }),
+    [state.sources]
   );
+  const enabledKey = enabledSourceIds.join(',');
+  const rangeKey = `${effectiveDateRange.start}|${effectiveDateRange.end}`;
 
-  const isActive = (sourceId: SourceId) => {
-    const source = state.sources[sourceId];
-    return source?.status === 'connected' || source?.status === 'ready';
-  };
+  // Sequence guard so stale validation responses are ignored.
+  const validationSeq = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const didMountRef = useRef(false);
 
-  const sourceConfig = (sourceId: SourceId, hasCredential: boolean): SourceConfig => ({
+  // ── E4: validation orchestration — runs on enabled-source or range change ──
+  useEffect(() => {
+    if (enabledSourceIds.length === 0) {
+      setShowValidationSpinner(false);
+      return;
+    }
+    if (!effectiveDateRange.start || !effectiveDateRange.end) return;
+
+    const seq = ++validationSeq.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const validatedRange = { start: effectiveDateRange.start, end: effectiveDateRange.end };
+
+    // Mark every enabled source as validating.
+    enabledSourceIds.forEach(id => {
+      updateSource(id, { validation: { status: 'validating', validatedRange } });
+    });
+
+    const spinnerTimer = setTimeout(() => {
+      if (seq === validationSeq.current) setShowValidationSpinner(true);
+    }, VALIDATION_SPINNER_DELAY_MS);
+
+    (async () => {
+      await Promise.all(enabledSourceIds.map(async (id) => {
+        try {
+          const result = await apiClient.validate(id, validatedRange.start, validatedRange.end);
+          if (seq !== validationSeq.current) return; // stale response
+          updateSource(id, {
+            validation: {
+              status: result.availability,
+              daysAvailable: result.daysAvailable,
+              daysRequested: result.daysRequested,
+              message: result.errorMessage,
+              validatedRange,
+              excluded: result.availability === 'none',
+            },
+          });
+        } catch (err) {
+          if (seq !== validationSeq.current) return;
+          updateSource(id, {
+            validation: { status: 'error', message: (err as Error).message, validatedRange },
+          });
+        }
+      }));
+      if (seq === validationSeq.current) {
+        clearTimeout(spinnerTimer);
+        setShowValidationSpinner(false);
+      }
+    })();
+
+    return () => {
+      clearTimeout(spinnerTimer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabledKey, rangeKey]);
+
+  // ── E6: clear all-failed analysis errors when the user changes sources/range ──
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    if (state.analysisErrors && state.analysisErrors.length > 0) {
+      dispatch({ analysisErrors: [] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabledKey, rangeKey]);
+
+  // ── E4: Run Analysis gating derived from validation status ──
+  const isValidating = enabledSourceIds.some(id => state.sources[id]?.validation?.status === 'validating');
+  const usableSourceIds = enabledSourceIds.filter(id => {
+    const st = state.sources[id]?.validation?.status;
+    return st === 'full' || st === 'partial';
+  });
+  const hasAnyUsableSource = usableSourceIds.length > 0;
+  const allResolvedNoData = enabledSourceIds.length > 0 && !isValidating && !hasAnyUsableSource
+    && enabledSourceIds.every(id => {
+      const st = state.sources[id]?.validation?.status;
+      return st === 'none' || st === 'error';
+    });
+
+  const runDisabledReason = enabledSourceIds.length === 0
+    ? 'Validate at least one source above to enable analysis.'
+    : isValidating
+      ? 'Validating selected sources…'
+      : allResolvedNoData
+        ? 'No selected source has data for this period.'
+        : !hasAnyUsableSource
+          ? 'Validate at least one source above to enable analysis.'
+          : null;
+
+  const runDisabled = enabledSourceIds.length === 0 || isValidating || !hasAnyUsableSource;
+
+  const sourceConfig = (sourceId: SourceId): SourceConfig => ({
     sourceId,
-    hasCredential,
+    hasCredential: sourceId === 'openai' || sourceId === 'anthropic',
     startDate: effectiveDateRange.start,
     endDate: effectiveDateRange.end,
   });
@@ -66,14 +181,9 @@ export function Landing() {
     }
     setDateError(null);
 
+    // E4: include full and partial sources; exclude only `none`/`error`.
     const config: { sources: SourceConfig[] } = {
-      sources: [
-        isActive('openai') ? sourceConfig('openai', true) : null,
-        isActive('anthropic') ? sourceConfig('anthropic', true) : null,
-        (isActive('github_copilot') || state.sources.github_copilot?.enabled) ? sourceConfig('github_copilot', false) : null,
-        isActive('chatgpt_export') ? sourceConfig('chatgpt_export', false) : null,
-        (isActive('claude_code') || state.sources.claude_code?.enabled) ? sourceConfig('claude_code', false) : null,
-      ].filter((source): source is SourceConfig => source !== null),
+      sources: usableSourceIds.map(id => sourceConfig(id)),
     };
 
     dispatch({ phase: 'analyzing', pendingAnalysis: { config } });
@@ -244,6 +354,34 @@ export function Landing() {
             )}
           </div>
 
+          {/* E6: all-failed analysis errors surfaced from the Analysis phase */}
+          {state.analysisErrors && state.analysisErrors.length > 0 && (
+            <div
+              role="alert"
+              data-testid="landing-analysis-errors"
+              style={{
+                background: 'var(--color-critical-muted)',
+                border: '1px solid var(--color-critical)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '12px 16px',
+                marginBottom: 20,
+              }}
+            >
+              <h2 style={{ margin: '0 0 8px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-critical-text)' }}>
+                Analysis could not run for the selected sources
+              </h2>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {state.analysisErrors.map(err => (
+                  <li key={err.sourceId} style={{ fontSize: '0.8125rem', color: 'var(--color-critical-text)', marginBottom: 2 }}>
+                    <strong>{SOURCE_LABELS[err.sourceId] ?? err.sourceId}</strong>
+                    {err.error ? ` — ${err.error}` : ''}
+                    {(!err.error && err.warnings && err.warnings.length > 0) ? ` — ${err.warnings.join('; ')}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Source cards — WP-1: h2 so SourceCard h3 headings have a valid parent heading */}
           <h2 style={{
             fontSize: '0.6875rem',
@@ -280,10 +418,25 @@ export function Landing() {
         WebkitBackdropFilter: 'blur(8px)',
       }}>
         <div style={{ maxWidth: 520, margin: '0 auto' }}>
+          {/* E4: visible re-validation indicator when validation exceeds ~200ms */}
+          {showValidationSpinner && (
+            <p
+              data-testid="validation-spinner"
+              aria-live="polite"
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+            >
+              Validating selected sources…
+            </p>
+          )}
           <button
             className="primary"
             style={{ width: '100%' }}
-            disabled={!hasAnyEnabled}
+            disabled={runDisabled}
             onClick={handleAnalyze}
           >
             Run Analysis →
@@ -298,15 +451,18 @@ export function Landing() {
             All analysis happens on your device. No credentials or files leave this machine.
           </p>
           {/* WP-13: Helper text explains why the button is disabled */}
-          {!hasAnyEnabled && (
-            <p style={{
-              fontSize: '0.75rem',
-              color: 'var(--color-warning-text)',
-              textAlign: 'center',
-              marginTop: 4,
-              lineHeight: 1.5,
-            }}>
-              Validate at least one source above to enable analysis.
+          {runDisabledReason && (
+            <p
+              data-testid="run-disabled-reason"
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--color-warning-text)',
+                textAlign: 'center',
+                marginTop: 4,
+                lineHeight: 1.5,
+              }}
+            >
+              {runDisabledReason}
             </p>
           )}
         </div>

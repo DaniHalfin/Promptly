@@ -2,7 +2,7 @@
  * Phase 3 Unit A — Landing date-range presets, MoM nudge, and range validation.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Landing } from '../src/pages/Landing';
 import { SessionContext } from '../src/context/SessionContext.js';
@@ -11,7 +11,25 @@ import { getPresetRange, getYtdRange, toIsoDate, validateDateRange } from '../sr
 vi.mock('../src/components/ThemeToggle.js', () => ({ ThemeToggle: () => null }));
 vi.mock('../src/components/SourceCard.js', () => ({ SourceCard: () => null }));
 
-function renderLanding(sources: Record<string, unknown> = { openai: { status: 'connected', credential: 'sk-test' } }) {
+const validateMock = vi.fn(async (sourceId: string, startDate?: string, endDate?: string) => ({
+  valid: true,
+  sourceId,
+  availability: 'full' as const,
+  daysAvailable: 60,
+  daysRequested: 60,
+  warnings: [] as string[],
+}));
+
+vi.mock('../src/api/client.js', () => ({
+  apiClient: {
+    validate: (...args: [string, string?, string?]) => validateMock(...args),
+  },
+}));
+
+// A source that is enabled AND already validated as full — passes E4 gating.
+const fullOpenAi = { status: 'connected', credential: 'sk-test', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } };
+
+function renderLanding(sources: Record<string, unknown> = { openai: { ...fullOpenAi } }) {
   const dispatch = vi.fn();
   const ctx = {
     state: { phase: 'landing', sources },
@@ -150,5 +168,121 @@ describe('Landing — A2 MoM nudge & validation', () => {
     // from the picker; validateDateRange (called by handleAnalyze) is the guard.
     const err = validateDateRange({ start: '2026-05-20', end: '2026-05-10' });
     expect(err).toBe('Start date must be on or before the end date.');
+  });
+});
+
+describe('Landing — E4 validation orchestration & gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockImplementation(async (sourceId: string) => ({
+      valid: true, sourceId, availability: 'full' as const, daysAvailable: 60, daysRequested: 60, warnings: [],
+    }));
+  });
+
+  it('validates enabled source with current date range when toggled on', async () => {
+    renderLanding({ openai: { ...fullOpenAi } });
+    const range = getPresetRange('last_60');
+    await waitFor(() => {
+      expect(validateMock).toHaveBeenCalledWith('openai', range.start, range.end);
+    });
+  });
+
+  it('revalidates enabled sources when date range changes', async () => {
+    renderLanding({ openai: { ...fullOpenAi } });
+    await waitFor(() => expect(validateMock).toHaveBeenCalled());
+    validateMock.mockClear();
+    fireEvent.click(screen.getByTestId('period-preset-last_7'));
+    const range7 = getPresetRange('last_7');
+    await waitFor(() => {
+      expect(validateMock).toHaveBeenCalledWith('openai', range7.start, range7.end);
+    });
+  });
+
+  it('shows validating indicator after the 200ms delay', async () => {
+    vi.useFakeTimers();
+    try {
+      // Never resolves → validation stays in-flight so the delayed spinner shows.
+      validateMock.mockImplementation(() => new Promise(() => {}) as any);
+      renderLanding({ openai: { ...fullOpenAi } });
+      expect(screen.queryByTestId('validation-spinner')).toBeNull();
+      await act(async () => { vi.advanceTimersByTime(200); });
+      expect(screen.getByTestId('validation-spinner')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Run Analysis disabled while validation is running', () => {
+    renderLanding({ openai: { status: 'connected', credential: 'sk-test', validation: { status: 'validating' } } });
+    expect(screen.getByRole('button', { name: /Run Analysis/i })).toBeDisabled();
+    expect(screen.getByTestId('run-disabled-reason').textContent).toMatch(/Validating/i);
+  });
+
+  it('Run Analysis disabled + explains when all enabled sources have no data', () => {
+    renderLanding({ openai: { status: 'connected', credential: 'sk-test', validation: { status: 'none', daysAvailable: 0, daysRequested: 60 } } });
+    expect(screen.getByRole('button', { name: /Run Analysis/i })).toBeDisabled();
+    expect(screen.getByTestId('run-disabled-reason').textContent).toMatch(/no.*data/i);
+  });
+
+  it('Landing Run Analysis > enables when at least one source has full or partial data', () => {
+    renderLanding({ anthropic: { status: 'connected', credential: 'ant', validation: { status: 'partial', daysAvailable: 18, daysRequested: 60 } } });
+    expect(screen.getByRole('button', { name: /Run Analysis/i })).not.toBeDisabled();
+  });
+
+  it('Landing Run Analysis > excludes only none-availability sources from analysis config; partial sources are included with a visible SourceCard warning', () => {
+    const { dispatch } = renderLanding({
+      openai: { status: 'connected', credential: 'sk', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } },
+      anthropic: { status: 'connected', credential: 'ant', validation: { status: 'partial', daysAvailable: 18, daysRequested: 60 } },
+      github_copilot: { enabled: true, status: 'connected', validation: { status: 'none', daysAvailable: 0, daysRequested: 60 } },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Run Analysis/i }));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const arg = dispatch.mock.calls[0][0];
+    const ids = arg.pendingAnalysis.config.sources.map((s: any) => s.sourceId);
+    expect(ids).toContain('openai');
+    expect(ids).toContain('anthropic');
+    expect(ids).not.toContain('github_copilot');
+  });
+});
+
+describe('Landing — E6 all-failed error surfacing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockImplementation(async (sourceId: string) => ({
+      valid: true, sourceId, availability: 'full' as const, daysAvailable: 60, daysRequested: 60, warnings: [],
+    }));
+  });
+
+  function renderWithErrors(analysisErrors: unknown[], sources: Record<string, unknown> = { openai: { ...fullOpenAi } }) {
+    const dispatch = vi.fn();
+    const ctx = {
+      state: { phase: 'landing', sources, analysisErrors },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+    return { dispatch };
+  }
+
+  it('displays per-source errors from all-failed analysis', () => {
+    renderWithErrors([{ sourceId: 'openai', error: 'Invalid credentials', warnings: [] }]);
+    const banner = screen.getByTestId('landing-analysis-errors');
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).toMatch(/OpenAI/);
+    expect(banner.textContent).toMatch(/Invalid credentials/);
+  });
+
+  it('clears errors after source/date changes', async () => {
+    const { dispatch } = renderWithErrors([{ sourceId: 'openai', error: 'Invalid credentials', warnings: [] }]);
+    fireEvent.click(screen.getByTestId('period-preset-last_7'));
+    await waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith({ analysisErrors: [] });
+    });
   });
 });

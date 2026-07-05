@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useSession } from '../context/SessionContext.js';
+import type { SourceValidationState } from '../context/SessionContext.js';
 import { SourceId } from '../types/index.js';
 import { apiClient } from '../api/client.js';
 
@@ -131,7 +132,11 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         apiClient.setCredential(sourceId, source.credential);
       }
       const result = await apiClient.validate(sourceId);
-      updateSource(sourceId, { status: 'connected', error: null });
+      if (!result.valid || result.availability === 'none') {
+        updateSource(sourceId, { status: 'error', error: result.errorMessage || 'No data available for this source' });
+      } else {
+        updateSource(sourceId, { status: 'connected', error: null });
+      }
     } catch (err) {
       updateSource(sourceId, { status: 'error', error: (err as Error).message });
     }
@@ -148,8 +153,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     updateSource(sourceId, { enabled: true, status: 'pending', error: null });
     setValidating(true);
     try {
-      await apiClient.validate(sourceId);
-      updateSource(sourceId, { enabled: true, status: 'connected', error: null });
+      const result = await apiClient.validate(sourceId);
+      if (!result.valid || result.availability === 'none') {
+        updateSource(sourceId, { enabled: true, status: 'error', error: result.errorMessage || 'No data available for this source' });
+      } else {
+        updateSource(sourceId, { enabled: true, status: 'connected', error: null });
+      }
     } catch (err) {
       updateSource(sourceId, { enabled: true, status: 'error', error: (err as Error).message });
     }
@@ -189,7 +198,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <h3 id={`${sourceId}-heading`} style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
-        {(source?.status === 'connected' || source?.status === 'ready') && (
+        {source?.validation && source.validation.status !== 'idle' ? (
+          <ValidationBadge validation={source.validation} />
+        ) : (source?.status === 'connected' || source?.status === 'ready') && (
           /* WP-13: "Validated" is more accurate — confirms credentials, not that analysis has run */
           <span style={{
             padding: '2px 8px',
@@ -372,6 +383,24 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       )}
 
+      {/* E5: Partial-data warning and no-data exclusion explanation */}
+      {source?.validation?.status === 'partial' && (
+        <p
+          data-testid={`${sourceId}-partial-warning`}
+          style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', marginTop: 8 }}
+        >
+          ⚠️ Partial data · {source.validation.daysAvailable ?? 0} of {source.validation.daysRequested ?? 0} days available
+        </p>
+      )}
+      {source?.validation?.status === 'none' && (
+        <p
+          data-testid={`${sourceId}-excluded`}
+          style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 8 }}
+        >
+          No data for the selected period — this source will be excluded from analysis.
+        </p>
+      )}
+
       {/* WP-3: role="alert" announces errors to AT immediately; id enables aria-describedby on related inputs */}
       {source?.error && (
         <p
@@ -384,4 +413,69 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       )}
     </div>
   );
+}
+
+/**
+ * E5: Inline per-source validation badge driven by session validation state.
+ * Reflects date-range data availability (distinct from credential/connection status).
+ */
+function ValidationBadge({ validation }: { validation: SourceValidationState }) {
+  const base: React.CSSProperties = {
+    padding: '2px 8px',
+    fontSize: 'var(--text-note)',
+    fontWeight: 600,
+    borderRadius: 'var(--radius-pill)',
+    flexShrink: 0,
+  };
+
+  if (validation.status === 'validating') {
+    return (
+      <span
+        data-testid="source-validation-badge"
+        data-validation-status="validating"
+        aria-live="polite"
+        style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.12)' }}
+      >
+        Revalidating…
+      </span>
+    );
+  }
+
+  if (validation.status === 'full') {
+    return (
+      <span
+        data-testid="source-validation-badge"
+        data-validation-status="full"
+        style={{ ...base, background: 'var(--color-positive-muted)', color: 'var(--color-positive-text)', border: '1px solid var(--color-positive)' }}
+      >
+        ✅ Data available
+      </span>
+    );
+  }
+
+  if (validation.status === 'partial') {
+    return (
+      <span
+        data-testid="source-validation-badge"
+        data-validation-status="partial"
+        style={{ ...base, background: 'var(--color-warning-muted)', color: 'var(--color-warning-text)', border: '1px solid var(--color-warning)' }}
+      >
+        ⚠️ Partial data · {validation.daysAvailable ?? 0} days
+      </span>
+    );
+  }
+
+  if (validation.status === 'none' || validation.status === 'error') {
+    return (
+      <span
+        data-testid="source-validation-badge"
+        data-validation-status={validation.status}
+        style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
+      >
+        ❌ No data in range
+      </span>
+    );
+  }
+
+  return null;
 }
