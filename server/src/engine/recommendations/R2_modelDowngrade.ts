@@ -17,10 +17,16 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
   { pattern: /^claude-fable-5/i, cheaper: 'claude-sonnet-4-6', rationale: 'Significant cost reduction; Fable 5 reserved for complex multi-step tasks' },
 ];
 
+/** Guard: R2 only fires when at least one Tier B source has data. */
+function hasTierBSource(ctx: RuleContext): boolean {
+  return ctx.sources.some(s => s.tier === 'B');
+}
+
 export const R2: Rule = {
   id: 'R2',
   severity: 'High',
   evaluate(ctx: RuleContext): RecommendationResult[] {
+    if (!hasTierBSource(ctx)) return [];
     return [...evaluateTierBTokenSources(ctx), ...evaluateCopilot(ctx)];
   },
 };

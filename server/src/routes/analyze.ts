@@ -3,7 +3,7 @@ import multer from 'multer';
 import { getAdapter } from '../adapters/registry.js';
 import { loadPriceMap } from '../data/priceMap.js';
 import { classifyTier } from '../engine/tiers.js';
-import { computeSourceMetrics, computeCrossSourceMetrics } from '../engine/metrics/index.js';
+import { computeSourceMetrics, computeCrossSourceMetrics, selectTopRecommendation } from '../engine/metrics/index.js';
 import { generateRecommendations } from '../engine/recommendations/index.js';
 import { AnalysisReport, SourceReport, SourceConfig, SourceMetrics, SourceId } from '../types/index.js';
 
@@ -95,6 +95,7 @@ router.post('/analyze/recommendations', async (req: Request, res: Response, next
     const priceMap = await loadPriceMap();
     const crossSource = computeCrossSourceMetrics(settledSources, priceMap);
     const recommendations = generateRecommendations(settledSources, priceMap);
+    crossSource.top_recommendation = selectTopRecommendation(recommendations);
 
     const now = new Date();
     const report: AnalysisReport = {
@@ -207,6 +208,7 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
 
     // Generate recommendations
     const recommendations = generateRecommendations(reports, priceMap);
+    crossSource.top_recommendation = selectTopRecommendation(recommendations);
 
     // Build analysis report
     const now = new Date();

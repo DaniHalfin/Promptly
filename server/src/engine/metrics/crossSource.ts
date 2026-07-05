@@ -1,4 +1,4 @@
-import { AnalysisRequest, CrossSourceSummary, SourceReport, TrendStatus, SpendByToolEntry, DailySpendEntry } from '../../types/index.js';
+import { AnalysisRequest, CrossSourceSummary, RecommendationId, RecommendationResult, SourceReport, TrendStatus, SpendByToolEntry, DailySpendEntry } from '../../types/index.js';
 import { PriceMap } from '../../data/priceMap.js';
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
@@ -234,4 +234,27 @@ export function computeCrossSourceMetrics(reports: SourceReport[], _priceMap: Pr
   };
 }
 
+/** Select the single highest-priority recommendation from the full set.
+ *  Priority order: High > Medium > Low. Returns null when the list is empty.
+ */
+export function selectTopRecommendation(
+  recommendations: RecommendationResult[]
+): { id: RecommendationId; title: string; priority: 'high' | 'medium' | 'low' } | null {
+  if (recommendations.length === 0) return null;
 
+  const SEVERITY_ORDER: Record<RecommendationResult['severity'], number> = {
+    High: 0,
+    Medium: 1,
+    Low: 2,
+  };
+
+  const top = [...recommendations].sort(
+    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
+  )[0];
+
+  return {
+    id: top.id,
+    title: top.title,
+    priority: top.severity.toLowerCase() as 'high' | 'medium' | 'low',
+  };
+}

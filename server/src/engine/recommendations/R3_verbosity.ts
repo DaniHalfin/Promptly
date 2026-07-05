@@ -8,10 +8,16 @@ type MetricsWithDailyInput = SourceMetrics & {
   copilotDailyInputTokens?: Array<{ date: string; inputTokens: number }>;
 };
 
+/** Guard: R3 only fires when at least one Tier B source has data. */
+function hasTierBSource(ctx: RuleContext): boolean {
+  return ctx.sources.some(s => s.tier === 'B');
+}
+
 export const R3: Rule = {
   id: 'R3',
   severity: 'Medium',
   evaluate(ctx: RuleContext): RecommendationResult[] {
+    if (!hasTierBSource(ctx)) return [];
     const cards: RecommendationResult[] = [];
 
     for (const source of ctx.sources) {

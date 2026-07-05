@@ -4,10 +4,16 @@ import type { Rule, RuleContext } from './index.js';
 const MIN_INPUT_TOKENS = 100_000;
 const LOW_CACHE_FRACTION = 0.1;
 
+/** Guard: R1 only fires when at least one Tier B source has data. */
+function hasTierBSource(ctx: RuleContext): boolean {
+  return ctx.sources.some(s => s.tier === 'B');
+}
+
 export const R1: Rule = {
   id: 'R1',
   severity: 'Medium',
   evaluate(ctx: RuleContext): RecommendationResult[] {
+    if (!hasTierBSource(ctx)) return [];
     const cards: RecommendationResult[] = [];
 
     const anthropic = ctx.sources.find(source => source.sourceId === 'anthropic');

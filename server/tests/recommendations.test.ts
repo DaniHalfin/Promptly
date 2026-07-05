@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { PriceMap } from '../src/data/priceMap.js';
 import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
+import { selectTopRecommendation } from '../src/engine/metrics/crossSource.js';
 import { R1 } from '../src/engine/recommendations/R1_promptCaching.js';
 import { R2 } from '../src/engine/recommendations/R2_modelDowngrade.js';
 import { getP90DailyInputTokens, R3 } from '../src/engine/recommendations/R3_verbosity.js';
+import { RC1 } from '../src/engine/recommendations/RC1_dataFreshness.js';
+import { RC3 } from '../src/engine/recommendations/RC3_coverage.js';
+import { RC4a } from '../src/engine/recommendations/RC4a_highVolume.js';
+import { RC4b } from '../src/engine/recommendations/RC4b_lowActivity.js';
+import { RC5 } from '../src/engine/recommendations/RC5_spike.js';
+import { RC6 } from '../src/engine/recommendations/RC6_noModelInfo.js';
 import type { RuleContext } from '../src/engine/recommendations/index.js';
 import type { NormalizedCopilotSession, RecommendationResult, SourceMetrics } from '../src/types/index.js';
 
@@ -394,6 +401,221 @@ describe('recommendation rules', () => {
         topSlotEligible: false,
       };
       expect(rec.topSlotEligible).toBe(false);
+    });
+
+    it('fires when newest_conversation_date is more than 30 days ago', () => {
+      const staleDate = new Date(Date.now() - 31 * 86_400_000).toISOString().slice(0, 10);
+      const cards = RC1.evaluate(ctx([source({
+        sourceId: 'chatgpt_export',
+        tier: 'C',
+        newest_conversation_date: staleDate,
+      })]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC1');
+      expect(cards[0].sourceIds).toEqual(['chatgpt_export']);
+    });
+
+    it('does NOT fire when newest_conversation_date is within 30 days', () => {
+      const freshDate = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
+      const cards = RC1.evaluate(ctx([source({
+        sourceId: 'chatgpt_export',
+        tier: 'C',
+        newest_conversation_date: freshDate,
+      })]));
+      expect(cards).toHaveLength(0);
+    });
+
+    it('does NOT fire when chatgpt_export source is absent', () => {
+      expect(RC1.evaluate(ctx([source({ sourceId: 'anthropic', tier: 'B' })]))).toHaveLength(0);
+    });
+  });
+
+  describe('RC3 coverage', () => {
+    const chatgptSource = (estimatedSpend: number): SourceMetrics => source({
+      sourceId: 'chatgpt_export',
+      tier: 'C',
+      estimated_relative_cost_usd: estimatedSpend,
+    });
+    const tierBSource = (spend: number): SourceMetrics => source({
+      sourceId: 'anthropic',
+      tier: 'B',
+      totalActualSpendUsd: spend,
+    });
+
+    it('fires when chatgpt is connected + Tier B connected + chatgpt > 5% of total', () => {
+      // chatgpt = 10, anthropic = 90, pct = 10% > 5%
+      const cards = RC3.evaluate(ctx([chatgptSource(10), tierBSource(90)]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC3');
+    });
+
+    it('does NOT fire when chatgpt spend is ≤5% of total', () => {
+      // chatgpt = 5, anthropic = 95, pct = 5% ≤ 5%
+      const cards = RC3.evaluate(ctx([chatgptSource(5), tierBSource(95)]));
+      expect(cards).toHaveLength(0);
+    });
+
+    it('does NOT fire when no Tier B source is present', () => {
+      const cards = RC3.evaluate(ctx([chatgptSource(50)]));
+      expect(cards).toHaveLength(0);
+    });
+
+    it('does NOT fire when chatgpt_export has no metrics', () => {
+      // Only Tier B, no chatgpt_export
+      const cards = RC3.evaluate(ctx([tierBSource(100)]));
+      expect(cards).toHaveLength(0);
+    });
+  });
+
+  describe('RC4a high volume', () => {
+    it('fires when total_conversations > 500', () => {
+      const cards = RC4a.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', total_conversations: 501 })]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC4a');
+    });
+
+    it('does NOT fire when total_conversations equals 500', () => {
+      expect(RC4a.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', total_conversations: 500 })]))).toHaveLength(0);
+    });
+
+    it('does NOT fire when chatgpt_export is absent', () => {
+      expect(RC4a.evaluate(ctx([source({ sourceId: 'anthropic', tier: 'B' })]))).toHaveLength(0);
+    });
+  });
+
+  describe('RC4b low activity', () => {
+    it('fires when total_conversations < 5', () => {
+      const cards = RC4b.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', total_conversations: 4 })]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC4b');
+    });
+
+    it('fires for 0 conversations', () => {
+      const cards = RC4b.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', total_conversations: 0 })]));
+      expect(cards).toHaveLength(1);
+    });
+
+    it('does NOT fire when total_conversations equals 5', () => {
+      expect(RC4b.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', total_conversations: 5 })]))).toHaveLength(0);
+    });
+
+    it('does NOT fire when total_conversations is undefined', () => {
+      expect(RC4b.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C' })]))).toHaveLength(0);
+    });
+  });
+
+  describe('RC5 spike', () => {
+    const spikeCallout = {
+      date: '2026-06-07',
+      conversation_count: 40,
+      multiple_of_average: 2.5,
+      message: 'Activity on 2026-06-07 was 2.5× the average.',
+    };
+
+    it('fires when spike_callout is present', () => {
+      const cards = RC5.evaluate(ctx([source({
+        sourceId: 'chatgpt_export',
+        tier: 'C',
+        spike_callout: spikeCallout,
+      })]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC5');
+    });
+
+    it('does NOT fire when spike_callout is null', () => {
+      expect(RC5.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C', spike_callout: null })]))).toHaveLength(0);
+    });
+
+    it('does NOT fire when chatgpt_export is absent', () => {
+      expect(RC5.evaluate(ctx([source({ sourceId: 'anthropic', tier: 'B' })]))).toHaveLength(0);
+    });
+  });
+
+  describe('RC6 no model info', () => {
+    it('fires when models_identified is an empty array', () => {
+      const cards = RC6.evaluate(ctx([source({
+        sourceId: 'chatgpt_export',
+        tier: 'C',
+        models_identified: [],
+      })]));
+      expect(cards).toHaveLength(1);
+      expect(cards[0].id).toBe('RC6');
+    });
+
+    it('does NOT fire when models_identified has entries', () => {
+      expect(RC6.evaluate(ctx([source({
+        sourceId: 'chatgpt_export',
+        tier: 'C',
+        models_identified: ['gpt-4o'],
+      })]))).toHaveLength(0);
+    });
+
+    it('does NOT fire when models_identified is undefined', () => {
+      expect(RC6.evaluate(ctx([source({ sourceId: 'chatgpt_export', tier: 'C' })]))).toHaveLength(0);
+    });
+  });
+
+  describe('R1/R2/R3 Tier B guard', () => {
+    const chatgptOnlyCtx = (): RuleContext => ctx([source({
+      sourceId: 'chatgpt_export',
+      tier: 'C',
+      total_conversations: 100,
+      models_identified: ['gpt-4o'],
+    })]);
+
+    it('R1 does NOT fire when only chatgpt_export data is present', () => {
+      expect(R1.evaluate(chatgptOnlyCtx())).toHaveLength(0);
+    });
+
+    it('R2 does NOT fire when only chatgpt_export data is present', () => {
+      expect(R2.evaluate(chatgptOnlyCtx())).toHaveLength(0);
+    });
+
+    it('R3 does NOT fire when only chatgpt_export data is present', () => {
+      expect(R3.evaluate(chatgptOnlyCtx())).toHaveLength(0);
+    });
+  });
+
+  describe('selectTopRecommendation', () => {
+    const makeRec = (severity: RecommendationResult['severity'], id: RecommendationResult['id']): RecommendationResult => ({
+      id,
+      severity,
+      title: `${id} title`,
+      body: 'body',
+      triggeringMetric: 'x',
+      triggeringValue: 0,
+      sourceIds: ['anthropic'],
+    });
+
+    it('returns null for empty recommendations', () => {
+      expect(selectTopRecommendation([])).toBeNull();
+    });
+
+    it('returns the highest-priority recommendation (High > Medium > Low)', () => {
+      const recs = [makeRec('Low', 'RC6'), makeRec('High', 'R2'), makeRec('Medium', 'R1')];
+      const top = selectTopRecommendation(recs);
+      expect(top?.id).toBe('R2');
+      expect(top?.priority).toBe('high');
+    });
+
+    it('returns the Medium recommendation when no High is present', () => {
+      const recs = [makeRec('Low', 'RC6'), makeRec('Medium', 'RC4a')];
+      const top = selectTopRecommendation(recs);
+      expect(top?.id).toBe('RC4a');
+      expect(top?.priority).toBe('medium');
+    });
+
+    it('returns the single Low recommendation when it is the only one', () => {
+      const recs = [makeRec('Low', 'RC1')];
+      const top = selectTopRecommendation(recs);
+      expect(top?.id).toBe('RC1');
+      expect(top?.priority).toBe('low');
+    });
+
+    it('returns id and title from the top recommendation', () => {
+      const recs = [makeRec('High', 'R2')];
+      const top = selectTopRecommendation(recs);
+      expect(top?.title).toBe('R2 title');
     });
   });
 });

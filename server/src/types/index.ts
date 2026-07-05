@@ -335,6 +335,12 @@ export interface CrossSourceSummary {
   spike_callout: SpikeCallout | null;
   includes_estimates?: boolean;
   allSourcesFailed?: boolean;
+  /** The single highest-priority recommendation across all rule outputs (computed post-generate). */
+  top_recommendation?: {
+    id: RecommendationId;
+    title: string;
+    priority: 'high' | 'medium' | 'low';
+  } | null;
 }
 
 export interface AnalysisReport {
