@@ -2,6 +2,7 @@ import React from 'react';
 import type { RecommendationResult, SourceReport, SpendByToolEntry } from '../../types/index.js';
 import { DailyConversationActivityLine } from './DailyConversationActivityLine.js';
 import { EfficiencySignalCallout } from './EfficiencySignalCallout.js';
+import { ModelSpendMiniBar } from './ModelSpendMiniBar.js';
 
 interface ToolSpendCardProps {
   source: SourceReport;
@@ -165,8 +166,10 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
 
       {!isTierC && <EfficiencySignalCallout signal={m.efficiencySignal} />}
 
-      {/* Models */}
-      {modelsIdentified.length > 0 && (
+      {!isTierC && <ModelSpendMiniBar source={source} />}
+
+      {/* Tier C Models */}
+      {isTierC && modelsIdentified.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Models</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

@@ -129,7 +129,7 @@ describe('ToolSpendCard', () => {
     expect(container.textContent).not.toMatch(/estimated/i);
   });
 
-  it('renders model chips from copilotModelCostBreakdown fallback', () => {
+  it('renders model spend mini-bar from copilotModelCostBreakdown fallback', () => {
     const copilotSource = makeSource('github_copilot', 'B', {
       copilotTotalCostUsd: 42,
       copilotSessionCount: 3,
@@ -140,8 +140,9 @@ describe('ToolSpendCard', () => {
       ],
     });
     render(<ToolSpendCard source={copilotSource} recommendations={[]} />);
-    expect(screen.getByText('gpt-5.4')).toBeInTheDocument();
-    expect(screen.getByText('gpt-5.4-mini')).toBeInTheDocument();
+    expect(screen.getByTestId('model-spend-mini-bar')).toBeInTheDocument();
+    expect(screen.getAllByText('gpt-5.4')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('gpt-5.4-mini')[0]).toBeInTheDocument();
   });
 
   it('renders mini spend trend when dailySpend exists (Tier B)', () => {
@@ -204,5 +205,40 @@ describe('ToolSpendCard EfficiencySignalCallout', () => {
 
     render(<ToolSpendCard source={source} recommendations={[]} />);
     expect(screen.queryByTestId('efficiency-signal-callout')).not.toBeInTheDocument();
+  });
+});
+
+describe('ToolSpendCard ModelSpendMiniBar', () => {
+  it('renders model spend mini-bar for Tier B modelBreakdown', () => {
+    const source = makeSource('anthropic', 'B', {
+      totalActualSpendUsd: 20,
+      modelBreakdown: [
+        { model: 'claude-3-5-sonnet', estimatedCostShare: 0.7, estimatedCostUsd: 14, inputTokens: 10, outputTokens: 5, inputOutputRatio: 2 },
+        { model: 'claude-3-haiku', estimatedCostShare: 0.3, estimatedCostUsd: 6, inputTokens: 10, outputTokens: 5, inputOutputRatio: 2 },
+      ],
+    });
+
+    render(<ToolSpendCard source={source} recommendations={[]} />);
+    expect(screen.getByTestId('model-spend-mini-bar')).toBeInTheDocument();
+    expect(screen.getByText(/Most of your Anthropic spend went to/)).toBeInTheDocument();
+  });
+
+  it('renders model spend mini-bar for GitHub Copilot cost breakdown', () => {
+    const source = makeSource('github_copilot', 'B', {
+      copilotTotalCostUsd: 20,
+      copilotModelCostBreakdown: [
+        { model: 'gpt-5.4', costUsd: 15, costShare: 0.75 },
+        { model: 'gpt-5.4-mini', costUsd: 5, costShare: 0.25 },
+      ],
+    });
+
+    render(<ToolSpendCard source={source} recommendations={[]} />);
+    expect(screen.getByTestId('model-spend-mini-bar')).toBeInTheDocument();
+    expect(screen.getByText(/Most of your GitHub Copilot spend went to/)).toBeInTheDocument();
+  });
+
+  it('does not render model spend mini-bar for ChatGPT Export', () => {
+    render(<ToolSpendCard source={chatgptSource} recommendations={[]} />);
+    expect(screen.queryByTestId('model-spend-mini-bar')).not.toBeInTheDocument();
   });
 });
