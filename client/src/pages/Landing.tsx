@@ -227,13 +227,12 @@ export function Landing() {
       {/* Main content */}
       <div
         data-testid="landing-content"
-        data-scroll-padding-bottom={`calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`}
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: `48px 24px calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`, /* B3: clears fixed footer at all font sizes + safe-area inset */
+          padding: '48px 24px 0',
         }}
       >
         <div style={{ width: '100%', maxWidth: 520 }}>
@@ -404,7 +403,17 @@ export function Landing() {
           }}>
             Connect your AI sources
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div
+            data-testid="source-list"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              /* R1: explicit clearance so the last card can be scrolled fully
+                 above the fixed action footer on all screen sizes */
+              paddingBottom: `calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`,
+            }}
+          >
             <SourceCard sourceId="github_copilot" />
             <SourceCard sourceId="claude_code" />
             <SourceCard sourceId="openai" />

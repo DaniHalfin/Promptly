@@ -192,9 +192,9 @@ describe('Landing — B3/A2 layout & touch targets', () => {
   it('reserves scroll padding for fixed action footer', () => {
     renderLanding({});
     expect(screen.getByTestId('landing-action-footer')).toHaveStyle({ position: 'fixed', bottom: '0px' });
-    // jsdom drops calc()/env() from serialized inline style, so the reserved
-    // padding is mirrored to a data attribute for deterministic assertion.
-    const reserved = screen.getByTestId('landing-content').getAttribute('data-scroll-padding-bottom') ?? '';
+    // R1: the footer clearance now lives on the source-list container as an
+    // explicit paddingBottom (calc + safe-area inset), not on landing-content.
+    const reserved = screen.getByTestId('source-list').style.paddingBottom;
     expect(reserved).toContain('220px');
     expect(reserved).toContain('safe-area-inset-bottom');
   });
@@ -278,6 +278,27 @@ describe('Landing — E4 validation orchestration & gating', () => {
     expect(ids).toContain('openai');
     expect(ids).toContain('anthropic');
     expect(ids).not.toContain('github_copilot');
+  });
+});
+
+describe('Landing — R1 mobile CTA scroll clearance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    validateMock.mockResolvedValue(fullValidationResult);
+  });
+
+  it('source-list has non-empty paddingBottom for fixed footer clearance — R1', () => {
+    renderLanding({});
+    const list = screen.getByTestId('source-list');
+    // paddingBottom is set (calc expression); not empty string
+    expect(list.style.paddingBottom).not.toBe('');
+  });
+
+  it('landing-content outer div no longer carries the footer reserved height as padding-bottom — R1', () => {
+    renderLanding({});
+    const content = screen.getByTestId('landing-content');
+    // After the fix, bottom padding is 0 — clearance moved to source-list
+    expect(content.style.paddingBottom).toBe('0px');
   });
 });
 
