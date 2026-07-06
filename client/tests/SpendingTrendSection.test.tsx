@@ -60,7 +60,7 @@ describe('SpendingTrendSection', () => {
       />
     );
 
-    expect(screen.getByText('▲ 404.2% last 30d vs prior 30d')).toBeInTheDocument();
+    expect(screen.getByText(/404\.2%.*last 30d vs prior 30d/)).toBeInTheDocument();
     expect(screen.queryByText(/MoM/)).not.toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe('SpendingTrendSection', () => {
         spikeCallout={null}
       />
     );
-    expect(screen.getByText('▼ 5.0% last 30d vs prior 30d')).toBeInTheDocument();
+    expect(screen.getByText(/5\.0%.*last 30d vs prior 30d/)).toBeInTheDocument();
     expect(screen.queryByText(/prior 60/)).not.toBeInTheDocument();
   });
 
@@ -154,5 +154,31 @@ describe('SpendingTrendSection', () => {
       />
     );
     expect(container.textContent).not.toMatch(/\(est\.\)/);
+  });
+
+  it('W6: trend arrow span has aria-hidden="true"', () => {
+    const { container } = render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 10.0, observed_days: 30, required_days: 30, window_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    const arrowSpan = container.querySelector('span[aria-hidden="true"]');
+    expect(arrowSpan).not.toBeNull();
+    expect(arrowSpan!.textContent).toMatch(/▲|▼/);
+  });
+
+  it('W6: sr-only span provides "Up" or "Down" text for screen readers', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 10.0, observed_days: 30, required_days: 30, window_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    const srOnly = document.querySelector('.sr-only');
+    expect(srOnly).not.toBeNull();
+    expect(srOnly!.textContent).toMatch(/Up|Down/);
   });
 });

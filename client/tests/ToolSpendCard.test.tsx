@@ -174,6 +174,30 @@ describe('ToolSpendCard', () => {
     expect(container.textContent).not.toMatch(/estimated/i);
     expect(container.textContent).not.toMatch(/\(est\.\)/);
   });
+
+  it('recommendation div uses .rec-focus-target class, not inline outline:none — W4', () => {
+    render(<ToolSpendCard source={openaiSource} recommendations={recs} />);
+    const recDiv = document.getElementById('rec-openai-R1') as HTMLElement;
+    expect(recDiv).not.toBeNull();
+    expect(recDiv.classList.contains('rec-focus-target')).toBe(true);
+    // Inline outline must be gone
+    expect(recDiv.style.outline).toBe('');
+  });
+
+  it('W8: disclosure button has aria-controls matching panel id, and panel has matching id when expanded', () => {
+    render(<ToolSpendCard source={openaiSource} recommendations={[]} expanded={true} onExpandedChange={vi.fn()} />);
+    const button = document.querySelector('button[aria-expanded]') as HTMLElement;
+    expect(button).not.toBeNull();
+    expect(button.getAttribute('aria-controls')).toBe('tool-panel-openai');
+    expect(document.getElementById('tool-panel-openai')).toBeInTheDocument();
+  });
+
+  it('W8: panel id is absent from DOM when collapsed', () => {
+    render(<ToolSpendCard source={openaiSource} recommendations={[]} expanded={false} onExpandedChange={vi.fn()} />);
+    expect(document.getElementById('tool-panel-openai')).not.toBeInTheDocument();
+    const button = document.querySelector('button[aria-expanded]') as HTMLElement;
+    expect(button.getAttribute('aria-controls')).toBe('tool-panel-openai');
+  });
 });
 
 describe('ToolSpendCard EfficiencySignalCallout', () => {

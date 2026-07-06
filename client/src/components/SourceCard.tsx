@@ -258,7 +258,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       ) : info.type === 'api' ? (
         /* WP-6: aria-busy signals async state to AT immediately */
-        <div aria-busy={validating} aria-label={validating ? 'Validating…' : undefined}>
+        <div role="status" aria-busy={validating} aria-label={validating ? 'Validating…' : undefined}>
           <label htmlFor={`${sourceId}-credential`} style={{ display: 'block', fontSize: 'var(--text-body)', fontWeight: 500, marginBottom: 8 }}>API Key</label>
           <input
             ref={credInputRef}
@@ -295,7 +295,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       ) : info.type === 'local' ? (
         /* WP-6: aria-busy on the local-toggle container mirrors async state for AT */
-        <div aria-busy={validating}>
+        <div role="status" aria-busy={validating}>
           <button
             role="switch"
             aria-checked={Boolean(source?.enabled)}
@@ -425,21 +425,21 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
     flexShrink: 0,
   };
 
+  let badge: React.ReactNode = null;
+
   if (validation.status === 'validating') {
-    return (
+    badge = (
+      /* aria-live moved to outer wrapper — inner span no longer needs it */
       <span
         data-testid="source-validation-badge"
         data-validation-status="validating"
-        aria-live="polite"
         style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
       >
         Checking data…
       </span>
     );
-  }
-
-  if (validation.status === 'full') {
-    return (
+  } else if (validation.status === 'full') {
+    badge = (
       <span
         data-testid="source-validation-badge"
         data-validation-status="full"
@@ -448,10 +448,8 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
         ✅ Data available
       </span>
     );
-  }
-
-  if (validation.status === 'partial') {
-    return (
+  } else if (validation.status === 'partial') {
+    badge = (
       <span
         data-testid="source-validation-badge"
         data-validation-status="partial"
@@ -460,10 +458,8 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
         ⚠️ Partial data · {validation.daysAvailable ?? 0} days
       </span>
     );
-  }
-
-  if (validation.status === 'none' || validation.status === 'error') {
-    return (
+  } else if (validation.status === 'none' || validation.status === 'error') {
+    badge = (
       <span
         data-testid="source-validation-badge"
         data-validation-status={validation.status}
@@ -474,5 +470,11 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
     );
   }
 
-  return null;
+  /* W5: persistent live region — all state transitions (validating → full/partial/none/error)
+     are announced by AT because the wrapper element stays in the DOM. */
+  return (
+    <span aria-live="polite" aria-atomic="true">
+      {badge}
+    </span>
+  );
 }

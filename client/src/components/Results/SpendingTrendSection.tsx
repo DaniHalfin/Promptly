@@ -24,7 +24,9 @@ function TrendBadge({ trend }: { trend: TrendStatus }) {
         background: up ? 'var(--color-critical-muted)' : 'var(--color-positive-muted)',
         color: up ? 'var(--color-critical-text)' : 'var(--color-positive-text)',
       }}>
-        {up ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% last {trend.window_days}d vs prior {trend.window_days}d
+        <span aria-hidden="true">{up ? '▲' : '▼'}</span>
+        <span className="sr-only">{up ? 'Up' : 'Down'}</span>
+        {' '}{Math.abs(pct).toFixed(1)}% last {trend.window_days}d vs prior {trend.window_days}d
       </span>
     );
   }

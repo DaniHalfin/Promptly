@@ -210,7 +210,7 @@ export function Landing() {
         borderBottom: '1px solid var(--color-border-subtle)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
             <rect width="32" height="32" rx="6" fill="var(--color-bg-elevated)"/>
             <rect x="6" y="10" width="20" height="4" rx="2" fill="var(--color-accent)"/>
             <rect x="8" y="16" width="16" height="4" rx="2" fill="var(--color-accent)"/>

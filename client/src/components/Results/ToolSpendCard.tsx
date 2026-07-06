@@ -134,6 +134,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
           <button
             type="button"
             aria-expanded={expanded}
+            aria-controls={`tool-panel-${source_id}`}
             onClick={() => onExpandedChange?.(!expanded)}
             style={{
               minHeight: 44,
@@ -165,7 +166,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
       </div>
 
       {expanded && (
-        <div>
+        <div id={`tool-panel-${source_id}`}>
 
       {/* Error state */}
       {error && (
@@ -234,7 +235,8 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
                 key={rec.id}
                 id={`rec-${source_id}-${rec.id}`}
                 tabIndex={-1}
-                style={{ borderLeft: `3px solid ${recBorderColor(rec)}`, paddingLeft: 10, outline: 'none' }}
+                className="rec-focus-target"
+                style={{ borderLeft: `3px solid ${recBorderColor(rec)}`, paddingLeft: 10 }}
               >
                 <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
                   {rec.title}

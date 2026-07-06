@@ -166,6 +166,7 @@ html, body {
 .primary:hover   { opacity: 0.88; }
 .primary:active  { opacity: 0.76; }
 .primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.primary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 .secondary {
   display: inline-flex;
@@ -184,6 +185,7 @@ html, body {
   transition: border-color 150ms ease, color 150ms ease;
 }
 .secondary:hover { border-color: var(--color-input-border); color: var(--text-primary); }
+.secondary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 [data-theme="light"] .secondary { border-color: var(--color-border-subtle); }
 [data-theme="light"] .secondary:hover { border-color: var(--color-input-border); }
 
@@ -204,6 +206,7 @@ html, body {
   transition: opacity 150ms ease;
 }
 .danger:hover { opacity: 0.8; }
+.danger:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 /* ─── Toggle switch ─────────────────────────────────────────────────────── */
 .toggle-track {
@@ -266,6 +269,10 @@ html, body {
 .upload-area:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-muted);
+}
+.upload-area:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .upload-area-icon {
   color: var(--text-muted);
@@ -335,6 +342,13 @@ html, body {
   flex-shrink: 0;
   pointer-events: none;
 }
+/* W4: programmatic focus targets — suppress default ring but restore for keyboard nav */
+.rec-focus-target { outline: none; }
+.rec-focus-target:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 [data-theme="light"] .rec-row:hover {
   background: var(--color-bg-elevated);
 }
@@ -438,6 +452,10 @@ html, body {
   background: var(--color-bg-elevated);
   border-color: var(--color-input-border);
   color: var(--text-secondary);
+}
+.disclosure-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .disclosure-btn[aria-expanded="true"] {
   background: var(--color-bg-elevated);

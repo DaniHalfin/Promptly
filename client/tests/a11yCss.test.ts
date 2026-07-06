@@ -14,6 +14,10 @@ const dailySpendLinePath = resolve(__dirname, '../src/components/Results/charts/
 const css = readFileSync(cssPath, 'utf-8');
 const html = readFileSync(htmlPath, 'utf-8');
 const dailySpendLine = readFileSync(dailySpendLinePath, 'utf-8');
+const landingPath = resolve(__dirname, '../src/pages/Landing.tsx');
+const themeTogglePath = resolve(__dirname, '../src/components/ThemeToggle.tsx');
+const landingSrc = readFileSync(landingPath, 'utf-8');
+const themeToggleSrc = readFileSync(themeTogglePath, 'utf-8');
 
 /** Extract the body of the first CSS rule matching the given selector. */
 function ruleBody(source: string, selector: string): string {
@@ -143,5 +147,79 @@ describe('W12: DayPicker selected-day uses color token', () => {
   it('.rdp-day_selected uses var(--text-on-accent)', () => {
     const body = ruleBody(css, '.promptly-day-picker .rdp-day_selected,');
     expect(body).toContain('var(--text-on-accent)');
+  });
+});
+
+describe('W1–W3: :focus-visible outlines', () => {
+  it('W1: .disclosure-btn:focus-visible rule exists in index.css', () => {
+    expect(css).toContain('.disclosure-btn:focus-visible');
+    const body = ruleBody(css, '.disclosure-btn:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+    expect(body).toMatch(/outline-offset:\s*2px/);
+  });
+
+  it('W2: .upload-area:focus-visible rule exists in index.css', () => {
+    expect(css).toContain('.upload-area:focus-visible');
+    const body = ruleBody(css, '.upload-area:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+    expect(body).toMatch(/outline-offset:\s*2px/);
+  });
+
+  it('W3: .primary:focus-visible rule exists', () => {
+    expect(css).toContain('.primary:focus-visible');
+    const body = ruleBody(css, '.primary:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('W3: .secondary:focus-visible rule exists', () => {
+    expect(css).toContain('.secondary:focus-visible');
+    const body = ruleBody(css, '.secondary:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('W3: .danger:focus-visible rule exists', () => {
+    expect(css).toContain('.danger:focus-visible');
+    const body = ruleBody(css, '.danger:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+});
+
+describe('W4: rec-focus-target class', () => {
+  it('.rec-focus-target rule exists in index.css with outline:none', () => {
+    expect(css).toContain('.rec-focus-target');
+    const body = ruleBody(css, '.rec-focus-target {');
+    expect(body).toMatch(/outline:\s*none/);
+  });
+
+  it('.rec-focus-target:focus-visible restores outline', () => {
+    expect(css).toContain('.rec-focus-target:focus-visible');
+    const body = ruleBody(css, '.rec-focus-target:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+});
+
+describe('W9: decorative SVGs have aria-hidden="true"', () => {
+  it('Landing.tsx logo SVG (viewBox="0 0 32 32") has aria-hidden="true"', () => {
+    expect(landingSrc).toContain(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">'
+    );
+  });
+
+  it('ThemeToggle.tsx contains aria-hidden="true" on both sun and moon SVGs', () => {
+    const matches = themeToggleSrc.match(/aria-hidden="true"/g);
+    expect(matches).not.toBeNull();
+    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('ThemeToggle.tsx sun SVG has aria-hidden="true"', () => {
+    const sunIdx = themeToggleSrc.indexOf("/* Sun icon */");
+    const sunSvgTag = themeToggleSrc.slice(sunIdx, themeToggleSrc.indexOf('>', sunIdx) + 1);
+    expect(sunSvgTag).toContain('aria-hidden="true"');
+  });
+
+  it('ThemeToggle.tsx moon SVG has aria-hidden="true"', () => {
+    const moonIdx = themeToggleSrc.indexOf("/* Moon icon */");
+    const moonSvgTag = themeToggleSrc.slice(moonIdx, themeToggleSrc.indexOf('>', moonIdx) + 1);
+    expect(moonSvgTag).toContain('aria-hidden="true"');
   });
 });

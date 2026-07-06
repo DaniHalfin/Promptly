@@ -401,6 +401,20 @@ describe('SourceCard', () => {
       expect(container.querySelector('[aria-busy="false"]')).not.toBeNull();
     });
   });
+
+  it('W7: API section aria-busy div also has role="status"', () => {
+    const { container } = renderSourceCard('openai', { credential: 'sk-test' });
+    const busyDiv = container.querySelector('[aria-busy]') as HTMLElement;
+    expect(busyDiv).not.toBeNull();
+    expect(busyDiv.getAttribute('role')).toBe('status');
+  });
+
+  it('W7: local section aria-busy div also has role="status"', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: false });
+    const busyDiv = container.querySelector('[aria-busy]') as HTMLElement;
+    expect(busyDiv).not.toBeNull();
+    expect(busyDiv.getAttribute('role')).toBe('status');
+  });
 });
 // ── E5: Inline validation badges ─────────────────────────────────────────
 describe('SourceCard — E5 validation badges', () => {
@@ -470,5 +484,18 @@ describe('SourceCard — E5 validation badges', () => {
     expect(btn).toHaveStyle({ width: '100%' });
     expect(btn.className).not.toMatch(/w-full/);
     expect(btn).toHaveClass('secondary');
+  });
+
+  it('W5: ValidationBadge wrapper has aria-live="polite" and aria-atomic="true"', () => {
+    renderSourceCard('openai', {
+      status: 'connected',
+      credential: 'sk',
+      validation: { status: 'full', daysAvailable: 60, daysRequested: 60 },
+    });
+    const badge = screen.getByTestId('source-validation-badge');
+    const wrapper = badge.parentElement!;
+    expect(wrapper.tagName).toBe('SPAN');
+    expect(wrapper).toHaveAttribute('aria-live', 'polite');
+    expect(wrapper).toHaveAttribute('aria-atomic', 'true');
   });
 });
