@@ -64,6 +64,40 @@ describe('SpendingTrendSection', () => {
     expect(screen.queryByText(/MoM/)).not.toBeInTheDocument();
   });
 
+  it('trend badge reads "vs prior 7 days" when observed_days=7 — M2', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 12.5, observed_days: 7, required_days: 14, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    expect(screen.getByText('▲ 12.5% vs prior 7 days')).toBeInTheDocument();
+  });
+
+  it('trend badge reads "vs prior 60 days" when observed_days=60 — M2', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: -5.0, observed_days: 60, required_days: 60, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    expect(screen.getByText('▼ 5.0% vs prior 60 days')).toBeInTheDocument();
+  });
+
+  it('trend badge reads "vs prior 90 days" when observed_days=90 — M2', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 0.0, observed_days: 90, required_days: 90, message: '' }}
+        spikeCallout={null}
+      />
+    );
+    // 0.0% — direction is down (pct <= 0)
+    expect(screen.getByText('▼ 0.0% vs prior 90 days')).toBeInTheDocument();
+  });
+
   it('does NOT render spike callout banner when spikeCallout is null', () => {
     render(
       <SpendingTrendSection
