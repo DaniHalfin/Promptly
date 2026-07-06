@@ -350,6 +350,8 @@ export interface CrossSourceSummary {
   total_estimated_spend_usd: number;
   total_actual_tokens: number;
   total_estimated_tokens: number;
+  total_potential_savings_usd: number;
+  actionable_recommendation_count: number;
   effective_cost_per_million_tokens_usd?: number | null;
   daily_spend: DailySpendEntry[];
   spend_by_tool: SpendByToolEntry[];

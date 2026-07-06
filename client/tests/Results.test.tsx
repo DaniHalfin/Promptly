@@ -10,7 +10,16 @@ import { useSession } from '../src/context/SessionContext.js';
 // Mock all sub-components and dependencies
 vi.mock('../src/components/export/PrintLayout.js',           () => ({ PrintLayout: () => null }));
 vi.mock('../src/components/ThemeToggle.js',                  () => ({ ThemeToggle: () => null }));
-vi.mock('../src/components/Results/AnalysisHeader.js',       () => ({ AnalysisHeader: (props: { spendLabel?: string }) => <div data-testid="analysis-header" data-spend-label={props.spendLabel} /> }));
+vi.mock('../src/components/Results/AnalysisHeader.js', () => ({
+  AnalysisHeader: (props: { spendLabel?: string; totalPotentialSavingsUsd?: number; actionableRecommendationCount?: number }) => (
+    <div
+      data-testid="analysis-header"
+      data-spend-label={props.spendLabel}
+      data-total-potential-savings={props.totalPotentialSavingsUsd}
+      data-actionable-count={props.actionableRecommendationCount}
+    />
+  ),
+}));
 vi.mock('../src/components/Results/MoneyByToolSection.js',   () => ({
   MoneyByToolSection: (props: any) => (
     <div data-testid="money-by-tool-section" data-top-count={props.topRecommendations?.length ?? 0}>

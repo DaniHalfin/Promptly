@@ -8,7 +8,7 @@ import {
   copilotTokenBreakdownByModel,
   copilotCachedTokenFraction,
 } from '../src/engine/metrics/tierB.js';
-import { totalTokens, computeCrossSourceMetrics } from '../src/engine/metrics/crossSource.js';
+import { totalTokens, computeCrossSourceMetrics, summarizePotentialSavings } from '../src/engine/metrics/crossSource.js';
 import { computeTierCMetrics } from '../src/engine/metrics/tierC.js';
 import type { NormalizedCopilotSession, NormalizedSourceData, TierCChatGptExportMetrics, CrossSourceSummary, DailySpendEntry, SourceReport } from '../src/types/index.js';
 import type { AdapterCredentials, AdapterConnectOptions } from '../src/adapters/types.js';
@@ -1357,5 +1357,27 @@ describe('Cross-source universal trend and spike', () => {
     const reports = [tierBReport('openai', { spend: 11, dailySpend })];
     const summary = computeCrossSourceMetrics(reports, emptyPriceMap);
     expect(summary.spike_callout).toBeNull();
+  });
+});
+
+describe('summarizePotentialSavings', () => {
+  it('cross-source summary includes total_potential_savings_usd summed from topSlotEligible recs', () => {
+    const summary = summarizePotentialSavings([
+      { id: 'R1', severity: 'Medium', title: 'A', body: 'A', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 10, sourceIds: ['anthropic'], topSlotEligible: true },
+      { id: 'R2', severity: 'High', title: 'B', body: 'B', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 5.25, sourceIds: ['openai'], topSlotEligible: true },
+      { id: 'R3', severity: 'Medium', title: 'C', body: 'C', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 99, sourceIds: ['github_copilot'], topSlotEligible: false },
+    ]);
+
+    expect(summary.total_potential_savings_usd).toBe(15.25);
+  });
+
+  it('actionable_recommendation_count counts only topSlotEligible recs', () => {
+    const summary = summarizePotentialSavings([
+      { id: 'R1', severity: 'Medium', title: 'A', body: 'A', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 10, sourceIds: ['anthropic'], topSlotEligible: true },
+      { id: 'R2', severity: 'High', title: 'B', body: 'B', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 99, sourceIds: ['openai'], topSlotEligible: false },
+      { id: 'R3', severity: 'Medium', title: 'C', body: 'C', triggeringMetric: 'x', triggeringValue: 1, estimatedSavingsUsd: 0, sourceIds: ['github_copilot'] },
+    ]);
+
+    expect(summary.actionable_recommendation_count).toBe(1);
   });
 });

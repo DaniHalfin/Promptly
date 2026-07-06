@@ -311,12 +311,24 @@ export function computeCrossSourceMetrics(reports: SourceReport[], _priceMap: Pr
     total_estimated_spend_usd,
     total_actual_tokens: tokenTotals.actual,
     total_estimated_tokens: tokenTotals.estimated,
+    total_potential_savings_usd: 0,
+    actionable_recommendation_count: 0,
     effective_cost_per_million_tokens_usd,
     daily_spend,
     spend_by_tool,
     trend,
     spike_callout,
     ...(includes_estimates ? { includes_estimates: true } : {}),
+  };
+}
+
+export function summarizePotentialSavings(
+  recommendations: RecommendationResult[]
+): Pick<CrossSourceSummary, 'total_potential_savings_usd' | 'actionable_recommendation_count'> {
+  const actionable = recommendations.filter((rec) => rec.topSlotEligible === true);
+  return {
+    total_potential_savings_usd: actionable.reduce((sum, rec) => sum + (rec.estimatedSavingsUsd ?? 0), 0),
+    actionable_recommendation_count: actionable.length,
   };
 }
 

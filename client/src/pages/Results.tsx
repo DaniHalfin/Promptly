@@ -240,7 +240,8 @@ export function Results() {
           spendLabel={heroSpendLabel}
           dateRange={{ start: periodStart, end: periodEnd }}
           sourceCount={sourceCount}
-          topRecommendation={css.top_recommendations?.[0]}
+          totalPotentialSavingsUsd={css.total_potential_savings_usd}
+          actionableRecommendationCount={css.actionable_recommendation_count}
         />
 
         {/* § 2 — MoneyByToolSection */}

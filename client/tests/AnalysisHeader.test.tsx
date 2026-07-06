@@ -26,31 +26,19 @@ describe('AnalysisHeader', () => {
     expect(screen.getByText(/2026-01-31/)).toBeInTheDocument();
   });
 
-  it('renders top recommendation callout when topRecommendation is provided', () => {
-    render(
-      <AnalysisHeader
-        {...baseProps}
-        topRecommendation={{
-          id: 'R1',
-          title: 'Enable prompt caching',
-          compact_headline: 'Enable prompt caching',
-          source_id: 'anthropic',
-          target_card_anchor: '#tool-card-anthropic',
-          target_recommendation_anchor: '#rec-anthropic-R1',
-          estimated_savings_usd: 12,
-          savings_label: 'Save ~$12.00',
-          severity: 'High',
-        }}
-      />
-    );
-    expect(screen.getByTestId('top-recommendation-callout')).toBeInTheDocument();
-    expect(screen.getByText('Enable prompt caching')).toBeInTheDocument();
-    expect(screen.getByText('Top recommendation')).toBeInTheDocument();
+  it('shows "Save up to $X across Y recommendations" when savings > 0', () => {
+    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={42.5} actionableRecommendationCount={3} />);
+    expect(screen.getByTestId('potential-savings-callout')).toBeInTheDocument();
+    expect(screen.getByText('Total potential savings')).toBeInTheDocument();
+    expect(screen.getByText(/Save up to/)).toBeInTheDocument();
+    expect(screen.getByText('$42.50')).toBeInTheDocument();
+    expect(screen.getByText(/across 3 recommendations/)).toBeInTheDocument();
+    expect(screen.getByText(/Savings estimates are based on your usage patterns/)).toBeInTheDocument();
   });
 
-  it('does NOT render top recommendation callout when topRecommendation is absent', () => {
-    render(<AnalysisHeader {...baseProps} />);
-    expect(screen.queryByTestId('top-recommendation-callout')).not.toBeInTheDocument();
+  it('suppresses savings callout when no topSlotEligible recs', () => {
+    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={0} actionableRecommendationCount={0} />);
+    expect(screen.queryByTestId('potential-savings-callout')).not.toBeInTheDocument();
   });
 
   it('renders Estimated spend without a tilde', () => {
