@@ -28,7 +28,7 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
           height: '20rem',
           background: 'var(--color-bg-inset)',
           borderRadius: 'var(--radius-md)',
-          border: '1px solid rgba(255, 255, 255, 0.07)',
+          border: '1px solid var(--color-border-subtle)',
         }}
       >
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
@@ -50,7 +50,7 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
           height: '20rem',
           background: 'var(--color-bg-inset)',
           borderRadius: 'var(--radius-md)',
-          border: '1px solid rgba(255, 255, 255, 0.07)',
+          border: '1px solid var(--color-border-subtle)',
         }}
       >
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>

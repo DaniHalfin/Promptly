@@ -207,7 +207,7 @@ export function Landing() {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '16px 24px',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        borderBottom: '1px solid var(--color-border-subtle)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28">
@@ -266,7 +266,7 @@ export function Landing() {
           {/* Date range picker */}
           <div style={{
             background: 'var(--color-bg-elevated)',
-            border: '1px solid rgba(255,255,255,0.09)',
+            border: '1px solid var(--color-input-border)',
             borderRadius: 'var(--radius-lg)',
             padding: '16px',
             marginBottom: 24,
@@ -304,7 +304,7 @@ export function Landing() {
                       fontWeight: 500,
                       borderRadius: 'var(--radius-pill)',
                       cursor: 'pointer',
-                      border: selected ? '1px solid var(--color-accent-border)' : '1px solid rgba(255,255,255,0.12)',
+                      border: selected ? '1px solid var(--color-accent-border)' : '1px solid var(--color-input-border)',
                       background: selected ? 'var(--color-accent-muted)' : 'transparent',
                       color: selected ? 'var(--color-accent-light)' : 'var(--text-secondary)',
                     }}
@@ -425,7 +425,7 @@ export function Landing() {
           zIndex: 50,
           padding: `12px 24px ${ACTION_FOOTER_PADDING_BOTTOM}`,
           background: 'var(--color-bg-elevated)',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
+          borderTop: '1px solid var(--color-border-subtle)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
         }}

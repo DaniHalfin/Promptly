@@ -53,6 +53,21 @@ describe('DailySpendLine (WP-9)', () => {
     const fig = container.querySelector('figure');
     expect(fig).not.toBeNull();
   });
+
+  it('DailySpendLine tooltip label reads "Daily Spend" not "costUsd"', async () => {
+    // Recharts renders an empty ResponsiveContainer in jsdom (0 dimensions),
+    // so the tooltip/line name never reaches the DOM. Assert the source instead:
+    // the Line carries name="Daily Spend" and the tooltip formatter maps the
+    // costUsd key to the friendly label rather than surfacing "costUsd".
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('name="Daily Spend"');
+    expect(source).toContain("name === 'costUsd' ? 'Daily Spend'");
+  });
 });
 
 // ── ModelCostSharePie ────────────────────────────────────────────────────────

@@ -156,7 +156,7 @@ export function Analysis() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)', display: 'flex', flexDirection: 'column' }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--color-border-subtle)' }}>
         <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Promptly</span>
         <ThemeToggle />
       </div>
@@ -188,7 +188,7 @@ export function Analysis() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 0',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    borderBottom: '1px solid var(--color-border-subtle)',
                   }}
                 >
                   <span style={{
@@ -220,7 +220,7 @@ export function Analysis() {
                 <div key={label} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 0',
-                  borderBottom: i === 0 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                  borderBottom: i === 0 ? '1px solid var(--color-border-subtle)' : 'none',
                 }}>
                   <span style={{
                     width: 20, height: 20, flexShrink: 0,
@@ -244,7 +244,7 @@ export function Analysis() {
           </div>
 
           {/* WP-12: Use .progress-fill class so @media (prefers-reduced-motion) can suppress transition */}
-          <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginBottom: 32 }}>
+          <div style={{ height: 4, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginBottom: 32 }}>
             <div className="progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
 

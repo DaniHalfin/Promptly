@@ -169,7 +169,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     ? '2px solid var(--color-accent-border)'
     : source?.status === 'error'
     ? '1px solid var(--color-critical)'
-    : '1px solid rgba(255,255,255,0.07)';
+    : '1px solid var(--color-border-subtle)';
 
   const cardBg = isConnected
     ? 'color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-surface))'
@@ -229,7 +229,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           </button>
 
           {showInstructions && (
-            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
               <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
                 {info.setupInstructions.steps.map((step, i) => (
                   <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
@@ -256,7 +256,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       )}
 
       {info.disabled ? (
-        <div style={{ borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)', background: 'var(--color-bg-inset)', padding: '10px 14px' }} aria-disabled="true">
+        <div style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-inset)', padding: '10px 14px' }} aria-disabled="true">
           <p style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>Currently disabled</p>
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Claude export upload is not available in this MVP.</p>
         </div>

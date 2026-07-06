@@ -23,15 +23,15 @@ export function ThemeToggle() {
         minHeight: 44,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'transparent',
-        border: '1px solid rgba(255,255,255,0.12)',
+        border: '1px solid var(--color-border-subtle)',
         borderRadius: 'var(--radius-md)',
         cursor: 'pointer',
         color: 'var(--text-secondary)',
         flexShrink: 0,
         transition: 'border-color 150ms, color 150ms',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.3)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-input-border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
     >
       {theme === 'dark' ? (
         /* Sun icon */

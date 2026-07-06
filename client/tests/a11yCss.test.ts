@@ -61,14 +61,14 @@ describe('DailySpendLine tooltip tokens', () => {
     const root = css.slice(css.indexOf(':root'), css.indexOf('[data-theme="light"]'));
     expect(root).toMatch(/--chart-tooltip-bg:\s*var\(--color-bg-elevated\)/);
     expect(root).toMatch(/--chart-tooltip-text:\s*var\(--text-primary\)/);
-    expect(root).toMatch(/--chart-tooltip-border:\s*rgba\(255,\s*255,\s*255,\s*0\.18\)/);
+    expect(root).toMatch(/--chart-tooltip-border:\s*var\(--color-border-subtle\)/);
   });
 
   it('defines light chart tooltip background, text, and border tokens', () => {
     const light = css.slice(css.indexOf('[data-theme="light"]'));
     expect(light).toMatch(/--chart-tooltip-bg:\s*var\(--color-bg-surface\)/);
     expect(light).toMatch(/--chart-tooltip-text:\s*var\(--text-primary\)/);
-    expect(light).toMatch(/--chart-tooltip-border:\s*rgba\(0,\s*0,\s*0,\s*0\.16\)/);
+    expect(light).toMatch(/--chart-tooltip-border:\s*var\(--color-border-subtle\)/);
   });
 
   it('DailySpendLine uses chart tooltip CSS vars for content, label, and item styles', () => {

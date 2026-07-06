@@ -48,7 +48,7 @@ export function DailyConversationActivityLine({ data }: DailyConversationActivit
       </figcaption>
       <ResponsiveContainer width="100%" height={120}>
         <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
           <XAxis dataKey="date" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} />
           <Tooltip

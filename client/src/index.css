@@ -29,7 +29,8 @@
   --color-info-muted:     oklch(68% 0.08 230 / 0.15);
 
   /* Input borders — WP-10: raised to 0.35 opacity for WCAG 3:1 non-text contrast */
-  --color-input-border: rgba(255, 255, 255, 0.35);
+  --color-input-border: oklch(100% 0 0 / 0.35);
+  --color-border-subtle: oklch(100% 0 0 / 0.18);
   /* Text */
   --text-primary:   oklch(92% 0.01 240);
   --text-secondary: oklch(68% 0.04 240);
@@ -55,10 +56,17 @@
   --text-body:    0.875rem;   /* 14px  — all body copy, table cells, labels */
   --text-note:    0.75rem;    /* 12px  — metadata, timestamps, KPI tile labels, footnotes */
 
+  /* Chart palette tokens */
+  --chart-color-1: oklch(62% 0.19 270);
+  --chart-color-2: oklch(60% 0.20 300);
+  --chart-color-3: oklch(65% 0.16 240);
+  --chart-color-4: oklch(68% 0.17 180);
+  --chart-color-5: oklch(70% 0.18 150);
+
   /* Chart tooltip tokens */
   --chart-tooltip-bg: var(--color-bg-elevated);
   --chart-tooltip-text: var(--text-primary);
-  --chart-tooltip-border: rgba(255, 255, 255, 0.18);
+  --chart-tooltip-border: var(--color-border-subtle);
 }
 
 /* ─── Light mode overrides ───────────────────────────────────────────────── */
@@ -80,9 +88,10 @@
   --color-positive-text:  oklch(45% 0.14 155);
   /* WP-10: light-mode input border — 0.35 opacity for WCAG non-text contrast */
   --color-input-border: rgba(0, 0, 0, 0.30);
+  --color-border-subtle: rgba(0, 0, 0, 0.16);
   --chart-tooltip-bg: var(--color-bg-surface);
   --chart-tooltip-text: var(--text-primary);
-  --chart-tooltip-border: rgba(0, 0, 0, 0.16);
+  --chart-tooltip-border: var(--color-border-subtle);
 }
 
 /* ─── Reset + base ───────────────────────────────────────────────────────── */
@@ -104,7 +113,7 @@ html, body {
 /* ─── Cards ──────────────────────────────────────────────────────────────── */
 .card {
   background: var(--color-bg-surface);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--color-input-border);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
@@ -112,22 +121,24 @@ html, body {
 .card:hover,
 .card:focus-within {
   background: var(--color-bg-elevated);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-border-subtle);
   transition: background 150ms ease, border-color 150ms ease;
 }
 
 .card-inset {
   background: var(--color-bg-inset);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 16px;
 }
 
 /* ─── Light mode surface overrides ──────────────────────────────────────── */
-[data-theme="light"] .card                           { border-color: rgba(0, 0, 0, 0.08); }
+[data-theme="light"] .card,
 [data-theme="light"] .card:hover,
-[data-theme="light"] .card:focus-within              { border-color: rgba(0, 0, 0, 0.15); background: var(--color-bg-elevated); }
-[data-theme="light"] .card-inset                     { border-color: rgba(0, 0, 0, 0.07); }
+[data-theme="light"] .card:focus-within,
+[data-theme="light"] .card-inset { border-color: var(--color-input-border); }
+[data-theme="light"] .card:hover,
+[data-theme="light"] .card:focus-within { background: var(--color-bg-elevated); }
 [data-theme="light"] tr                              { border-bottom-color: rgba(0, 0, 0, 0.07); }
 [data-theme="light"] tr:hover                        { background: var(--color-bg-inset); }
 
@@ -165,12 +176,12 @@ html, body {
   font-weight: 500;
   border-radius: var(--radius-md);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--color-border-subtle);
   color: var(--text-secondary);
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
-.secondary:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--text-primary); }
+.secondary:hover { border-color: var(--color-input-border); color: var(--text-primary); }
 [data-theme="light"] .secondary { border-color: rgba(0,0,0,0.18); }
 [data-theme="light"] .secondary:hover { border-color: rgba(0,0,0,0.35); }
 
@@ -199,8 +210,8 @@ html, body {
   width: 40px;
   height: 22px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
   flex-shrink: 0;
@@ -369,7 +380,7 @@ html, body {
     left: 0;
     background: var(--color-bg-surface);
     z-index: 1;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid var(--color-border-subtle);
   }
   [data-theme="light"] .table-col-sticky {
     background: var(--color-bg-surface);
@@ -394,7 +405,7 @@ html, body {
   font-size: var(--text-note);
   color: var(--text-muted);
   background: var(--color-bg-inset);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
@@ -402,7 +413,7 @@ html, body {
 }
 .disclosure-btn:hover {
   background: var(--color-bg-elevated);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: var(--color-input-border);
   color: var(--text-secondary);
 }
 .disclosure-btn[aria-expanded="true"] {
@@ -501,7 +512,7 @@ input[type="search"] {
   color: var(--color-accent-light);
 }
 .promptly-day-picker .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
-  background: var(--color-bg-hover, rgba(255,255,255,0.06));
+  background: var(--color-bg-hover, var(--color-bg-inset));
 }
 .promptly-day-picker .rdp-day_disabled {
   color: var(--text-muted);

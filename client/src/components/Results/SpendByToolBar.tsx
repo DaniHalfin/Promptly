@@ -56,7 +56,7 @@ export function SpendByToolBar({ data }: SpendByToolBarProps) {
               <div
                 style={{
                   height: 8,
-                  background: 'rgba(255,255,255,0.08)',
+                  background: 'var(--color-bg-inset)',
                   borderRadius: 'var(--radius-pill)',
                   overflow: 'hidden',
                 }}

@@ -47,7 +47,7 @@ function renderLegendText(value: string) {
 export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
   if (!data || data.length === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-note)' }}>No data available</p>
       </div>
     );
@@ -58,7 +58,7 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
 
   if (validData.length === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-note)' }}>No data available</p>
       </div>
     );
@@ -111,7 +111,7 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
             }}
             contentStyle={{
               backgroundColor: 'var(--color-bg-elevated)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: 'var(--radius-sm)',
               color: 'var(--text-primary)',
             }}

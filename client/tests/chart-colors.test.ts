@@ -106,3 +106,42 @@ describe('PDF_EXPORT_COLOR_OVERRIDES (WP-11)', () => {
     }
   });
 });
+
+describe('N6 chart/border tokens and white-rgba sweep', () => {
+  it('defines chart color and border CSS variables in index.css', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(resolve(__dirname, '../src/index.css'), 'utf8');
+    expect(css).toContain('--chart-color-1: oklch(62% 0.19 270);');
+    expect(css).toContain('--chart-color-2: oklch(60% 0.20 300);');
+    expect(css).toContain('--chart-color-3: oklch(65% 0.16 240);');
+    expect(css).toContain('--chart-color-4: oklch(68% 0.17 180);');
+    expect(css).toContain('--chart-color-5: oklch(70% 0.18 150);');
+    expect(css).toContain('--color-border-subtle:');
+    expect(css).toContain('--chart-tooltip-border: var(--color-border-subtle);');
+  });
+
+  it('does not inline dark-mode white rgba values in client source', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const pattern = /rgba\(255,\s*255,\s*255/;
+    const srcRoot = resolve(__dirname, '../src');
+
+    const walk = (dir: string): string[] => {
+      const found: string[] = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const child = resolve(dir, entry.name);
+        if (entry.isDirectory()) {
+          found.push(...walk(child));
+        } else if (/\.(tsx?|css)$/.test(entry.name)) {
+          readFileSync(child, 'utf8').split('\n').forEach((line, i) => {
+            if (pattern.test(line)) found.push(`${child}:${i + 1}:${line.trim()}`);
+          });
+        }
+      }
+      return found;
+    };
+
+    expect(walk(srcRoot)).toEqual([]);
+  });
+});

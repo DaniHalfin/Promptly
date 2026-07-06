@@ -30,7 +30,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
             height: '20rem',
             background: 'var(--color-bg-inset)',
             borderRadius: 'var(--radius-md)',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
+            border: '1px solid var(--color-border-subtle)',
           }}
         >
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
@@ -63,11 +63,12 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
           <XAxis dataKey="date" />
           <YAxis label={{ value: 'Cost (USD)', angle: -90, position: 'insideLeft' }} />
           <Tooltip
-            formatter={(value) => {
+            formatter={(value, name) => {
+              const label = name === 'costUsd' ? 'Daily Spend' : name;
               if (typeof value === 'number') {
-                return `$${value.toFixed(2)}`;
+                return [`$${value.toFixed(2)}`, label];
               }
-              return value;
+              return [value, label];
             }}
             contentStyle={{
               backgroundColor: 'var(--chart-tooltip-bg)',
@@ -81,6 +82,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
           <Line
             type="monotone"
             dataKey="costUsd"
+            name="Daily Spend"
             stroke={COLORS[0]}
             dot={{ fill: COLORS[0], r: 4 }}
             activeDot={{ r: 6 }}

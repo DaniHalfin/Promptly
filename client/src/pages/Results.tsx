@@ -197,7 +197,7 @@ export function Results() {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 24px',
-        borderBottom: '1px solid var(--color-border, rgba(255,255,255,0.09))',
+        borderBottom: '1px solid var(--color-border-subtle)',
         background: 'var(--color-bg-elevated)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
@@ -288,7 +288,7 @@ export function Results() {
         </section>
 
         {/* § 5 — Budget CTA placeholder */}
-        <div className="card" style={{ marginBottom: 24, padding: '20px 24px', borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' }}>
+        <div className="card" style={{ marginBottom: 24, padding: '20px 24px', borderStyle: 'dashed', borderColor: 'var(--color-border-subtle)' }}>
           <h2 style={{ margin: '0 0 8px', fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
             Set a Budget
           </h2>
@@ -298,7 +298,7 @@ export function Results() {
         </div>
 
         {/* § 6 — Export actions */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
           <button className="primary" onClick={downloadJSON} disabled={!hasData}>Export JSON</button>
           <button className="primary" onClick={downloadPDF} disabled={!hasData}>Export PDF</button>
         </div>

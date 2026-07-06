@@ -224,7 +224,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
 
       {/* Source-scoped recommendations */}
       {recommendations.length > 0 && (
-        <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--color-border-subtle)', paddingTop: 12 }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Recommendations
           </div>

@@ -21,7 +21,7 @@ export function Error() {
         maxWidth: 448,
         textAlign: 'center',
         background: 'var(--color-bg-surface)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        border: '1px solid var(--color-input-border)',
         borderRadius: 'var(--radius-lg)',
         padding: '32px 24px',
       }}>
