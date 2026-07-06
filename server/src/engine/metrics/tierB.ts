@@ -1,4 +1,4 @@
-import { SourceMetrics, NormalizedSourceData, NormalizedCopilotSession, ModelBreakdownEntry } from '../../types/index.js';
+import { SourceMetrics, NormalizedSourceData, NormalizedCopilotSession, ModelBreakdownEntry, EfficiencySignal } from '../../types/index.js';
 import { PriceMap, lookupPrice } from '../../data/priceMap.js';
 
 export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceMap): Partial<SourceMetrics> {
@@ -72,7 +72,13 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
   const totalCacheRead = Object.values(tokensByModel).reduce((sum, t) => sum + t.cacheRead, 0);
   const totalInputWithCache = totalInput + totalCacheCreate + totalCacheRead;
   const totalActualTokens = totalInput + totalOutput;
-  const aggregateInputOutputRatio = totalOutput > 0 ? totalInput / totalOutput : totalInput > 0 ? totalInput : 1;
+  const aggregateInputNumerator =
+    data.sourceId === 'anthropic' || data.sourceId === 'claude_code'
+      ? totalInputWithCache
+      : totalInput;
+  const aggregateInputOutputRatio =
+    totalOutput > 0 ? aggregateInputNumerator / totalOutput : aggregateInputNumerator > 0 ? aggregateInputNumerator : 1;
+  const efficiencySignal = buildEfficiencySignal(aggregateInputOutputRatio);
 
   // 7.8 Cached token fraction (Anthropic / Claude Code)
   let cachedTokenFraction: number | undefined;
@@ -136,6 +142,7 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
     dailySpend,
     modelBreakdown: modelBreakdown.length > 0 ? modelBreakdown : undefined,
     aggregateInputOutputRatio,
+    efficiencySignal,
     ...(data.sourceId === 'anthropic'
       ? {
           cachedTokenFractionAnthropic: cachedTokenFraction,
@@ -163,6 +170,31 @@ export function computeTierBMetrics(data: NormalizedSourceData, priceMap: PriceM
     rollingAvgSpend7dUsd,
     momChangePct,
     avgDailyOutputTokensPerModel,
+  };
+}
+
+function buildEfficiencySignal(ratio: number): EfficiencySignal {
+  if (ratio > 8) {
+    return {
+      kind: 'input_heavy',
+      headline: 'Input-heavy usage',
+      explanation: 'Most of your cost came from sending context, not getting answers.',
+      inputOutputRatio: ratio,
+    };
+  }
+  if (ratio < 1) {
+    return {
+      kind: 'output_heavy',
+      headline: 'Output-heavy usage',
+      explanation: "You're generating a lot — typical for coding or writing workflows.",
+      inputOutputRatio: ratio,
+    };
+  }
+  return {
+    kind: 'balanced',
+    headline: 'Balanced usage',
+    explanation: 'Your input and output token mix is balanced for this period.',
+    inputOutputRatio: ratio,
   };
 }
 
@@ -334,6 +366,8 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
       models_identified: [],
       totalActualTokens: 0,
       totalSpendUsd: 0,
+      aggregateInputOutputRatio: 1,
+      efficiencySignal: buildEfficiencySignal(1),
     };
   }
 
@@ -412,6 +446,15 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     (sum, model) => sum + model.inputTokens + model.outputTokens,
     0,
   );
+  const copilotTotalInputTokens = tokenBreakdownByModel.reduce((sum, model) => sum + model.inputTokens, 0);
+  const copilotTotalOutputTokens = tokenBreakdownByModel.reduce((sum, model) => sum + model.outputTokens, 0);
+  const aggregateInputOutputRatio =
+    copilotTotalOutputTokens > 0
+      ? copilotTotalInputTokens / copilotTotalOutputTokens
+      : copilotTotalInputTokens > 0
+        ? copilotTotalInputTokens
+        : 1;
+  const efficiencySignal = buildEfficiencySignal(aggregateInputOutputRatio);
 
   // Universal daily spend — aggregate net spend by session date so Copilot
   // participates in the cross-source daily_spend / trend / spike path.
@@ -436,5 +479,7 @@ function computeCopilotTierBMetrics(data: NormalizedSourceData): Partial<SourceM
     models_identified,
     totalActualTokens,
     totalSpendUsd: totalNetSpend,
+    aggregateInputOutputRatio,
+    efficiencySignal,
   };
 }

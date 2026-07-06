@@ -115,6 +115,7 @@ export interface SourceMetrics {
   dailySpend?: { date: string; spendUsd: number }[];
   modelBreakdown?: ModelBreakdownEntry[];
   aggregateInputOutputRatio?: number;
+  efficiencySignal?: EfficiencySignal;
   cachedTokenFractionAnthropic?: number;
   cachedTokenSavingsUsdAnthropic?: number;
   cachedTokenFractionClaudeCode?: number;
@@ -192,6 +193,13 @@ export interface SourceMetrics {
   daily_conversation_activity?: DailyConversationActivityEntry[];
   estimated_token_volume?: number;
   newest_conversation_date?: string;
+}
+
+export interface EfficiencySignal {
+  kind: 'input_heavy' | 'output_heavy' | 'balanced';
+  headline: string;
+  explanation: string;
+  inputOutputRatio: number;
 }
 
 // ====== Tier C (ChatGPT Export) canonical types (spec v2.2 §7.19–§7.25) ======

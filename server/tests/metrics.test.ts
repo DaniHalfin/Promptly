@@ -518,6 +518,102 @@ describe('computeTierBMetrics', () => {
     expect(metrics.copilotTokenBreakdownByModel?.[0].model).toBe('m');
     expect(metrics.copilotTokenBreakdownByModel?.[0].requestCost).toBe(5);
   });
+
+  describe('computeTierBMetrics efficiencySignal', () => {
+    it('marks input_heavy when provider-aware input/output ratio is greater than 8', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'openai',
+        dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 90, outputTokens: 10 }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.efficiencySignal?.kind).toBe('input_heavy');
+      expect(metrics.efficiencySignal?.inputOutputRatio).toBeCloseTo(9);
+    });
+
+    it('marks output_heavy when ratio is below 1', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'openai',
+        dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 5, outputTokens: 10 }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.efficiencySignal?.kind).toBe('output_heavy');
+    });
+
+    it('marks balanced when ratio is between 1 and 8', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'openai',
+        dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 20, outputTokens: 10 }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.efficiencySignal?.kind).toBe('balanced');
+    });
+
+    it('marks balanced when ratio equals 1', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'openai',
+        dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 10, outputTokens: 10 }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.efficiencySignal?.kind).toBe('balanced');
+    });
+
+    it('marks balanced when ratio equals 8', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'openai',
+        dailyTokensByModel: [{ date: '2026-06-01', model: 'model-a', inputTokens: 80, outputTokens: 10 }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.efficiencySignal?.kind).toBe('balanced');
+    });
+
+    it('uses cache creation/read tokens in Anthropic and Claude Code ratios', () => {
+      const anthropic = computeTierBMetrics(base({
+        sourceId: 'anthropic',
+        dailyTokensByModel: [{
+          date: '2026-06-01',
+          model: 'model-a',
+          inputTokens: 10,
+          outputTokens: 10,
+          cacheCreationInputTokens: 40,
+          cacheReadInputTokens: 40,
+        }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      const claudeCode = computeTierBMetrics(base({
+        sourceId: 'claude_code',
+        dailyTokensByModel: [{
+          date: '2026-06-01',
+          model: 'model-a',
+          inputTokens: 10,
+          outputTokens: 10,
+          cacheCreationInputTokens: 40,
+          cacheReadInputTokens: 40,
+        }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(anthropic.aggregateInputOutputRatio).toBeCloseTo(9);
+      expect(anthropic.efficiencySignal?.kind).toBe('input_heavy');
+      expect(claudeCode.aggregateInputOutputRatio).toBeCloseTo(9);
+      expect(claudeCode.efficiencySignal?.kind).toBe('input_heavy');
+    });
+
+    it('computes aggregateInputOutputRatio for GitHub Copilot', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'github_copilot',
+        copilotSessions: [session('gpt-5.4', 3, { inputTokens: 30, outputTokens: 10 })],
+      }), priceMap);
+
+      expect(metrics.aggregateInputOutputRatio).toBeCloseTo(3);
+      expect(metrics.efficiencySignal?.kind).toBe('balanced');
+    });
+  });
 });
 
 describe('Copilot pure metric functions', () => {

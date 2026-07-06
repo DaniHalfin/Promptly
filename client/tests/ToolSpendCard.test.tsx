@@ -173,3 +173,36 @@ describe('ToolSpendCard', () => {
     expect(container.textContent).not.toMatch(/\(est\.\)/);
   });
 });
+
+describe('ToolSpendCard EfficiencySignalCallout', () => {
+  it('renders the efficiency callout for Tier B sources with signal data', () => {
+    const source = makeSource('openai', 'B', {
+      totalActualSpendUsd: 12,
+      efficiencySignal: {
+        kind: 'input_heavy',
+        headline: 'Input-heavy usage',
+        explanation: 'Most of your cost came from sending context, not getting answers.',
+        inputOutputRatio: 10,
+      },
+    });
+
+    render(<ToolSpendCard source={source} recommendations={[]} />);
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText('Input-heavy usage')).toBeInTheDocument();
+  });
+
+  it('does not render the efficiency callout for Tier C sources', () => {
+    const source = makeSource('chatgpt_export', 'C', {
+      estimated_relative_cost_usd: 4,
+      efficiencySignal: {
+        kind: 'input_heavy',
+        headline: 'Input-heavy usage',
+        explanation: 'Most of your cost came from sending context, not getting answers.',
+        inputOutputRatio: 10,
+      },
+    });
+
+    render(<ToolSpendCard source={source} recommendations={[]} />);
+    expect(screen.queryByTestId('efficiency-signal-callout')).not.toBeInTheDocument();
+  });
+});

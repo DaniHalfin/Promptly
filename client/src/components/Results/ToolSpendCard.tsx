@@ -1,6 +1,7 @@
 import React from 'react';
 import type { RecommendationResult, SourceReport, SpendByToolEntry } from '../../types/index.js';
 import { DailyConversationActivityLine } from './DailyConversationActivityLine.js';
+import { EfficiencySignalCallout } from './EfficiencySignalCallout.js';
 
 interface ToolSpendCardProps {
   source: SourceReport;
@@ -161,6 +162,8 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
           ))}
         </div>
       )}
+
+      {!isTierC && <EfficiencySignalCallout signal={m.efficiencySignal} />}
 
       {/* Models */}
       {modelsIdentified.length > 0 && (
