@@ -45,7 +45,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
       <figcaption className="sr-only">
         <table>
           <thead>
-            <tr><th scope="col">Date</th><th scope="col">Cost (USD)</th></tr>
+            <tr><th scope="col">Date</th><th scope="col">Daily Spend (USD)</th></tr>
           </thead>
           <tbody>
             {data.map((row) => (
@@ -61,7 +61,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
         <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
-          <YAxis label={{ value: 'Cost (USD)', angle: -90, position: 'insideLeft' }} />
+          <YAxis label={{ value: 'Daily Spend (USD)', angle: -90, position: 'insideLeft' }} />
           <Tooltip
             formatter={(value, name) => {
               const label = name === 'costUsd' ? 'Daily Spend' : name;

@@ -56,9 +56,12 @@ export function AnalysisHeader({
               <strong style={{ color: 'var(--color-positive-text)' }}>${totalPotentialSavingsUsd.toFixed(2)}</strong>
               {' '}across {actionableRecommendationCount} {actionableRecommendationCount === 1 ? 'recommendation' : 'recommendations'}
             </div>
-            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+            <p
+              role="note"
+              style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '4px 0 0', fontStyle: 'italic' }}
+            >
               Savings estimates are based on your usage patterns and may vary.
-            </div>
+            </p>
           </div>
         </div>
       )}

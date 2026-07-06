@@ -65,4 +65,22 @@ describe('AnalysisHeader', () => {
     render(<AnalysisHeader {...baseProps} sourceCount={1} />);
     expect(screen.getByText(/1 source\b/)).toBeInTheDocument();
   });
+
+  it('savings callout disclaimer has role="note" for AT identification — S1', () => {
+    render(
+      <AnalysisHeader
+        {...baseProps}
+        totalPotentialSavingsUsd={30}
+        actionableRecommendationCount={2}
+      />
+    );
+    const note = document.querySelector('[role="note"]');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toMatch(/Savings estimates are based on your usage patterns/);
+  });
+
+  it('disclaimer role="note" is NOT rendered when savings callout is hidden — S1', () => {
+    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={0} actionableRecommendationCount={0} />);
+    expect(document.querySelector('[role="note"]')).toBeNull();
+  });
 });

@@ -68,6 +68,24 @@ describe('DailySpendLine (WP-9)', () => {
     expect(source).toContain('name="Daily Spend"');
     expect(source).toContain("name === 'costUsd' ? 'Daily Spend'");
   });
+
+  it('sr-only table column header reads "Daily Spend (USD)" not "Cost (USD)" — M1', () => {
+    const { container } = render(<DailySpendLine data={sampleData} />);
+    const th = container.querySelector('.sr-only thead tr th:nth-child(2)');
+    expect(th?.textContent).toBe('Daily Spend (USD)');
+    expect(th?.textContent).not.toContain('Cost (USD)');
+  });
+
+  it('Y-axis label value is "Daily Spend (USD)" not "Cost (USD)" — M1', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("value: 'Daily Spend (USD)'");
+    expect(source).not.toContain("value: 'Cost (USD)'");
+  });
 });
 
 // ── ModelCostSharePie ────────────────────────────────────────────────────────
