@@ -49,7 +49,7 @@ To reduce your input costs:
         triggeringMetric: 'p90DailyInputTokens / aggregateInputOutputRatio',
         triggeringValue: `${Math.round(p90DailyInputTokens)} / ${(source.aggregateInputOutputRatio ?? 0).toFixed(1)}`,
         sourceIds: [source.sourceId],
-        compactHeadline: 'Trim repeated input context',
+        compactHeadline: 'Shorten your prompts to reduce input costs',
         triggerSummary: `${sourceName} sends roughly ${inputOutputMultiplier}× more text than it receives back`,
         topSlotEligible: hasSavings,
         targetSourceId: source.sourceId,

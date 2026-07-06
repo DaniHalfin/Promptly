@@ -87,6 +87,7 @@ describe('ToolSpendCard', () => {
   it('renders source-scoped recommendations', () => {
     render(<ToolSpendCard source={openaiSource} recommendations={recs} />);
     expect(screen.getByText('Enable prompt caching')).toBeInTheDocument();
+    expect(screen.getByText('Cache repeated system prompts.')).toHaveStyle({ whiteSpace: 'pre-line' });
   });
 
   it('renders DailyConversationActivityLine for chatgpt_export (Tier C)', () => {

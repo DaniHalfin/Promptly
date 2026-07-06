@@ -239,7 +239,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
                 <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
                   {rec.title}
                 </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
                   {rec.body}
                 </div>
               </div>

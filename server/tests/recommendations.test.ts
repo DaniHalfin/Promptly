@@ -235,7 +235,7 @@ describe('recommendation rules', () => {
 
       const cards = R2.evaluate(ctx([anthropicSource], downgradePriceMap));
       expect(cards[0]).toMatchObject({
-        compactHeadline: expect.stringContaining('claude-3-5-sonnet-20241022'),
+        compactHeadline: 'Try a lighter model for routine tasks',
         targetSourceId: 'anthropic',
         targetCardAnchor: '#tool-card-anthropic',
         targetRecommendationAnchor: '#rec-anthropic-R2',
@@ -312,6 +312,7 @@ describe('recommendation rules', () => {
       const cards = R2.evaluate(ctx([metrics]));
       expect(cards[0].body).toContain('claude-opus-4-8');
       expect(cards[0].body).toContain('claude-haiku-4-5');
+      expect(cards[0].compactHeadline).toBe('Try a lighter model for routine tasks');
     });
 
     it('computes savings estimate when cheaper model also has spend in copilotModelCostBreakdown', () => {
@@ -531,6 +532,7 @@ describe('recommendation rules', () => {
       expect(cards[0].body).not.toContain('github_copilot');
       expect(cards[0].body).not.toContain('input/output ratio');
       expect(cards[0].body).not.toContain('p90');
+      expect(cards[0].compactHeadline).toBe('Shorten your prompts to reduce input costs');
     });
   });
 

@@ -200,6 +200,7 @@ describe('PrintLayout — ADR-9 narrative structure', () => {
     expect(screen.getByText('Downgrade model tier')).toBeInTheDocument();
     expect(screen.getByText('Reduce verbosity')).toBeInTheDocument();
     expect(screen.getByText('Check data freshness')).toBeInTheDocument();
+    expect(screen.getByText('Shorten prompts to save tokens.')).toHaveStyle({ whiteSpace: 'pre-line' });
   });
 
   it('has NO interactive buttons', () => {
