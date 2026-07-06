@@ -109,10 +109,13 @@ export function TokenRatioBar({
               return value;
             }}
             contentStyle={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
+              backgroundColor: 'var(--chart-tooltip-bg)',
+              border: '1px solid var(--chart-tooltip-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--chart-tooltip-text)',
             }}
+            labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+            itemStyle={{ color: 'var(--chart-tooltip-text)' }}
           />
           <Bar dataKey="value" fill="#8884d8" radius={[0, 8, 8, 0]}>
             {data.map((entry, index) => (

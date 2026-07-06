@@ -168,7 +168,8 @@ export function Analysis() {
           <h1
             tabIndex={-1}
             data-focus-on-mount
-            style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em', outline: 'none' }}
+            className="focus-target"
+            style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}
           >
             Analyzing your AI usage
           </h1>

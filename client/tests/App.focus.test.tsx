@@ -117,4 +117,27 @@ describe('App focus management (WP-7)', () => {
     });
     expect(document.activeElement).toBe(target);
   });
+
+  it('B-ARIA-02: does not re-fire focus when re-rendered with the same phase', async () => {
+    const { rerender, container } = renderApp('landing');
+
+    await act(async () => {
+      vi.advanceTimersByTime(50);
+    });
+
+    const target = container.querySelector('[data-focus-on-mount]') as HTMLElement;
+    expect(document.activeElement).toBe(target);
+
+    // Simulate a context re-render that keeps the same phase
+    // Focus must NOT move away from wherever it currently is
+    const focusSpy = vi.spyOn(target, 'focus');
+    rerenderApp(rerender, 'landing'); // same phase
+    await act(async () => {
+      vi.advanceTimersByTime(50);
+    });
+
+    // focus() must not have been called a second time
+    expect(focusSpy).not.toHaveBeenCalled();
+    focusSpy.mockRestore();
+  });
 });

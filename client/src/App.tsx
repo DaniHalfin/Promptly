@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSession } from './context/SessionContext.js';
 import { Landing } from './pages/Landing.js';
 import { Analysis } from './pages/Analysis.js';
@@ -8,10 +8,14 @@ import { Error } from './pages/Error.js';
 export function App() {
   const { state } = useSession();
 
-  // WP-7: Move focus to the new page's primary heading on every phase transition.
-  // [data-focus-on-mount] targets are set on each page's <h1> with tabIndex={-1}.
-  // The 50ms delay allows the new component to mount and paint before .focus() is called.
+  // WP-7: Move focus to the new page's primary heading on phase transition.
+  // B-ARIA-02: focusedPhaseRef guards against re-firing for the same phase (e.g.
+  // React StrictMode double-invocation, or context updates that preserve state.phase).
+  const focusedPhaseRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
+    if (focusedPhaseRef.current === state.phase) return;
+    focusedPhaseRef.current = state.phase;
     const id = setTimeout(() => {
       const heading = document.querySelector<HTMLElement>('[data-focus-on-mount]');
       if (heading) heading.focus();

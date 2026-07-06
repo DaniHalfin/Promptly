@@ -18,6 +18,14 @@ const landingPath = resolve(__dirname, '../src/pages/Landing.tsx');
 const themeTogglePath = resolve(__dirname, '../src/components/ThemeToggle.tsx');
 const landingSrc = readFileSync(landingPath, 'utf-8');
 const themeToggleSrc = readFileSync(themeTogglePath, 'utf-8');
+const analysisPath = resolve(__dirname, '../src/pages/Analysis.tsx');
+const resultsPath = resolve(__dirname, '../src/pages/Results.tsx');
+const analysisSrc = readFileSync(analysisPath, 'utf-8');
+const resultsSrc = readFileSync(resultsPath, 'utf-8');
+const convLengthBarPath = resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx');
+const tokenRatioBarPath = resolve(__dirname, '../src/components/Results/charts/TokenRatioBar.tsx');
+const convLengthBarSrc = readFileSync(convLengthBarPath, 'utf-8');
+const tokenRatioBarSrc = readFileSync(tokenRatioBarPath, 'utf-8');
 
 /** Extract the body of the first CSS rule matching the given selector. */
 function ruleBody(source: string, selector: string): string {
@@ -231,6 +239,61 @@ describe('W-FOCUS-02: .focus-target class', () => {
     expect(css).toContain('.focus-target:focus-visible');
     const body = ruleBody(css, '.focus-target:focus-visible {');
     expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+});
+
+describe('W-FOCUS-02: no inline outline:none on focus-managed headings', () => {
+  it('Landing.tsx h1[data-focus-on-mount] uses className="focus-target"', () => {
+    // Must have the class
+    expect(landingSrc).toContain('className="focus-target"');
+    // The h1 near data-focus-on-mount must NOT have inline outline:none
+    const h1Block = landingSrc.slice(
+      landingSrc.indexOf('data-focus-on-mount'),
+      landingSrc.indexOf('>', landingSrc.indexOf('data-focus-on-mount') + 200),
+    );
+    expect(h1Block).not.toContain("outline: 'none'");
+  });
+
+  it('Results.tsx h1[data-focus-on-mount] uses className="focus-target"', () => {
+    expect(resultsSrc).toContain('className="focus-target"');
+    const h1Block = resultsSrc.slice(
+      resultsSrc.indexOf('data-focus-on-mount'),
+      resultsSrc.indexOf('>', resultsSrc.indexOf('data-focus-on-mount') + 200),
+    );
+    expect(h1Block).not.toContain("outline: 'none'");
+  });
+
+  it('Analysis.tsx h1[data-focus-on-mount] uses className="focus-target"', () => {
+    expect(analysisSrc).toContain('className="focus-target"');
+    const h1Block = analysisSrc.slice(
+      analysisSrc.indexOf('data-focus-on-mount'),
+      analysisSrc.indexOf('>', analysisSrc.indexOf('data-focus-on-mount') + 200),
+    );
+    expect(h1Block).not.toContain("outline: 'none'");
+  });
+});
+
+describe('W-TOKEN-01: chart tooltip tokens', () => {
+  it('ConversationLengthBar.tsx uses var(--chart-tooltip-bg), not #f1f5f9', () => {
+    expect(convLengthBarSrc).toContain("backgroundColor: 'var(--chart-tooltip-bg)'");
+    expect(convLengthBarSrc).not.toContain('#f1f5f9');
+    expect(convLengthBarSrc).not.toContain('#cbd5e1');
+  });
+
+  it('ConversationLengthBar.tsx has labelStyle and itemStyle with chart-tooltip-text', () => {
+    expect(convLengthBarSrc).toContain("labelStyle={{ color: 'var(--chart-tooltip-text)' }}");
+    expect(convLengthBarSrc).toContain("itemStyle={{ color: 'var(--chart-tooltip-text)' }}");
+  });
+
+  it('TokenRatioBar.tsx uses var(--chart-tooltip-bg), not #f1f5f9', () => {
+    expect(tokenRatioBarSrc).toContain("backgroundColor: 'var(--chart-tooltip-bg)'");
+    expect(tokenRatioBarSrc).not.toContain('#f1f5f9');
+    expect(tokenRatioBarSrc).not.toContain('#cbd5e1');
+  });
+
+  it('TokenRatioBar.tsx has labelStyle and itemStyle with chart-tooltip-text', () => {
+    expect(tokenRatioBarSrc).toContain("labelStyle={{ color: 'var(--chart-tooltip-text)' }}");
+    expect(tokenRatioBarSrc).toContain("itemStyle={{ color: 'var(--chart-tooltip-text)' }}");
   });
 });
 

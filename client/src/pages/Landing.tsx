@@ -241,6 +241,7 @@ export function Landing() {
           <h1
             tabIndex={-1}
             data-focus-on-mount
+            className="focus-target"
             style={{
               fontSize: '2.25rem',
               fontWeight: 700,
@@ -248,7 +249,6 @@ export function Landing() {
               color: 'var(--text-primary)',
               marginBottom: 8,
               lineHeight: 1.2,
-              outline: 'none',
             }}
           >
             AI Token Analytics

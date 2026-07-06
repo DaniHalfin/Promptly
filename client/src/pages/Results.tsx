@@ -222,6 +222,7 @@ export function Results() {
           id="results-heading"
           tabIndex={-1}
           data-focus-on-mount
+          className="focus-target"
           style={{
             color: 'var(--text-muted)',
             fontSize: '0.75rem',
@@ -229,7 +230,6 @@ export function Results() {
             letterSpacing: '0.08em',
             fontWeight: 600,
             margin: '0 0 8px',
-            outline: 'none',
           }}
         >
           Analysis Results
