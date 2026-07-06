@@ -281,7 +281,20 @@ export interface RecommendationResult {
   topSlotEligible?: boolean;
   targetSourceId?: SourceId;
   targetCardAnchor?: string;
+  targetRecommendationAnchor?: string;
   savingsLabel?: string;
+}
+
+export interface TopRecommendationEntry {
+  id: RecommendationId;
+  title: string;
+  compact_headline: string;
+  source_id: SourceId;
+  target_card_anchor: string;
+  target_recommendation_anchor?: string;
+  estimated_savings_usd: number;
+  savings_label: string;
+  severity: 'High' | 'Medium' | 'Low';
 }
 
 /** A computed §7 metric for inclusion in the report.
@@ -336,6 +349,7 @@ export interface CrossSourceSummary {
   spike_callout: SpikeCallout | null;
   includes_estimates?: boolean;
   allSourcesFailed?: boolean;
+  top_recommendations?: TopRecommendationEntry[];
   /** The single highest-priority recommendation across all rule outputs (computed post-generate). */
   top_recommendation?: {
     id: RecommendationId;
