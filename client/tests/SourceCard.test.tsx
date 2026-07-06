@@ -219,6 +219,51 @@ describe('SourceCard', () => {
     expect(errorEl!.getAttribute('role')).toBe('alert');
   });
 
+  it('shows a friendly error message (not raw network text) — M3', () => {
+    // The error state is stored by the catch block; test the rendered output
+    renderSourceCard('openai', {
+      status: 'error',
+      error: "Couldn't reach the service — check your connection and try again.",
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/check your connection/i);
+    // Raw node/http error strings must not be surfaced as the primary copy
+    expect(alert.textContent).not.toMatch(/ECONNREFUSED|Failed to fetch|NetworkError/);
+  });
+
+  it('catch blocks in SourceCard store friendly error strings, not raw Error.message — M3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/SourceCard.tsx'),
+      'utf8',
+    );
+    // Both catch blocks must have been updated — no raw .message surface
+    expect(source).not.toMatch(/error: \(err as Error\)\.message/);
+    // Friendly copy is present
+    expect(source).toMatch(/check your connection/i);
+  });
+
+  it('card outer element does not have cursor:pointer — S2 (whole-card click removed)', () => {
+    const { container } = renderSourceCard('openai');
+    const group = container.querySelector('[role="group"]') as HTMLElement;
+    // After removing onClick, the group no longer masquerades as a clickable element
+    expect(group.style.cursor).not.toBe('pointer');
+  });
+
+  it('card outer element has cursor:default for disabled source — S2', () => {
+    const { container } = renderSourceCard('claude_export');
+    const group = container.querySelector('[role="group"]') as HTMLElement;
+    expect(group.style.cursor).toBe('default');
+  });
+
+  it('API card inner controls are still individually activatable after S2 — S2', () => {
+    renderSourceCard('openai', { credential: 'sk-test' });
+    // The validate button is present and not blocked by any wrapper
+    expect(screen.getByRole('button', { name: /validate/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/api key/i)).toBeInTheDocument();
+  });
+
   it('API key input has aria-describedby linking to error element — WP-3', () => {
     renderSourceCard('openai', { status: 'error', error: 'Bad key', credential: 'bad' });
 

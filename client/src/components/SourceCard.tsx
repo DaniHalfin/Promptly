@@ -102,19 +102,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
 
   const isConnected = source?.status === 'connected' || source?.status === 'ready';
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, button, a, label')) return;
-    if (info.disabled) return;
-    if (info.type === 'local') {
-      checkboxRef.current?.click();
-    } else if (info.type === 'api') {
-      credInputRef.current?.focus();
-    } else if (info.type === 'file') {
-      fileInputRef.current?.focus();
-    }
-  };
-
   const handleCredentialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateSource(sourceId, { credential: e.target.value, status: 'pending' });
   };
@@ -138,7 +125,11 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         updateSource(sourceId, { status: 'connected', error: null });
       }
     } catch (err) {
-      updateSource(sourceId, { status: 'error', error: (err as Error).message });
+      console.error('[SourceCard] validation error for', sourceId, err);
+      updateSource(sourceId, {
+        status: 'error',
+        error: "Couldn't reach the service — check your connection and try again.",
+      });
     }
     setValidating(false);
   };
@@ -160,7 +151,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         updateSource(sourceId, { enabled: true, status: 'connected', error: null });
       }
     } catch (err) {
-      updateSource(sourceId, { enabled: true, status: 'error', error: (err as Error).message });
+      console.error('[SourceCard] local-toggle error for', sourceId, err);
+      updateSource(sourceId, {
+        enabled: true,
+        status: 'error',
+        error: "Couldn't reach the service — check your connection and try again.",
+      });
     }
     setValidating(false);
   };
@@ -180,7 +176,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     <div
       role="group"
       aria-labelledby={`${sourceId}-heading`}
-      onClick={handleCardClick}
       style={{
         borderRadius: 'var(--radius-lg)',
         padding: '16px 20px',
@@ -188,7 +183,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 0,
-        cursor: info.disabled ? 'default' : 'pointer',
+        cursor: 'default',
         border: cardBorder,
         background: cardBg,
         WebkitFontSmoothing: 'antialiased',
