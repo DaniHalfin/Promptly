@@ -1326,6 +1326,7 @@ describe('Cross-source universal trend and spike', () => {
     expect(summary.trend.status).toBe('available');
     if (summary.trend.status === 'available') {
       expect(summary.trend.mom_change_pct).toBeCloseTo(100, 0);
+      expect(summary.trend.window_days).toBe(30);   // P4: server always emits window_days=TREND_WINDOW_DAYS
     }
   });
 

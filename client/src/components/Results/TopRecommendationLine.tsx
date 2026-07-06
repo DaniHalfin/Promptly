@@ -19,6 +19,7 @@ export function TopRecommendationLine({ rec, onActivate }: TopRecommendationLine
   return (
     <button
       type="button"
+      className="rec-row"
       data-testid={`top-recommendation-${rec.id}-${rec.source_id}`}
       aria-label={`${headline}. ${savingsLabel}. Jump to ${sourceName} recommendation.`}
       onClick={() => onActivate(rec)}
@@ -43,6 +44,7 @@ export function TopRecommendationLine({ rec, onActivate }: TopRecommendationLine
       <strong style={{ fontSize: '0.8125rem', color: 'var(--color-positive-text)', whiteSpace: 'nowrap' }}>
         {savingsLabel}
       </strong>
+      <span className="rec-row-chevron" aria-hidden="true">›</span>
     </button>
   );
 }

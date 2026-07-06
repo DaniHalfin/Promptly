@@ -39,4 +39,20 @@ describe('MoneyByToolSection top recommendations', () => {
     fireEvent.click(screen.getByTestId('top-recommendation-R1-anthropic'));
     expect(onClick).toHaveBeenCalledWith(rec);
   });
+
+  it('renders › chevron span on each recommendation row — P2', () => {
+    render(<MoneyByToolSection spendByTool={spendByTool} topRecommendations={[rec]} />);
+    const btn = screen.getByTestId('top-recommendation-R1-anthropic');
+    const chevron = btn.querySelector('.rec-row-chevron');
+    expect(chevron).not.toBeNull();
+    expect(chevron!.textContent).toBe('›');
+  });
+
+  it('chevron span has aria-hidden="true" — P2', () => {
+    render(<MoneyByToolSection spendByTool={spendByTool} topRecommendations={[rec]} />);
+    const btn = screen.getByTestId('top-recommendation-R1-anthropic');
+    const chevron = btn.querySelector('.rec-row-chevron');
+    expect(chevron).not.toBeNull();
+    expect(chevron!.getAttribute('aria-hidden')).toBe('true');
+  });
 });

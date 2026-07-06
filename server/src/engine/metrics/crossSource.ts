@@ -68,6 +68,7 @@ export function computeSpendTrend(daily: DailySpendEntry[]): TrendStatus {
     mom_change_pct,
     observed_days: spanDays,
     required_days,
+    window_days: TREND_WINDOW_DAYS,
     message: `Month-over-month change: ${sign}${mom_change_pct.toFixed(1)}%`,
   };
 }

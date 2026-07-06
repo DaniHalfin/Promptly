@@ -210,7 +210,7 @@ export interface DailyConversationActivityEntry {
 }
 
 export type TrendStatus =
-  | { status: 'available'; mom_change_pct: number; observed_days: number; required_days: number; message: string }
+  | { status: 'available'; mom_change_pct: number; observed_days: number; required_days: number; window_days: number; message: string }
   | { status: 'insufficient_data'; observed_days: number; required_days: number; message: string }
   | { status: 'no_prior_spend'; observed_days: number; required_days: number; message: string };
 
