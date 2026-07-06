@@ -8,6 +8,8 @@ interface ToolSpendCardProps {
   source: SourceReport;
   recommendations: RecommendationResult[];
   spendEntry?: SpendByToolEntry;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
@@ -73,7 +75,7 @@ function MiniSpendTrend({ sourceId, data }: { sourceId: string; data: Array<{ da
   );
 }
 
-export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpendCardProps) {
+export function ToolSpendCard({ source, recommendations, spendEntry, expanded = true, onExpandedChange }: ToolSpendCardProps) {
   const { source_id, tier, metrics, error } = source;
   const displayName = SOURCE_DISPLAY_NAMES[source_id] ?? source_id;
   const isTierC = source_id === 'chatgpt_export' || source_id === 'claude_export';
@@ -120,16 +122,37 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
 
   return (
     <div
+      id={`tool-card-${source_id}`}
       data-testid={`tool-spend-card-${source_id}`}
+      tabIndex={-1}
       className="card"
       style={{ marginBottom: 16, borderLeft: '4px solid var(--color-accent)' }}
     >
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <h3 style={{ margin: '0 0 2px', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {displayName}
-          </h3>
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={() => onExpandedChange?.(!expanded)}
+            style={{
+              minHeight: 44,
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-primary)',
+              cursor: onExpandedChange ? 'pointer' : 'default',
+              font: 'inherit',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'block', margin: '0 0 2px', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {displayName}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {expanded ? 'Collapse details' : 'Expand details'}
+            </span>
+          </button>
         </div>
         {spend != null && (
           <div style={{ textAlign: 'right' }}>
@@ -140,6 +163,9 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
           </div>
         )}
       </div>
+
+      {expanded && (
+        <div>
 
       {/* Error state */}
       {error && (
@@ -204,7 +230,12 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {recommendations.map(rec => (
-              <div key={rec.id} style={{ borderLeft: `3px solid ${recBorderColor(rec)}`, paddingLeft: 10 }}>
+              <div
+                key={rec.id}
+                id={`rec-${source_id}-${rec.id}`}
+                tabIndex={-1}
+                style={{ borderLeft: `3px solid ${recBorderColor(rec)}`, paddingLeft: 10, outline: 'none' }}
+              >
                 <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
                   {rec.title}
                 </div>
@@ -214,6 +245,8 @@ export function ToolSpendCard({ source, recommendations, spendEntry }: ToolSpend
               </div>
             ))}
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

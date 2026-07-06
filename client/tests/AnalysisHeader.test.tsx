@@ -30,7 +30,17 @@ describe('AnalysisHeader', () => {
     render(
       <AnalysisHeader
         {...baseProps}
-        topRecommendation={{ id: 'R1', title: 'Enable prompt caching', priority: 'High' }}
+        topRecommendation={{
+          id: 'R1',
+          title: 'Enable prompt caching',
+          compact_headline: 'Enable prompt caching',
+          source_id: 'anthropic',
+          target_card_anchor: '#tool-card-anthropic',
+          target_recommendation_anchor: '#rec-anthropic-R1',
+          estimated_savings_usd: 12,
+          savings_label: 'Save ~$12.00',
+          severity: 'High',
+        }}
       />
     );
     expect(screen.getByTestId('top-recommendation-callout')).toBeInTheDocument();

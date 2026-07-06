@@ -242,3 +242,17 @@ describe('ToolSpendCard ModelSpendMiniBar', () => {
     expect(screen.queryByTestId('model-spend-mini-bar')).not.toBeInTheDocument();
   });
 });
+
+describe('ToolSpendCard recommendation anchors', () => {
+  it('adds stable ids for card and source-scoped recommendations', () => {
+    render(<ToolSpendCard source={openaiSource} recommendations={recs} />);
+    expect(screen.getByTestId('tool-spend-card-openai')).toHaveAttribute('id', 'tool-card-openai');
+    expect(document.getElementById('rec-openai-R1')).toBeInTheDocument();
+  });
+
+  it('uses rec-${source_id}-${rec.id} without render index', () => {
+    render(<ToolSpendCard source={openaiSource} recommendations={recs} />);
+    expect(document.getElementById('rec-openai-R1')).toBeInTheDocument();
+    expect(document.getElementById('rec-openai-R1-0')).not.toBeInTheDocument();
+  });
+});

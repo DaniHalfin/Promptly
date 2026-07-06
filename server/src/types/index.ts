@@ -358,12 +358,6 @@ export interface CrossSourceSummary {
   includes_estimates?: boolean;
   allSourcesFailed?: boolean;
   top_recommendations?: TopRecommendationEntry[];
-  /** The single highest-priority recommendation across all rule outputs (computed post-generate). */
-  top_recommendation?: {
-    id: RecommendationId;
-    title: string;
-    priority: 'high' | 'medium' | 'low';
-  } | null;
 }
 
 export interface AnalysisReport {

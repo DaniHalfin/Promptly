@@ -8,7 +8,7 @@ import { ToolSpendCard } from '../components/Results/ToolSpendCard.js';
 import { PrintLayout } from '../components/export/PrintLayout.js';
 import { transformReportForExport } from '../lib/exportTransform.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
-import type { SourceId } from '../types/index.js';
+import type { SourceId, TopRecommendationEntry } from '../types/index.js';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -150,10 +150,41 @@ export function Results() {
     const rb = sourceOrder.get(b.source_id) ?? 999;
     return ra - rb;
   });
+  const initialHighestSpendSourceId = sortedSources[0]?.source_id;
+  const [expandedSourceIds, setExpandedSourceIds] = React.useState<Set<SourceId>>(
+    () => new Set(initialHighestSpendSourceId ? [initialHighestSpendSourceId] : []),
+  );
+
+  React.useEffect(() => {
+    if (initialHighestSpendSourceId) {
+      setExpandedSourceIds(prev => {
+        if (prev.size > 0) return prev;
+        return new Set([initialHighestSpendSourceId]);
+      });
+    }
+  }, [initialHighestSpendSourceId]);
 
   // Recommendations scoped per source
   const recsForSource = (sourceId: SourceId) =>
     report.recommendations.filter(r => r.sourceIds.includes(sourceId));
+
+  const handleTopRecommendationClick = (rec: TopRecommendationEntry) => {
+    setExpandedSourceIds(prev => {
+      const next = new Set(prev);
+      next.add(rec.source_id);
+      return next;
+    });
+
+    window.requestAnimationFrame(() => {
+      const selector = rec.target_recommendation_anchor || rec.target_card_anchor;
+      const target =
+        (selector ? document.querySelector<HTMLElement>(selector) : null) ||
+        document.querySelector<HTMLElement>(rec.target_card_anchor);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-base)' }}>
@@ -209,11 +240,15 @@ export function Results() {
           spendLabel={heroSpendLabel}
           dateRange={{ start: periodStart, end: periodEnd }}
           sourceCount={sourceCount}
-          topRecommendation={css.top_recommendation}
+          topRecommendation={css.top_recommendations?.[0]}
         />
 
         {/* § 2 — MoneyByToolSection */}
-        <MoneyByToolSection spendByTool={spendByTool} />
+        <MoneyByToolSection
+          spendByTool={spendByTool}
+          topRecommendations={css.top_recommendations ?? []}
+          onTopRecommendationClick={handleTopRecommendationClick}
+        />
 
         {/* § 3 — SpendingTrendSection */}
         <SpendingTrendSection
@@ -239,6 +274,15 @@ export function Results() {
               source={source}
               recommendations={recsForSource(source.source_id)}
               spendEntry={spendByTool.find(e => e.source_id === source.source_id)}
+              expanded={expandedSourceIds.has(source.source_id)}
+              onExpandedChange={(expanded) => {
+                setExpandedSourceIds(prev => {
+                  const next = new Set(prev);
+                  if (expanded) next.add(source.source_id);
+                  else next.delete(source.source_id);
+                  return next;
+                });
+              }}
             />
           ))}
         </section>

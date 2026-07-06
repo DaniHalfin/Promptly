@@ -2,7 +2,7 @@
  * 3.3 — Results page tests: ADR-9 narrative layout
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Results } from '../src/pages/Results';
 import { useSession } from '../src/context/SessionContext.js';
@@ -11,11 +11,23 @@ import { useSession } from '../src/context/SessionContext.js';
 vi.mock('../src/components/export/PrintLayout.js',           () => ({ PrintLayout: () => null }));
 vi.mock('../src/components/ThemeToggle.js',                  () => ({ ThemeToggle: () => null }));
 vi.mock('../src/components/Results/AnalysisHeader.js',       () => ({ AnalysisHeader: (props: { spendLabel?: string }) => <div data-testid="analysis-header" data-spend-label={props.spendLabel} /> }));
-vi.mock('../src/components/Results/MoneyByToolSection.js',   () => ({ MoneyByToolSection: () => <div data-testid="money-by-tool-section" /> }));
+vi.mock('../src/components/Results/MoneyByToolSection.js',   () => ({
+  MoneyByToolSection: (props: any) => (
+    <div data-testid="money-by-tool-section" data-top-count={props.topRecommendations?.length ?? 0}>
+      {(props.topRecommendations ?? []).map((rec: any) => (
+        <button key={`${rec.id}-${rec.source_id}`} data-testid={`mock-top-${rec.id}-${rec.source_id}`} onClick={() => props.onTopRecommendationClick(rec)}>
+          {rec.compact_headline}
+        </button>
+      ))}
+    </div>
+  ),
+}));
 vi.mock('../src/components/Results/SpendingTrendSection.js', () => ({ SpendingTrendSection: () => <div data-testid="spending-trend-section" /> }));
 vi.mock('../src/components/Results/ToolSpendCard.js', () => ({
-  ToolSpendCard: ({ source }: { source: { source_id: string } }) => (
-    <div data-testid={`tool-spend-card-${source.source_id}`} />
+  ToolSpendCard: ({ source, recommendations, expanded }: { source: { source_id: string }; recommendations: Array<{ id: string }>; expanded: boolean }) => (
+    <div id={`tool-card-${source.source_id}`} tabIndex={-1} data-testid={`tool-spend-card-${source.source_id}`} data-expanded={String(expanded)}>
+      {expanded && recommendations.map(rec => <div key={rec.id} id={`rec-${source.source_id}-${rec.id}`} tabIndex={-1} data-testid={`mock-rec-${source.source_id}-${rec.id}`} />)}
+    </div>
   ),
 }));
 vi.mock('html2canvas',  () => ({ default: vi.fn() }));
@@ -145,5 +157,103 @@ describe('Results — ADR-9 narrative layout', () => {
     expect(back).toHaveStyle({ minHeight: '44px' });
     fireEvent.click(back);
     expect(dispatch).toHaveBeenCalledWith({ phase: 'landing' });
+  });
+
+  describe('Results top recommendations', () => {
+    const topRecommendation = {
+      id: 'R1',
+      title: 'Anthropic prompt caching opportunity',
+      compact_headline: 'Enable prompt caching',
+      source_id: 'anthropic',
+      target_card_anchor: '#tool-card-anthropic',
+      target_recommendation_anchor: '#rec-anthropic-R1',
+      estimated_savings_usd: 12.34,
+      savings_label: 'Save ~$12.34',
+      severity: 'Medium',
+    };
+
+    const reportWithTop = {
+      ...mockReport,
+      cross_source_summary: {
+        ...mockReport.cross_source_summary,
+        top_recommendations: [topRecommendation],
+      },
+      recommendations: [
+        {
+          id: 'R1',
+          severity: 'Medium',
+          title: 'Anthropic prompt caching opportunity',
+          body: 'Enable cache writes.',
+          triggeringMetric: 'cacheCreationInputTokensAnthropic',
+          triggeringValue: 0,
+          sourceIds: ['anthropic'],
+        },
+      ],
+    };
+
+    it('passes top recommendations to MoneyByToolSection', () => {
+      vi.mocked(useSession).mockReturnValueOnce({
+        state: { report: reportWithTop as any },
+        dispatch: vi.fn(),
+        updateSource: vi.fn(),
+        clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any);
+
+      render(<Results />);
+      expect(screen.getByTestId('money-by-tool-section')).toHaveAttribute('data-top-count', '1');
+    });
+
+    it('expands and scrolls to the target recommendation anchor when a top recommendation is activated', async () => {
+      const scrollIntoView = vi.fn();
+      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+        setTimeout(() => cb(0), 0);
+        return 1;
+      });
+      vi.mocked(useSession).mockReturnValueOnce({
+        state: { report: reportWithTop as any },
+        dispatch: vi.fn(),
+        updateSource: vi.fn(),
+        clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any);
+
+      render(<Results />);
+      expect(screen.getByTestId('tool-spend-card-anthropic')).toHaveAttribute('data-expanded', 'false');
+      fireEvent.click(screen.getByTestId('mock-top-R1-anthropic'));
+
+      await waitFor(() => expect(screen.getByTestId('tool-spend-card-anthropic')).toHaveAttribute('data-expanded', 'true'));
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    });
+
+    it('falls back to target_card_anchor when target_recommendation_anchor is missing', async () => {
+      const scrollIntoView = vi.fn();
+      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+        setTimeout(() => cb(0), 0);
+        return 1;
+      });
+      const fallbackReport = {
+        ...reportWithTop,
+        cross_source_summary: {
+          ...reportWithTop.cross_source_summary,
+          top_recommendations: [{ ...topRecommendation, target_recommendation_anchor: undefined }],
+        },
+      };
+      vi.mocked(useSession).mockReturnValueOnce({
+        state: { report: fallbackReport as any },
+        dispatch: vi.fn(),
+        updateSource: vi.fn(),
+        clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any);
+
+      render(<Results />);
+      fireEvent.click(screen.getByTestId('mock-top-R1-anthropic'));
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      expect(scrollIntoView.mock.instances[0]).toBe(document.getElementById('tool-card-anthropic'));
+    });
   });
 });

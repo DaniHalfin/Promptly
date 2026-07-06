@@ -71,10 +71,10 @@ export function PrintLayout({ report }: PrintLayoutProps) {
       <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {spendLabel} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
       </p>
-      {css.top_recommendation && (
+      {css.top_recommendations?.[0] && (
         <div style={{ display: 'inline-block', marginTop: 16, padding: '10px 16px', border: '1px solid #0066cc', borderRadius: 8, textAlign: 'left', maxWidth: 480 }}>
           <p style={{ ...label, color: '#0066cc' }}>Top Recommendation</p>
-          <p style={{ fontSize: 14, fontWeight: 500, color: '#111827', margin: 0 }}>{css.top_recommendation.title}</p>
+          <p style={{ fontSize: 14, fontWeight: 500, color: '#111827', margin: 0 }}>{css.top_recommendations[0].compact_headline || css.top_recommendations[0].title}</p>
         </div>
       )}
     </div>

@@ -338,7 +338,6 @@ export interface CrossSourceSummary {
   includes_estimates?: boolean;
   allSourcesFailed?: boolean;
   top_recommendations?: TopRecommendationEntry[];
-  top_recommendation?: { id: RecommendationId; title: string; priority: 'High' | 'Medium' | 'Low' };
 }
 
 export interface AnalysisReport {
