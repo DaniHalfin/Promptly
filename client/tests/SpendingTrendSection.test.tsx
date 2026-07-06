@@ -181,4 +181,24 @@ describe('SpendingTrendSection', () => {
     expect(srOnly).not.toBeNull();
     expect(srOnly!.textContent).toMatch(/Up|Down/);
   });
+
+  it('W15: TrendBadge span has whiteSpace:nowrap — source scan', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(
+      resolve(__dirname, '../src/components/Results/SpendingTrendSection.tsx'),
+      'utf8',
+    );
+    expect(src).toContain("whiteSpace: 'nowrap'");
+  });
+
+  it('W15: heading row flex container has flexWrap:wrap — source scan', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(
+      resolve(__dirname, '../src/components/Results/SpendingTrendSection.tsx'),
+      'utf8',
+    );
+    expect(src).toContain("flexWrap: 'wrap'");
+  });
 });

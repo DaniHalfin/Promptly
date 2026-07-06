@@ -21,6 +21,7 @@ function TrendBadge({ trend }: { trend: TrendStatus }) {
         borderRadius: 'var(--radius-pill)',
         fontSize: '0.75rem',
         fontWeight: 600,
+        whiteSpace: 'nowrap',
         background: up ? 'var(--color-critical-muted)' : 'var(--color-positive-muted)',
         color: up ? 'var(--color-critical-text)' : 'var(--color-positive-text)',
       }}>
@@ -44,7 +45,7 @@ export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: Spendi
 
   return (
     <section data-testid="spending-trend-section" style={{ marginBottom: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <h2 style={{
           fontSize: 'var(--text-title)',
           fontWeight: 600,

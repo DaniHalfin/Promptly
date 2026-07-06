@@ -112,9 +112,20 @@ describe('Results — ADR-9 narrative layout', () => {
     expect(screen.getByRole('button', { name: 'Export JSON' })).toBeInTheDocument();
   });
 
-  it('renders Budget CTA section', () => {
+  it('W14: does not render the dead-end "Set a Budget" placeholder', () => {
     render(<Results />);
-    expect(screen.getByText('Set a Budget')).toBeInTheDocument();
+    expect(screen.queryByText(/Set a Budget/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Budget tracking coming soon/i)).not.toBeInTheDocument();
+  });
+
+  it('W13: h1 "Analysis Results" is visible — not visually hidden', () => {
+    render(<Results />);
+    const h1 = screen.getByRole('heading', { level: 1, name: /Analysis Results/i });
+    expect(h1).toBeInTheDocument();
+    // Must NOT carry sr-only or visually-hidden positioning
+    expect(h1.style.position).not.toBe('absolute');
+    expect(h1.style.width).not.toBe('1px');
+    expect(h1.style.clip).not.toMatch(/rect\(0/);
   });
 
   it('returns null when report is missing', () => {

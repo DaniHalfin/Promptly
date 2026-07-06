@@ -12,7 +12,7 @@ interface SetupInstructions {
 
 const sourceInfo: Record<
   SourceId,
-  { label: string; type: 'api' | 'file' | 'local'; description: string; disabled?: boolean; setupInstructions?: SetupInstructions; localPath?: string; localCheckMessage?: string; }
+  { label: string; type: 'api' | 'file' | 'local'; description?: string; disabled?: boolean; setupInstructions?: SetupInstructions; localPath?: string; localCheckMessage?: string; }
 > = {
   openai: {
     label: 'OpenAI',
@@ -210,7 +210,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           }}>✓ Validated</span>
         )}
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
+      {info.description && (
+        <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
+      )}
 
       {!info.disabled && info.setupInstructions && (
         <div style={{ marginBottom: 16 }}>

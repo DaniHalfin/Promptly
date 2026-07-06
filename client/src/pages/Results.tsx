@@ -216,13 +216,21 @@ export function Results() {
       </div>
 
       <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', padding: '32px 24px', boxSizing: 'border-box' }}>
-        {/* WP-1: Visually-hidden h1 provides page title for AT */}
         {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
+        {/* W13: h1 is now visible as an eyebrow label above the hero — removes the dead invisible heading */}
         <h1
           id="results-heading"
           tabIndex={-1}
           data-focus-on-mount
-          style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', outline: 'none' }}
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontWeight: 600,
+            margin: '0 0 8px',
+            outline: 'none',
+          }}
         >
           Analysis Results
         </h1>
@@ -288,17 +296,7 @@ export function Results() {
           ))}
         </section>
 
-        {/* § 5 — Budget CTA placeholder */}
-        <div className="card" style={{ marginBottom: 24, padding: '20px 24px', borderStyle: 'dashed', borderColor: 'var(--color-border-subtle)' }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Set a Budget
-          </h2>
-          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Budget tracking coming soon — you'll be able to set a monthly AI spend limit and get alerts.
-          </p>
-        </div>
-
-        {/* § 6 — Export actions */}
+        {/* § 5 — Export actions */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
           <button className="primary" onClick={downloadJSON} disabled={!hasData}>Export JSON</button>
           <button className="primary" onClick={downloadPDF} disabled={!hasData}>Export PDF</button>
