@@ -92,6 +92,8 @@
   --chart-tooltip-bg: var(--color-bg-surface);
   --chart-tooltip-text: var(--text-primary);
   --chart-tooltip-border: var(--color-border-subtle);
+  /* W10: darkened for WCAG AA (4.5:1) against light surfaces — was oklch(80% 0.12 275) */
+  --color-accent-light: oklch(48% 0.18 275);
 }
 
 /* ─── Reset + base ───────────────────────────────────────────────────────── */
@@ -182,8 +184,8 @@ html, body {
   transition: border-color 150ms ease, color 150ms ease;
 }
 .secondary:hover { border-color: var(--color-input-border); color: var(--text-primary); }
-[data-theme="light"] .secondary { border-color: rgba(0,0,0,0.18); }
-[data-theme="light"] .secondary:hover { border-color: rgba(0,0,0,0.35); }
+[data-theme="light"] .secondary { border-color: var(--color-border-subtle); }
+[data-theme="light"] .secondary:hover { border-color: var(--color-input-border); }
 
 .danger {
   display: inline-flex;
@@ -239,7 +241,7 @@ html, body {
 }
 [data-theme="light"] .toggle-track {
   background: rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 0, 0, 0.18);
+  border-color: var(--color-border-subtle);
 }
 [data-theme="light"] .toggle-track.on {
   background: var(--color-accent);
@@ -526,7 +528,7 @@ input[type="search"] {
 .promptly-day-picker .rdp-day_selected,
 .promptly-day-picker .rdp-day_selected:hover {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 .promptly-day-picker .rdp-day_range_middle {
   background: var(--color-accent-muted);

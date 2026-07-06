@@ -54,14 +54,16 @@ describe('SourceCard', () => {
     expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
   });
 
-  it('renders Claude export as a disabled stub', () => {
-    renderSourceCard('claude_export');
-
-    expect(screen.getByRole('heading', { name: 'Claude Export' })).toBeInTheDocument();
-    expect(screen.getByText(/disabled mvp stub/i)).toBeInTheDocument();
-    expect(screen.getByText(/currently disabled/i)).toBeInTheDocument();
-    expect(screen.getByText(/not available in this mvp/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
+  it('claude_export source is intentionally disabled with no description — B1', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/SourceCard.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("disabled: true");
+    expect(source).not.toContain("Disabled MVP stub");
+    expect(source).toContain("Intentionally disabled");
   });
 
   it('shows validated indicator for connected status — WP-13 badge copy', () => {

@@ -68,10 +68,11 @@ const sourceInfo: Record<
       docsUrl: 'https://help.openai.com/en/articles/7260999-how-do-i-export-my-chatgpt-history-and-data',
     },
   },
+  // Intentionally disabled — Claude Export file upload is not yet implemented.
+  // Claude data is available via claude_code (local ~/.claude/projects path).
   claude_export: {
     label: 'Claude Export',
     type: 'file',
-    description: 'Disabled MVP stub; use Claude Code local projects instead',
     disabled: true,
   },
   claude_code: {

@@ -110,3 +110,38 @@ describe('A2: touch targets', () => {
     expect(body).toMatch(/min-height:\s*44px/);
   });
 });
+
+describe('W10: accent-light contrast in light mode', () => {
+  it('light mode overrides --color-accent-light to oklch(48% 0.18 275) for WCAG AA', () => {
+    const light = css.slice(css.indexOf('[data-theme="light"]'));
+    expect(light).toMatch(/--color-accent-light:\s*oklch\(48% 0\.18 275\)/);
+  });
+});
+
+describe('W11: no hardcoded rgba in .secondary light-mode overrides', () => {
+  it('[data-theme="light"] .secondary uses var(--color-border-subtle), not rgba', () => {
+    const body = ruleBody(css, '[data-theme="light"] .secondary {');
+    expect(body).not.toMatch(/rgba/);
+    expect(body).toContain('var(--color-border-subtle)');
+  });
+
+  it('[data-theme="light"] .secondary:hover uses var(--color-input-border), not rgba', () => {
+    const body = ruleBody(css, '[data-theme="light"] .secondary:hover {');
+    expect(body).not.toMatch(/rgba/);
+    expect(body).toContain('var(--color-input-border)');
+  });
+});
+
+describe('W12: DayPicker selected-day uses color token', () => {
+  it('.rdp-day_selected does not use hardcoded #fff', () => {
+    const block = css.slice(css.indexOf('.promptly-day-picker .rdp-day_selected'));
+    const closingBrace = block.indexOf('}');
+    const ruleText = block.slice(0, closingBrace);
+    expect(ruleText).not.toContain('#fff');
+  });
+
+  it('.rdp-day_selected uses var(--text-on-accent)', () => {
+    const body = ruleBody(css, '.promptly-day-picker .rdp-day_selected,');
+    expect(body).toContain('var(--text-on-accent)');
+  });
+});
