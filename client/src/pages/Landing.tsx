@@ -75,6 +75,23 @@ export function Landing() {
   const abortRef = useRef<AbortController | null>(null);
   const didMountRef = useRef(false);
 
+  // B-RUNTIME-01: measure fixed footer height dynamically so paddingBottom is
+  // always correct even if footer content reflows (e.g. runDisabledReason appears).
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [footerHeight, setFooterHeight] = useState(ACTION_FOOTER_RESERVED_HEIGHT);
+
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const observer = new ResizeObserver(([entry]) => {
+      // borderBoxSize includes the safe-area padding already applied to the footer
+      const h = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+      setFooterHeight(Math.ceil(h));
+    });
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
   // ── E4: validation orchestration — runs on enabled-source or range change ──
   useEffect(() => {
     if (enabledSourceIds.length === 0) {
@@ -409,9 +426,8 @@ export function Landing() {
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
-              /* R1: explicit clearance so the last card can be scrolled fully
-                 above the fixed action footer on all screen sizes */
-              paddingBottom: `calc(${ACTION_FOOTER_RESERVED_HEIGHT}px + env(safe-area-inset-bottom, 0px))`,
+              /* B-RUNTIME-01: padding tracks the live footer height measured by ResizeObserver */
+              paddingBottom: `${footerHeight}px`,
             }}
           >
             <SourceCard sourceId="github_copilot" />
@@ -425,6 +441,7 @@ export function Landing() {
 
       {/* Sticky action footer — always visible regardless of scroll position */}
       <div
+        ref={footerRef}
         data-testid="landing-action-footer"
         style={{
           position: 'fixed',

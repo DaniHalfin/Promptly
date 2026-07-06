@@ -192,11 +192,12 @@ describe('Landing — B3/A2 layout & touch targets', () => {
   it('reserves scroll padding for fixed action footer', () => {
     renderLanding({});
     expect(screen.getByTestId('landing-action-footer')).toHaveStyle({ position: 'fixed', bottom: '0px' });
-    // R1: the footer clearance now lives on the source-list container as an
-    // explicit paddingBottom (calc + safe-area inset), not on landing-content.
+    // R1/B-RUNTIME-01: the footer clearance now lives on the source-list container as an
+    // explicit paddingBottom measured from the live footer height via ResizeObserver.
+    // The no-op ResizeObserver mock keeps the initial 220px value; safe-area inset is
+    // folded into the measured border-box height at runtime, so it is no longer a calc().
     const reserved = screen.getByTestId('source-list').style.paddingBottom;
     expect(reserved).toContain('220px');
-    expect(reserved).toContain('safe-area-inset-bottom');
   });
 
   it('date preset buttons meet touch target', () => {
@@ -341,5 +342,20 @@ describe('Landing — E6 all-failed error surfacing', () => {
     await waitFor(() => {
       expect(dispatch).toHaveBeenCalledWith({ analysisErrors: [] });
     });
+  });
+});
+
+describe('B-RUNTIME-01: dynamic footer padding', () => {
+  it('renders the fixed action footer with data-testid', () => {
+    renderLanding({});
+    expect(screen.getByTestId('landing-action-footer')).toBeInTheDocument();
+  });
+
+  it('source-list div has a paddingBottom style (ResizeObserver mock keeps initial value)', () => {
+    renderLanding({});
+    const sourceList = screen.getByTestId('source-list');
+    // ResizeObserver mock in setup.ts is a no-op, so footerHeight stays at the
+    // initial value (ACTION_FOOTER_RESERVED_HEIGHT = 220). Assert style is set.
+    expect(sourceList).toHaveStyle({ paddingBottom: '220px' });
   });
 });

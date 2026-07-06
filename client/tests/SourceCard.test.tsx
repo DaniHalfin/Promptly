@@ -106,7 +106,9 @@ describe('SourceCard', () => {
     fireEvent.click(toggle); // expand
     fireEvent.click(screen.getByRole('button', { name: /hide/i })); // collapse
 
-    expect(screen.queryByText(/platform.openai.com\/api-keys/i)).not.toBeInTheDocument();
+    // W-A11Y-01: panel stays in the DOM (hidden attr) so aria-controls is never
+    // orphaned; the content must be present but not visible when collapsed.
+    expect(screen.getByText(/platform.openai.com\/api-keys/i)).not.toBeVisible();
     expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
   });
 
@@ -414,6 +416,44 @@ describe('SourceCard', () => {
     const busyDiv = container.querySelector('[aria-busy]') as HTMLElement;
     expect(busyDiv).not.toBeNull();
     expect(busyDiv.getAttribute('role')).toBe('status');
+  });
+
+  it('B-ARIA-01: aria-live="polite" region is always in DOM regardless of validation state', () => {
+    renderSourceCard('openai', { status: 'pending' });
+    // No validation data — but the live region wrapper must still be present
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+    // No badge content rendered when there is nothing to announce
+    expect(screen.queryByTestId('source-validation-badge')).not.toBeInTheDocument();
+  });
+
+  it('B-ARIA-01: aria-live="polite" region stays in DOM when validation transitions to idle', () => {
+    renderSourceCard('openai', { status: 'connected', validation: { status: 'idle' } });
+    expect(document.querySelector('[aria-live="polite"]')).toBeInTheDocument();
+    // idle → no badge, but "✓ Validated" still shows because source is connected
+    expect(screen.getByText(/validated/i)).toBeInTheDocument();
+  });
+
+  it('W-A11Y-01: disclosure button has aria-controls pointing to instructions panel id', () => {
+    renderSourceCard('openai');
+    const button = screen.getByRole('button', { name: /how to connect/i });
+    expect(button.getAttribute('aria-controls')).toBe('openai-instructions');
+    // Panel is in DOM even when hidden
+    expect(document.getElementById('openai-instructions')).toBeInTheDocument();
+  });
+
+  it('W-A11Y-01: instructions panel has hidden attribute when collapsed', () => {
+    renderSourceCard('openai');
+    const panel = document.getElementById('openai-instructions');
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute('hidden');
+  });
+
+  it('W-A11Y-01: instructions panel removes hidden attribute when expanded', () => {
+    renderSourceCard('openai');
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+    const panel = document.getElementById('openai-instructions');
+    expect(panel).not.toHaveAttribute('hidden');
   });
 });
 // ── E5: Inline validation badges ─────────────────────────────────────────

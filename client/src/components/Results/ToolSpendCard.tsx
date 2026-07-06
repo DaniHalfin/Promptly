@@ -165,8 +165,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
         )}
       </div>
 
-      {expanded && (
-        <div id={`tool-panel-${source_id}`}>
+      <div id={`tool-panel-${source_id}`} hidden={!expanded}>
 
       {/* Error state */}
       {error && (
@@ -249,8 +248,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
           </div>
         </div>
       )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

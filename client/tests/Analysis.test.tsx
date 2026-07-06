@@ -195,3 +195,47 @@ describe('Analysis — per-source progress', () => {
     }, { timeout: 3000 });
   });
 });
+
+describe('W-IA-01: ARIA live region and progressbar', () => {
+  beforeEach(() => {
+    server.use(
+      http.post('/api/analyze/:sourceId', ({ params }) => {
+        return HttpResponse.json(mockMinimalSourceReport(params.sourceId as string));
+      }),
+      http.post('/api/analyze/recommendations', () => {
+        return HttpResponse.json(mockReport);
+      }),
+    );
+  });
+
+  it('renders role="progressbar" with aria-valuemin=0 and aria-valuemax=100', async () => {
+    renderAnalysis({ openai: { status: 'connected', credential: 'sk-test' } });
+    const progressbar = document.querySelector('[role="progressbar"]');
+    expect(progressbar).toBeInTheDocument();
+    expect(progressbar).toHaveAttribute('aria-valuemin', '0');
+    expect(progressbar).toHaveAttribute('aria-valuemax', '100');
+  });
+
+  it('progressbar has an aria-valuenow attribute', async () => {
+    renderAnalysis({ openai: { status: 'connected', credential: 'sk-test' } });
+    const progressbar = document.querySelector('[role="progressbar"]');
+    expect(progressbar).toHaveAttribute('aria-valuenow');
+    // Value must be numeric string between 0 and 100
+    const val = Number(progressbar!.getAttribute('aria-valuenow'));
+    expect(val).toBeGreaterThanOrEqual(0);
+    expect(val).toBeLessThanOrEqual(100);
+  });
+
+  it('renders role="status" wrapper with aria-label', async () => {
+    renderAnalysis({ openai: { status: 'connected', credential: 'sk-test' } });
+    const statusRegion = document.querySelector('[role="status"]');
+    expect(statusRegion).toBeInTheDocument();
+    expect(statusRegion).toHaveAttribute('aria-label', 'Analysis progress');
+  });
+
+  it('role="status" wrapper is an aria-live="polite" region', async () => {
+    renderAnalysis({ openai: { status: 'connected', credential: 'sk-test' } });
+    const wrapper = document.querySelector('[role="status"]');
+    expect(wrapper).toHaveAttribute('aria-live', 'polite');
+  });
+});

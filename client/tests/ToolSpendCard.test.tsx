@@ -184,17 +184,22 @@ describe('ToolSpendCard', () => {
     expect(recDiv.style.outline).toBe('');
   });
 
-  it('W8: disclosure button has aria-controls matching panel id, and panel has matching id when expanded', () => {
+  it('W8-expanded: disclosure button has aria-controls matching panel id; panel visible when expanded', () => {
     render(<ToolSpendCard source={openaiSource} recommendations={[]} expanded={true} onExpandedChange={vi.fn()} />);
     const button = document.querySelector('button[aria-expanded]') as HTMLElement;
     expect(button).not.toBeNull();
     expect(button.getAttribute('aria-controls')).toBe('tool-panel-openai');
-    expect(document.getElementById('tool-panel-openai')).toBeInTheDocument();
+    const panel = document.getElementById('tool-panel-openai');
+    expect(panel).toBeInTheDocument();
+    expect(panel).not.toHaveAttribute('hidden');
   });
 
-  it('W8: panel id is absent from DOM when collapsed', () => {
+  it('W8-a11y-01: panel stays in DOM (hidden attr) when collapsed — no orphaned aria-controls', () => {
     render(<ToolSpendCard source={openaiSource} recommendations={[]} expanded={false} onExpandedChange={vi.fn()} />);
-    expect(document.getElementById('tool-panel-openai')).not.toBeInTheDocument();
+    const panel = document.getElementById('tool-panel-openai');
+    // Panel must be present so aria-controls is never orphaned
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute('hidden');
     const button = document.querySelector('button[aria-expanded]') as HTMLElement;
     expect(button.getAttribute('aria-controls')).toBe('tool-panel-openai');
   });

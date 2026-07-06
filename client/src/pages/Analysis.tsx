@@ -177,6 +177,10 @@ export function Analysis() {
             Elapsed: {formatTime(elapsed)}
           </p>
 
+          {/* W-IA-01: role="status" announces progress updates politely to AT.
+              role="progressbar" exposes numeric percent to AT that queries it. */}
+          <div role="status" aria-live="polite" aria-label="Analysis progress">
+
           {/* Per-source progress list */}
           <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 0 }}>
             {enabledIds.map(sourceId => {
@@ -245,9 +249,18 @@ export function Analysis() {
           </div>
 
           {/* WP-12: Use .progress-fill class so @media (prefers-reduced-motion) can suppress transition */}
-          <div style={{ height: 4, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginBottom: 32 }}>
+          <div
+            role="progressbar"
+            aria-valuenow={progressPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Analysis progress"
+            style={{ height: 4, background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginBottom: 32 }}
+          >
             <div className="progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
+
+          </div>{/* end role="status" */}
 
           <button className="danger" onClick={handleCancel} style={{ width: '100%' }}>
             Cancel

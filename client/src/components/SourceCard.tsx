@@ -194,9 +194,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <h3 id={`${sourceId}-heading`} style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
-        {source?.validation && source.validation.status !== 'idle' ? (
-          <ValidationBadge validation={source.validation} />
-        ) : (source?.status === 'connected' || source?.status === 'ready') && (
+        {/* B-ARIA-01: always render ValidationBadge so the aria-live region stays in the
+            DOM throughout the session; badge content is null for idle/no-validation. */}
+        <ValidationBadge validation={source?.validation ?? null} />
+        {/* Credential-validated badge: visible only when no data-availability check is active */}
+        {(!source?.validation || source.validation.status === 'idle') &&
+          (source?.status === 'connected' || source?.status === 'ready') && (
           /* WP-13: "Validated" is more accurate — confirms credentials, not that analysis has run */
           <span style={{
             padding: '2px 8px',
@@ -222,34 +225,37 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             className="disclosure-btn"
             onClick={() => setShowInstructions((v) => !v)}
             aria-expanded={showInstructions}
+            aria-controls={`${sourceId}-instructions`}
           >
             {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
           </button>
 
-          {showInstructions && (
-            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
-              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
-                {info.setupInstructions.steps.map((step, i) => (
-                  <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
-                ))}
-              </ol>
-              {info.setupInstructions.note && (
-                <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--color-warning-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
-                  <p style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', margin: 0 }}>{info.setupInstructions.note}</p>
-                </div>
-              )}
-              {info.setupInstructions.docsUrl && (
-                <a
-                  href={info.setupInstructions.docsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'inline-block', marginTop: 8, fontSize: 'var(--text-note)', color: 'var(--color-accent-light)' }}
-                >
-                  Official docs →
-                </a>
-              )}
-            </div>
-          )}
+          <div
+            id={`${sourceId}-instructions`}
+            hidden={!showInstructions}
+            style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}
+          >
+            <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
+              {info.setupInstructions.steps.map((step, i) => (
+                <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
+              ))}
+            </ol>
+            {info.setupInstructions.note && (
+              <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--color-warning-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
+                <p style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', margin: 0 }}>{info.setupInstructions.note}</p>
+              </div>
+            )}
+            {info.setupInstructions.docsUrl && (
+              <a
+                href={info.setupInstructions.docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: 8, fontSize: 'var(--text-note)', color: 'var(--color-accent-light)' }}
+              >
+                Official docs →
+              </a>
+            )}
+          </div>
         </div>
       )}
 
@@ -418,7 +424,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
  * E5: Inline per-source validation badge driven by session validation state.
  * Reflects date-range data availability (distinct from credential/connection status).
  */
-function ValidationBadge({ validation }: { validation: SourceValidationState }) {
+function ValidationBadge({ validation }: { validation: SourceValidationState | null }) {
   const base: React.CSSProperties = {
     padding: '2px 8px',
     fontSize: 'var(--text-note)',
@@ -429,47 +435,49 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
 
   let badge: React.ReactNode = null;
 
-  if (validation.status === 'validating') {
-    badge = (
-      /* aria-live moved to outer wrapper — inner span no longer needs it */
-      <span
-        data-testid="source-validation-badge"
-        data-validation-status="validating"
-        style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
-      >
-        Checking data…
-      </span>
-    );
-  } else if (validation.status === 'full') {
-    badge = (
-      <span
-        data-testid="source-validation-badge"
-        data-validation-status="full"
-        style={{ ...base, background: 'var(--color-positive-muted)', color: 'var(--color-positive-text)', border: '1px solid var(--color-positive)' }}
-      >
-        ✅ Data available
-      </span>
-    );
-  } else if (validation.status === 'partial') {
-    badge = (
-      <span
-        data-testid="source-validation-badge"
-        data-validation-status="partial"
-        style={{ ...base, background: 'var(--color-warning-muted)', color: 'var(--color-warning-text)', border: '1px solid var(--color-warning)' }}
-      >
-        ⚠️ Partial data · {validation.daysAvailable ?? 0} days
-      </span>
-    );
-  } else if (validation.status === 'none' || validation.status === 'error') {
-    badge = (
-      <span
-        data-testid="source-validation-badge"
-        data-validation-status={validation.status}
-        style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
-      >
-        ❌ No data in range
-      </span>
-    );
+  if (validation) {
+    if (validation.status === 'validating') {
+      badge = (
+        /* aria-live moved to outer wrapper — inner span no longer needs it */
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="validating"
+          style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
+        >
+          Checking data…
+        </span>
+      );
+    } else if (validation.status === 'full') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="full"
+          style={{ ...base, background: 'var(--color-positive-muted)', color: 'var(--color-positive-text)', border: '1px solid var(--color-positive)' }}
+        >
+          ✅ Data available
+        </span>
+      );
+    } else if (validation.status === 'partial') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="partial"
+          style={{ ...base, background: 'var(--color-warning-muted)', color: 'var(--color-warning-text)', border: '1px solid var(--color-warning)' }}
+        >
+          ⚠️ Partial data · {validation.daysAvailable ?? 0} days
+        </span>
+      );
+    } else if (validation.status === 'none' || validation.status === 'error') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status={validation.status}
+          style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
+        >
+          ❌ No data in range
+        </span>
+      );
+    }
   }
 
   /* W5: persistent live region — all state transitions (validating → full/partial/none/error)
