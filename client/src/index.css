@@ -54,6 +54,11 @@
   --text-heading: 0.9375rem;  /* 15px  — card headings (h3), panel sub-titles */
   --text-body:    0.875rem;   /* 14px  — all body copy, table cells, labels */
   --text-note:    0.75rem;    /* 12px  — metadata, timestamps, KPI tile labels, footnotes */
+
+  /* Chart tooltip tokens */
+  --chart-tooltip-bg: var(--color-bg-elevated);
+  --chart-tooltip-text: var(--text-primary);
+  --chart-tooltip-border: rgba(255, 255, 255, 0.18);
 }
 
 /* ─── Light mode overrides ───────────────────────────────────────────────── */
@@ -75,6 +80,9 @@
   --color-positive-text:  oklch(45% 0.14 155);
   /* WP-10: light-mode input border — 0.35 opacity for WCAG non-text contrast */
   --color-input-border: rgba(0, 0, 0, 0.30);
+  --chart-tooltip-bg: var(--color-bg-surface);
+  --chart-tooltip-text: var(--text-primary);
+  --chart-tooltip-border: rgba(0, 0, 0, 0.16);
 }
 
 /* ─── Reset + base ───────────────────────────────────────────────────────── */

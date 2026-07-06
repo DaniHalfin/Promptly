@@ -10,8 +10,10 @@ import { resolve } from 'node:path';
 
 const cssPath = resolve(__dirname, '../src/index.css');
 const htmlPath = resolve(__dirname, '../index.html');
+const dailySpendLinePath = resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx');
 const css = readFileSync(cssPath, 'utf-8');
 const html = readFileSync(htmlPath, 'utf-8');
+const dailySpendLine = readFileSync(dailySpendLinePath, 'utf-8');
 
 /** Extract the body of the first CSS rule matching the given selector. */
 function ruleBody(source: string, selector: string): string {
@@ -51,6 +53,30 @@ describe('Batch 4: light-mode semantic *-text overrides', () => {
 
   it('light mode retains the darkened --color-warning-text override', () => {
     expect(light).toMatch(/--color-warning-text:\s*oklch\(42% 0\.15 65\)/);
+  });
+});
+
+describe('DailySpendLine tooltip tokens', () => {
+  it('defines dark chart tooltip background, text, and border tokens', () => {
+    const root = css.slice(css.indexOf(':root'), css.indexOf('[data-theme="light"]'));
+    expect(root).toMatch(/--chart-tooltip-bg:\s*var\(--color-bg-elevated\)/);
+    expect(root).toMatch(/--chart-tooltip-text:\s*var\(--text-primary\)/);
+    expect(root).toMatch(/--chart-tooltip-border:\s*rgba\(255,\s*255,\s*255,\s*0\.18\)/);
+  });
+
+  it('defines light chart tooltip background, text, and border tokens', () => {
+    const light = css.slice(css.indexOf('[data-theme="light"]'));
+    expect(light).toMatch(/--chart-tooltip-bg:\s*var\(--color-bg-surface\)/);
+    expect(light).toMatch(/--chart-tooltip-text:\s*var\(--text-primary\)/);
+    expect(light).toMatch(/--chart-tooltip-border:\s*rgba\(0,\s*0,\s*0,\s*0\.16\)/);
+  });
+
+  it('DailySpendLine uses chart tooltip CSS vars for content, label, and item styles', () => {
+    expect(dailySpendLine).toContain("backgroundColor: 'var(--chart-tooltip-bg)'");
+    expect(dailySpendLine).toContain("border: '1px solid var(--chart-tooltip-border)'");
+    expect(dailySpendLine).toContain("color: 'var(--chart-tooltip-text)'");
+    expect(dailySpendLine).toContain("labelStyle={{ color: 'var(--chart-tooltip-text)' }}");
+    expect(dailySpendLine).toContain("itemStyle={{ color: 'var(--chart-tooltip-text)' }}");
   });
 });
 

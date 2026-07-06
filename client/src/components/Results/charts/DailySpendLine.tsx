@@ -70,10 +70,13 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
               return value;
             }}
             contentStyle={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
+              backgroundColor: 'var(--chart-tooltip-bg)',
+              border: '1px solid var(--chart-tooltip-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--chart-tooltip-text)',
             }}
+            labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+            itemStyle={{ color: 'var(--chart-tooltip-text)' }}
           />
           <Line
             type="monotone"
