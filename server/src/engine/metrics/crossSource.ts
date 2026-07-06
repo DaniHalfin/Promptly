@@ -1,4 +1,4 @@
-import { AnalysisRequest, CrossSourceSummary, RecommendationId, RecommendationResult, SourceReport, TrendStatus, SpikeCallout, SpendByToolEntry, DailySpendEntry } from '../../types/index.js';
+import { AnalysisRequest, CrossSourceSummary, RecommendationResult, SourceReport, TrendStatus, SpikeCallout, SpendByToolEntry, DailySpendEntry, TopRecommendationEntry } from '../../types/index.js';
 import { PriceMap } from '../../data/priceMap.js';
 
 const TREND_REQUIRED_DAYS = 60;
@@ -320,27 +320,36 @@ export function computeCrossSourceMetrics(reports: SourceReport[], _priceMap: Pr
   };
 }
 
-/** Select the single highest-priority recommendation from the full set.
- *  Priority order: High > Medium > Low. Returns null when the list is empty.
- */
-export function selectTopRecommendation(
-  recommendations: RecommendationResult[]
-): { id: RecommendationId; title: string; priority: 'high' | 'medium' | 'low' } | null {
-  if (recommendations.length === 0) return null;
+const SEVERITY_TIE_BREAKER: Record<RecommendationResult['severity'], number> = {
+  High: 0,
+  Medium: 1,
+  Low: 2,
+};
 
-  const SEVERITY_ORDER: Record<RecommendationResult['severity'], number> = {
-    High: 0,
-    Medium: 1,
-    Low: 2,
-  };
-
-  const top = [...recommendations].sort(
-    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
-  )[0];
-
-  return {
-    id: top.id,
-    title: top.title,
-    priority: top.severity.toLowerCase() as 'high' | 'medium' | 'low',
-  };
+export function selectTopRecommendations(recommendations: RecommendationResult[]): TopRecommendationEntry[] {
+  return recommendations
+    .filter((rec) =>
+      rec.topSlotEligible === true &&
+      (rec.estimatedSavingsUsd ?? 0) > 0 &&
+      !rec.id.startsWith('RC') &&
+      Boolean(rec.targetSourceId) &&
+      Boolean(rec.targetCardAnchor)
+    )
+    .sort((a, b) => {
+      const savingsDelta = (b.estimatedSavingsUsd ?? 0) - (a.estimatedSavingsUsd ?? 0);
+      if (savingsDelta !== 0) return savingsDelta;
+      return SEVERITY_TIE_BREAKER[a.severity] - SEVERITY_TIE_BREAKER[b.severity];
+    })
+    .slice(0, 2)
+    .map((rec) => ({
+      id: rec.id,
+      title: rec.title,
+      compact_headline: rec.compactHeadline ?? rec.title,
+      source_id: rec.targetSourceId!,
+      target_card_anchor: rec.targetCardAnchor!,
+      ...(rec.targetRecommendationAnchor ? { target_recommendation_anchor: rec.targetRecommendationAnchor } : {}),
+      estimated_savings_usd: rec.estimatedSavingsUsd ?? 0,
+      savings_label: rec.savingsLabel ?? `Save ~$${(rec.estimatedSavingsUsd ?? 0).toFixed(2)}`,
+      severity: rec.severity,
+    }));
 }

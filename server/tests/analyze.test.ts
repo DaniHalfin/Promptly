@@ -145,6 +145,46 @@ describe('analyze routes', () => {
     expect(Array.isArray(report.assumptions)).toBe(true);
   });
 
+  it('POST /api/analyze/recommendations returns cross_source_summary.top_recommendations', async () => {
+    const sources: SourceReport[] = [
+      {
+        source_id: 'anthropic',
+        tier: 'B',
+        connected: true,
+        error: null,
+        metrics: {
+          sourceId: 'anthropic',
+          tier: 'B',
+          periodStart: '2026-06-01',
+          periodEnd: '2026-06-30',
+          warnings: [],
+          totalInputTokensAnthropic: 150_000,
+          cacheCreationInputTokensAnthropic: 0,
+          projectedR1SavingsUsd: 12.34,
+          totalActualSpendUsd: 20,
+          totalSpendUsd: 20,
+        },
+      },
+    ];
+
+    const res = await fetch(`${baseUrl}/api/analyze/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sources }),
+    });
+    expect(res.status).toBe(200);
+    const report = await res.json() as AnalysisReport;
+    expect(report.cross_source_summary.top_recommendations).toEqual([
+      expect.objectContaining({
+        id: 'R1',
+        source_id: 'anthropic',
+        target_card_anchor: '#tool-card-anthropic',
+        target_recommendation_anchor: '#rec-anthropic-R1',
+        estimated_savings_usd: 12.34,
+      }),
+    ]);
+  });
+
   it('assumptions text includes ChatGPT estimate caveat (not deferred message)', async () => {
     const sources: SourceReport[] = [];
     const res = await fetch(`${baseUrl}/api/analyze/recommendations`, {

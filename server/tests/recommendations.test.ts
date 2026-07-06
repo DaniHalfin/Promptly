@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PriceMap } from '../src/data/priceMap.js';
 import { computeTierBMetrics } from '../src/engine/metrics/tierB.js';
-import { selectTopRecommendation } from '../src/engine/metrics/crossSource.js';
+import { selectTopRecommendations } from '../src/engine/metrics/crossSource.js';
 import { R1 } from '../src/engine/recommendations/R1_promptCaching.js';
 import { R2 } from '../src/engine/recommendations/R2_modelDowngrade.js';
 import { getP90DailyInputTokens, R3 } from '../src/engine/recommendations/R3_verbosity.js';
@@ -38,10 +38,13 @@ describe('recommendation rules', () => {
         sourceId: 'anthropic',
         totalInputTokensAnthropic: 100_001,
         cacheCreationInputTokensAnthropic: 0,
+        projectedR1SavingsUsd: 12.34,
       })]));
 
       expect(cards).toHaveLength(1);
       expect(cards[0]).toMatchObject({ id: 'R1', sourceIds: ['anthropic'], triggeringMetric: 'cacheCreationInputTokensAnthropic' });
+      expect(cards[0].estimatedSavingsUsd).toBe(12.34);
+      expect(cards[0].topSlotEligible).toBe(true);
     });
 
     it('fires Path B for Anthropic low cached-token fraction when cache creation is nonzero', () => {
@@ -50,10 +53,12 @@ describe('recommendation rules', () => {
         totalInputTokensAnthropic: 150_000,
         cacheCreationInputTokensAnthropic: 1,
         cachedTokenFractionAnthropic: 0.09,
+        projectedR1SavingsUsd: 7.5,
       })]));
 
       expect(cards).toHaveLength(1);
       expect(cards[0].triggeringMetric).toBe('cachedTokenFractionAnthropic');
+      expect(cards[0].estimatedSavingsUsd).toBe(7.5);
     });
 
     it('prioritizes Path A over Path B for Anthropic', () => {
@@ -73,10 +78,47 @@ describe('recommendation rules', () => {
         sourceId: 'claude_code',
         totalInputTokensClaudeCode: 100_001,
         cacheCreationInputTokensClaudeCode: 0,
+        projectedR1SavingsUsd: 9.25,
       })]));
 
       expect(cards).toHaveLength(1);
       expect(cards[0]).toMatchObject({ id: 'R1', sourceIds: ['claude_code'], triggeringMetric: 'cacheCreationInputTokensClaudeCode' });
+      expect(cards[0].estimatedSavingsUsd).toBe(9.25);
+    });
+
+    it('sets estimatedSavingsUsd from projectedR1SavingsUsd, not realized cache savings', () => {
+      const cards = R1.evaluate(ctx([source({
+        sourceId: 'anthropic',
+        totalInputTokensAnthropic: 150_000,
+        cacheCreationInputTokensAnthropic: 0,
+        cachedTokenSavingsUsdAnthropic: 2,
+        projectedR1SavingsUsd: 11,
+      })]));
+
+      expect(cards[0].estimatedSavingsUsd).toBe(11);
+      expect(cards[0].estimatedSavingsUsd).not.toBe(2);
+    });
+
+    it('sets savingsLabel when projected savings is computable', () => {
+      const cards = R1.evaluate(ctx([source({
+        sourceId: 'anthropic',
+        totalInputTokensAnthropic: 150_000,
+        cacheCreationInputTokensAnthropic: 0,
+        projectedR1SavingsUsd: 11.234,
+      })]));
+
+      expect(cards[0].savingsLabel).toBe('Save ~$11.23');
+    });
+
+    it('sets targetRecommendationAnchor to #rec-${sourceId}-R1', () => {
+      const cards = R1.evaluate(ctx([source({
+        sourceId: 'claude_code',
+        totalInputTokensClaudeCode: 150_000,
+        cacheCreationInputTokensClaudeCode: 0,
+        projectedR1SavingsUsd: 11,
+      })]));
+
+      expect(cards[0].targetRecommendationAnchor).toBe('#rec-claude_code-R1');
     });
 
     it('emits separate cards for Anthropic and Claude Code opportunities', () => {
@@ -99,6 +141,11 @@ describe('recommendation rules', () => {
   });
 
   describe('R2 model downgrade', () => {
+    const downgradePriceMap: PriceMap = new Map([
+      ['claude-3-5-sonnet-20241022', { input_cost_per_token: 0.000003, output_cost_per_token: 0.000015 }],
+      ['claude-3-haiku-20240307', { input_cost_per_token: 0.00000025, output_cost_per_token: 0.00000125 }],
+    ]);
+
     const copilot = (model: string, overrides: Partial<SourceMetrics> = {}) => source({
       sourceId: 'github_copilot',
       copilotTotalCostUsd: 10,
@@ -152,7 +199,7 @@ describe('recommendation rules', () => {
       // ^ anchor prevents matching 'my-claude-3-5-sonnet-custom'
       const anthropicSource = source({
         sourceId: 'anthropic', tier: 'B',
-        modelBreakdown: [{ model: 'my-claude-3-5-sonnet-custom', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 100_000, outputTokens: 200, inputOutputRatio: 500 }],
+        modelBreakdown: [{ model: 'my-claude-3-5-sonnet-custom', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 120_000, outputTokens: 200, inputOutputRatio: 500 }],
         periodStart: '2026-06-01T00:00:00Z', periodEnd: '2026-06-08T00:00:00Z',
       });
       const cards = R2.evaluate(ctx([anthropicSource]));
@@ -162,12 +209,39 @@ describe('recommendation rules', () => {
     it('does fire for claude-3-5-sonnet-20241022 and recommends versioned cheaper model', () => {
       const anthropicSource = source({
         sourceId: 'anthropic', tier: 'B',
-        modelBreakdown: [{ model: 'claude-3-5-sonnet-20241022', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 100_000, outputTokens: 200, inputOutputRatio: 500 }],
+        modelBreakdown: [{ model: 'claude-3-5-sonnet-20241022', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 120_000, outputTokens: 200, inputOutputRatio: 500 }],
         periodStart: '2026-06-01T00:00:00Z', periodEnd: '2026-06-08T00:00:00Z',
       });
-      const cards = R2.evaluate(ctx([anthropicSource]));
+      const cards = R2.evaluate(ctx([anthropicSource], downgradePriceMap));
       expect(cards.length).toBeGreaterThan(0);
       expect(cards[0].body).toContain('claude-3-haiku-20240307');
+    });
+
+    it('sets compactHeadline, targetSourceId, targetCardAnchor, targetRecommendationAnchor, and savingsLabel when savings are computable', () => {
+      const anthropicSource = source({
+        sourceId: 'anthropic',
+        tier: 'B',
+        modelBreakdown: [{
+          model: 'claude-3-5-sonnet-20241022',
+          estimatedCostShare: 0.8,
+          estimatedCostUsd: 50,
+          inputTokens: 120_000,
+          outputTokens: 200,
+          inputOutputRatio: 500,
+        }],
+        periodStart: '2026-06-01T00:00:00Z',
+        periodEnd: '2026-06-08T00:00:00Z',
+      });
+
+      const cards = R2.evaluate(ctx([anthropicSource], downgradePriceMap));
+      expect(cards[0]).toMatchObject({
+        compactHeadline: expect.stringContaining('claude-3-5-sonnet-20241022'),
+        targetSourceId: 'anthropic',
+        targetCardAnchor: '#tool-card-anthropic',
+        targetRecommendationAnchor: '#rec-anthropic-R2',
+        topSlotEligible: true,
+      });
+      expect(cards[0].savingsLabel).toMatch(/^Save ~\$/);
     });
   });
 
@@ -304,6 +378,11 @@ describe('recommendation rules', () => {
   });
 
   describe('R3 verbosity', () => {
+    const inputRatePriceMap: PriceMap = new Map([
+      ['gpt-5.4', { input_cost_per_token: 0.000002, output_cost_per_token: 0.00001 }],
+      ['claude-3-5-sonnet', { input_cost_per_token: 0.000003, output_cost_per_token: 0.000015 }],
+    ]);
+
     it('returns 0 for empty daily input token series', () => {
       expect(getP90DailyInputTokens([])).toBe(0);
     });
@@ -352,6 +431,70 @@ describe('recommendation rules', () => {
           { date: '2026-06-05', inputTokens: 50_000 },
         ],
       } as Partial<SourceMetrics>)]))).toHaveLength(0);
+    });
+
+    it('marks approximate savings as top-slot eligible with approximate savingsLabel', () => {
+      const cards = R3.evaluate(ctx([source({
+        sourceId: 'anthropic',
+        aggregateInputOutputRatio: 10,
+        modelBreakdown: [{
+          model: 'claude-3-5-sonnet',
+          estimatedCostShare: 1,
+          estimatedCostUsd: 30,
+          inputTokens: 120_000,
+          outputTokens: 10_000,
+          inputOutputRatio: 10,
+        }],
+        periodStart: '2026-06-01',
+        periodEnd: '2026-06-02',
+      })], inputRatePriceMap));
+
+      expect(cards).toHaveLength(1);
+      expect(cards[0].topSlotEligible).toBe(true);
+      expect(cards[0].savingsLabel).toMatch(/approximate$/);
+      expect(cards[0].targetRecommendationAnchor).toBe('#rec-anthropic-R3');
+    });
+
+    it('computes approximate savings using spec §8 formula when rates available', () => {
+      const cards = R3.evaluate(ctx([source({
+        sourceId: 'anthropic',
+        aggregateInputOutputRatio: 10,
+        modelBreakdown: [{
+          model: 'claude-3-5-sonnet',
+          estimatedCostShare: 1,
+          estimatedCostUsd: 30,
+          inputTokens: 120_000,
+          outputTokens: 10_000,
+          inputOutputRatio: 10,
+        }],
+        periodStart: '2026-06-01',
+        periodEnd: '2026-06-02',
+      })], inputRatePriceMap));
+
+      const inputSpend = 120_000 * 0.000003;
+      expect(cards[0].estimatedSavingsUsd).toBeCloseTo(inputSpend * (1 - 1 / 10) * 0.20);
+    });
+
+    it('sets topSlotEligible false when no LiteLLM rates for any model', () => {
+      const cards = R3.evaluate(ctx([source({
+        sourceId: 'anthropic',
+        aggregateInputOutputRatio: 10,
+        modelBreakdown: [{
+          model: 'unknown-model',
+          estimatedCostShare: 1,
+          estimatedCostUsd: 30,
+          inputTokens: 120_000,
+          outputTokens: 10_000,
+          inputOutputRatio: 10,
+        }],
+        periodStart: '2026-06-01',
+        periodEnd: '2026-06-02',
+      })], emptyPriceMap));
+
+      expect(cards).toHaveLength(1);
+      expect(cards[0].topSlotEligible).toBe(false);
+      expect(cards[0].estimatedSavingsUsd).toBeUndefined();
+      expect(cards[0].savingsLabel).toBeUndefined();
     });
   });
 
@@ -576,46 +719,71 @@ describe('recommendation rules', () => {
     });
   });
 
-  describe('selectTopRecommendation', () => {
-    const makeRec = (severity: RecommendationResult['severity'], id: RecommendationResult['id']): RecommendationResult => ({
+  describe('selectTopRecommendations', () => {
+    const makeRec = (
+      severity: RecommendationResult['severity'],
+      id: RecommendationResult['id'],
+      savings: number | null = 10,
+      overrides: Partial<RecommendationResult> = {},
+    ): RecommendationResult => ({
       id,
       severity,
       title: `${id} title`,
       body: 'body',
       triggeringMetric: 'x',
       triggeringValue: 0,
+      estimatedSavingsUsd: savings,
       sourceIds: ['anthropic'],
+      compactHeadline: `${id} compact`,
+      topSlotEligible: true,
+      targetSourceId: 'anthropic',
+      targetCardAnchor: '#tool-card-anthropic',
+      targetRecommendationAnchor: `#rec-anthropic-${id}`,
+      savingsLabel: `Save ~$${(savings ?? 0).toFixed(2)}`,
+      ...overrides,
     });
 
-    it('returns null for empty recommendations', () => {
-      expect(selectTopRecommendation([])).toBeNull();
+    it('returns max two savings-bearing recommendations sorted by estimated dollar savings', () => {
+      const recs = [makeRec('High', 'R2', 5), makeRec('Medium', 'R1', 20), makeRec('Medium', 'R3', 10)];
+      const top = selectTopRecommendations(recs);
+      expect(top.map(rec => rec.id)).toEqual(['R1', 'R3']);
+      expect(top).toHaveLength(2);
     });
 
-    it('returns the highest-priority recommendation (High > Medium > Low)', () => {
-      const recs = [makeRec('Low', 'RC6'), makeRec('High', 'R2'), makeRec('Medium', 'R1')];
-      const top = selectTopRecommendation(recs);
-      expect(top?.id).toBe('R2');
-      expect(top?.priority).toBe('high');
+    it('excludes Tier C recommendations from top money-saving slots', () => {
+      const recs = [
+        makeRec('High', 'RC1', 100, { sourceIds: ['chatgpt_export'], targetSourceId: 'chatgpt_export' }),
+        makeRec('Medium', 'R1', 10),
+      ];
+      expect(selectTopRecommendations(recs).map(rec => rec.id)).toEqual(['R1']);
     });
 
-    it('returns the Medium recommendation when no High is present', () => {
-      const recs = [makeRec('Low', 'RC6'), makeRec('Medium', 'RC4a')];
-      const top = selectTopRecommendation(recs);
-      expect(top?.id).toBe('RC4a');
-      expect(top?.priority).toBe('medium');
+    it('breaks savings ties by severity', () => {
+      const recs = [makeRec('Medium', 'R1', 10), makeRec('High', 'R2', 10), makeRec('Low', 'R3', 10)];
+      expect(selectTopRecommendations(recs).map(rec => rec.id)).toEqual(['R2', 'R1']);
     });
 
-    it('returns the single Low recommendation when it is the only one', () => {
-      const recs = [makeRec('Low', 'RC1')];
-      const top = selectTopRecommendation(recs);
-      expect(top?.id).toBe('RC1');
-      expect(top?.priority).toBe('low');
+    it('suppressed R2 pair does not appear in top_recommendations', () => {
+      const recs = [
+        makeRec('High', 'R2', 0, { topSlotEligible: false, estimatedSavingsUsd: undefined }),
+        makeRec('Medium', 'R1', 8),
+      ];
+      expect(selectTopRecommendations(recs).map(rec => rec.id)).toEqual(['R1']);
     });
 
-    it('returns id and title from the top recommendation', () => {
-      const recs = [makeRec('High', 'R2')];
-      const top = selectTopRecommendation(recs);
-      expect(top?.title).toBe('R2 title');
+    it('uses targetRecommendationAnchor before targetCardAnchor when present', () => {
+      const top = selectTopRecommendations([makeRec('High', 'R2', 10)])[0];
+      expect(top.target_recommendation_anchor).toBe('#rec-anthropic-R2');
+      expect(top.target_card_anchor).toBe('#tool-card-anthropic');
+    });
+
+    it('preserves RecommendationResult severity casing High Medium Low', () => {
+      const top = selectTopRecommendations([
+        makeRec('Low', 'R3', 3),
+        makeRec('Medium', 'R1', 2),
+        makeRec('High', 'R2', 1),
+      ]);
+      expect(top.map(rec => rec.severity)).toEqual(['Low', 'Medium']);
     });
   });
 });

@@ -212,6 +212,7 @@ function computeProjectedR1SavingsUsd(
   currentCachedFraction: number | undefined,
   priceMap: PriceMap,
 ): number | undefined {
+  const reuseFactor = 0.5;
   const uncachedFraction = 1 - (currentCachedFraction ?? 0);
   let projectedR1SavingsUsd = 0;
   let pricedModelCount = 0;
@@ -222,11 +223,15 @@ function computeProjectedR1SavingsUsd(
 
     const price = lookupPrice(priceMap, model);
     if (!price || price.cache_read_input_token_cost === undefined) {
-      return undefined;
+      continue;
     }
+    const cacheCreationPrice = price.cache_creation_input_token_cost ?? price.input_cost_per_token * 1.25;
+    const netSavingsPerReusableToken =
+      2 * price.input_cost_per_token - price.cache_read_input_token_cost - cacheCreationPrice;
+    if (netSavingsPerReusableToken <= 0) continue;
 
     projectedR1SavingsUsd +=
-      totalInputTokens * (price.input_cost_per_token - price.cache_read_input_token_cost) * uncachedFraction;
+      totalInputTokens * uncachedFraction * reuseFactor * netSavingsPerReusableToken;
     pricedModelCount += 1;
   }
 

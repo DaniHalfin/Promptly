@@ -429,6 +429,41 @@ describe('computeTierBMetrics', () => {
     expect(openai.projectedR1SavingsUsd).toBeUndefined();
   });
 
+  describe('computeTierBMetrics cache savings', () => {
+    it('computes realized cache savings from cache read tokens and cache read price', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'anthropic',
+        dailyTokensByModel: [{
+          date: '2026-06-01',
+          model: 'model-a',
+          inputTokens: 100,
+          outputTokens: 10,
+          cacheReadInputTokens: 50,
+        }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.cachedTokenSavingsUsdAnthropic).toBeCloseTo(50 * (1 - 0.1));
+    });
+  });
+
+  describe('computeTierBMetrics projected R1 savings', () => {
+    it('uses reuse factor and nets cache write overhead', () => {
+      const metrics = computeTierBMetrics(base({
+        sourceId: 'anthropic',
+        dailyTokensByModel: [{
+          date: '2026-06-01',
+          model: 'model-a',
+          inputTokens: 100,
+          outputTokens: 10,
+        }],
+        dailyCostUsd: [{ date: '2026-06-01', costUsd: 1 }],
+      }), priceMap);
+
+      expect(metrics.projectedR1SavingsUsd).toBeCloseTo(100 * 0.5 * (2 * 1 - 0.1 - 0.5));
+    });
+  });
+
   // New MF-3 tests: copilotTokenBreakdownByModel
   it('copilotTokenBreakdownByModel aggregates tokens across sessions', () => {
     const s1: NormalizedCopilotSession = {

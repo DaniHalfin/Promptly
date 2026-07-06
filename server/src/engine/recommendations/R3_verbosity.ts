@@ -1,3 +1,4 @@
+import { lookupPrice } from '../../data/priceMap.js';
 import { RecommendationResult, SourceMetrics } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
@@ -29,6 +30,9 @@ export const R3: Rule = {
         continue;
       }
 
+      const savings = estimateR3Savings(source, ctx);
+      const hasSavings = savings != null && savings > 0;
+
       cards.push({
         id: 'R3',
         severity: 'Medium',
@@ -40,7 +44,46 @@ export const R3: Rule = {
         triggeringMetric: 'p90DailyInputTokens / aggregateInputOutputRatio',
         triggeringValue: `${Math.round(p90DailyInputTokens)} / ${(source.aggregateInputOutputRatio ?? 0).toFixed(1)}`,
         sourceIds: [source.sourceId],
+        compactHeadline: 'Trim repeated input context',
+        triggerSummary: `${Math.round(p90DailyInputTokens).toLocaleString()} p90 daily input tokens`,
+        topSlotEligible: hasSavings,
+        targetSourceId: source.sourceId,
+        targetCardAnchor: `#tool-card-${source.sourceId}`,
+        targetRecommendationAnchor: `#rec-${source.sourceId}-R3`,
+        ...(hasSavings
+          ? {
+              estimatedSavingsUsd: savings,
+              savingsLabel: `Save ~$${savings.toFixed(2)} approximate`,
+            }
+          : {}),
       });
+    }
+
+    function estimateR3Savings(source: SourceMetrics, ctx: RuleContext): number | undefined {
+      const ratio = source.aggregateInputOutputRatio ?? 0;
+      if (ratio <= 1) return undefined;
+
+      let totalInputSpend = 0;
+      let pricedRows = 0;
+
+      if (source.sourceId === 'github_copilot') {
+        for (const row of source.copilotTokenBreakdownByModel ?? []) {
+          const price = lookupPrice(ctx.priceMap, row.model);
+          if (!price) continue;
+          totalInputSpend += row.inputTokens * price.input_cost_per_token;
+          pricedRows += 1;
+        }
+      } else {
+        for (const row of source.modelBreakdown ?? []) {
+          const price = lookupPrice(ctx.priceMap, row.model);
+          if (!price) continue;
+          totalInputSpend += row.inputTokens * price.input_cost_per_token;
+          pricedRows += 1;
+        }
+      }
+
+      if (pricedRows === 0) return undefined;
+      return totalInputSpend * (1 - 1 / ratio) * 0.20;
     }
 
     return cards;

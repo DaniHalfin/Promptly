@@ -72,8 +72,8 @@ function buildR1Card(
 ): RecommendationResult {
   const totalInputTokens =
     sourceId === 'anthropic' ? metrics.totalInputTokensAnthropic ?? 0 : metrics.totalInputTokensClaudeCode ?? 0;
-  const savings =
-    sourceId === 'anthropic' ? metrics.cachedTokenSavingsUsdAnthropic : metrics.cachedTokenSavingsUsdClaudeCode;
+  const savings = metrics.projectedR1SavingsUsd;
+  const hasSavings = savings != null && savings > 0;
 
   return {
     id: 'R1',
@@ -86,5 +86,12 @@ function buildR1Card(
     triggeringValue,
     estimatedSavingsUsd: savings,
     sourceIds: [sourceId],
+    compactHeadline: 'Enable prompt caching',
+    triggerSummary: `${Math.round(totalInputTokens).toLocaleString()} input tokens with low cache reuse`,
+    topSlotEligible: hasSavings,
+    targetSourceId: sourceId,
+    targetCardAnchor: `#tool-card-${sourceId}`,
+    targetRecommendationAnchor: `#rec-${sourceId}-R1`,
+    ...(hasSavings ? { savingsLabel: `Save ~$${savings.toFixed(2)}` } : {}),
   };
 }

@@ -50,16 +50,15 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
 
       const currentPrice = lookupPrice(ctx.priceMap, model.model);
       const cheaperPrice = lookupPrice(ctx.priceMap, downgrade.cheaper);
-      const estimatedSavingsUsd =
-        currentPrice && cheaperPrice
-          ? Math.max(
-              0,
-              model.inputTokens * currentPrice.input_cost_per_token +
-                model.outputTokens * currentPrice.output_cost_per_token -
-                (model.inputTokens * cheaperPrice.input_cost_per_token +
-                  model.outputTokens * cheaperPrice.output_cost_per_token)
-            )
-          : undefined;
+      if (!currentPrice || !cheaperPrice) continue;
+      const estimatedSavingsUsd = Math.max(
+        0,
+        model.inputTokens * currentPrice.input_cost_per_token +
+          model.outputTokens * currentPrice.output_cost_per_token -
+          (model.inputTokens * cheaperPrice.input_cost_per_token +
+            model.outputTokens * cheaperPrice.output_cost_per_token)
+      );
+      const hasSavings = estimatedSavingsUsd > 0;
 
       cards.push({
         id: 'R2',
@@ -72,6 +71,13 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
         triggeringValue: `${(model.estimatedCostShare * 100).toFixed(1)}%`,
         estimatedSavingsUsd,
         sourceIds: [source.sourceId],
+        compactHeadline: `Switch routine ${model.model} usage to ${downgrade.cheaper}`,
+        triggerSummary: `${model.model} is ${(model.estimatedCostShare * 100).toFixed(1)}% of ${source.sourceId} spend`,
+        topSlotEligible: hasSavings,
+        targetSourceId: source.sourceId,
+        targetCardAnchor: `#tool-card-${source.sourceId}`,
+        targetRecommendationAnchor: `#rec-${source.sourceId}-R2`,
+        ...(hasSavings ? { savingsLabel: `Save ~$${estimatedSavingsUsd.toFixed(2)}` } : {}),
       });
     }
   }
@@ -99,6 +105,7 @@ function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
     if (avgOutputPerDay >= 500) return [];
 
     const estimatedSavingsUsd = estimateCopilotSavings(copilot, model.model, downgrade.cheaper);
+    const hasSavings = estimatedSavingsUsd != null && estimatedSavingsUsd > 0;
 
     return [{
       id: 'R2',
@@ -111,6 +118,13 @@ function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
       triggeringValue: `${(model.costShare * 100).toFixed(1)}%`,
       estimatedSavingsUsd,
       sourceIds: ['github_copilot'],
+      compactHeadline: `Switch routine ${model.model} usage to ${downgrade.cheaper}`,
+      triggerSummary: `${model.model} is ${(model.costShare * 100).toFixed(1)}% of Copilot AI credit spend`,
+      topSlotEligible: hasSavings,
+      targetSourceId: 'github_copilot',
+      targetCardAnchor: '#tool-card-github_copilot',
+      targetRecommendationAnchor: '#rec-github_copilot-R2',
+      ...(hasSavings ? { savingsLabel: `Save ~$${estimatedSavingsUsd.toFixed(2)}` } : {}),
     } satisfies RecommendationResult];
   });
 }
@@ -131,4 +145,3 @@ function computeDataWindowDays(start?: string, end?: string): number {
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) return 1;
   return Math.max(1, Math.floor((endMs - startMs) / 86_400_000) + 1);
 }
-
