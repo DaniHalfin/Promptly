@@ -31,6 +31,16 @@ const report: AnalysisReport = {
         totalActualSpendUsd: 85.25,
         total_actual_tokens: 2530000,
         totalActualTokens: 2530000,
+        efficiencySignal: {
+          kind: 'input_heavy',
+          headline: 'Input-heavy usage pattern detected',
+          explanation: 'Your input-to-output token ratio is higher than typical.',
+          inputOutputRatio: 4.3,
+        },
+        modelBreakdown: [
+          { model: 'gpt-4o', estimatedCostShare: 0.8, estimatedCostUsd: 68.2, inputTokens: 2000000, outputTokens: 500000, inputOutputRatio: 4.0 },
+          { model: 'gpt-4o-mini', estimatedCostShare: 0.2, estimatedCostUsd: 17.05, inputTokens: 400000, outputTokens: 100000, inputOutputRatio: 4.0 },
+        ],
       } as any,
     },
     {
@@ -70,6 +80,8 @@ const report: AnalysisReport = {
     trend: { status: 'insufficient_data' as const, observed_days: 0, required_days: 30, message: 'Phase 0 stub' },
     spike_callout: null,
     includes_estimates: true,
+    total_potential_savings_usd: 0,
+    actionable_recommendation_count: 0,
   },
   recommendations: [
     {
@@ -229,5 +241,28 @@ describe('PrintLayout — ADR-9 narrative structure', () => {
     expect(screen.getByText(/Spend spike detected/)).toBeInTheDocument();
     // date appears in both the spike banner and the trend table row — getAllByText
     expect(screen.getAllByText(/2026-06-21/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('PrintLayout renders efficiencySignal callout for non-TierC source', () => {
+    render(<PrintLayout report={report} />);
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText('Most of your cost went to sending, not receiving')).toBeInTheDocument();
+    expect(screen.getByText(/the bulk of your cost is context/)).toBeInTheDocument();
+  });
+
+  it('PrintLayout shows aggregate savings callout, not per-rec headline', () => {
+    const withAggregate: AnalysisReport = {
+      ...report,
+      cross_source_summary: {
+        ...report.cross_source_summary,
+        total_potential_savings_usd: 42.5,
+        actionable_recommendation_count: 2,
+        top_recommendations: [{ id: 'R1' as any, title: 'Old per-rec headline', compact_headline: 'Old per-rec headline', source_id: 'openai', target_card_anchor: '#tool-card-openai', estimated_savings_usd: 42.5, savings_label: 'Save $42.50', severity: 'Medium' }],
+      },
+    };
+    render(<PrintLayout report={withAggregate} />);
+    expect(screen.getByText(/Save up to/)).toBeInTheDocument();
+    expect(screen.getByText(/across 2 recommendations/)).toBeInTheDocument();
+    expect(screen.queryByText('Old per-rec headline')).not.toBeInTheDocument();
   });
 });

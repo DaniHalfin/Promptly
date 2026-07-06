@@ -45,6 +45,7 @@
           }
         ],
         "aggregateInputOutputRatio": 3.86,
+        "efficiencySignal": { "kind": "input_heavy", "headline": "Input-heavy usage pattern detected", "explanation": "Your input-to-output token ratio is higher than typical. Shorter, more precise prompts could reduce cost.", "inputOutputRatio": 3.86 },
         "cachedTokenFractionClaudeCode": 0.32,
         "cachedTokenSavingsUsdClaudeCode": 46.18,
         "avgDailySpendUsd": 42.81,

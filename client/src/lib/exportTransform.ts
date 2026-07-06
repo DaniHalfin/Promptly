@@ -16,6 +16,7 @@ function transformCopilotMetrics(metrics: SourceMetrics): unknown {
   return {
     sourceId: metrics.sourceId, tier: metrics.tier,
     periodStart: metrics.periodStart, periodEnd: metrics.periodEnd, warnings: metrics.warnings,
+    efficiencySignal: metrics.efficiencySignal,
     session_count: metrics.copilotSessionCount ?? 0,
     total_cost_usd: metrics.copilotTotalCostUsd ?? 0,
     model_breakdown: breakdown.map(row => {

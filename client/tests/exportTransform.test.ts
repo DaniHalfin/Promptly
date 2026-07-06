@@ -66,6 +66,12 @@ const copilotMetrics: SourceMetrics = {
       { model: 'claude-sonnet-4.5', fraction: 0.24 },
     ],
   },
+  efficiencySignal: {
+    kind: 'balanced',
+    headline: 'Balanced usage',
+    explanation: 'Your input and output token mix is balanced for this period.',
+    inputOutputRatio: 2,
+  },
 };
 
 const copilotSource: SourceReport = {
@@ -144,6 +150,31 @@ describe('transformReportForExport', () => {
     expect(metrics).not.toHaveProperty('copilotTokenBreakdownByModel');
     expect(metrics).not.toHaveProperty('copilotModelCostBreakdown');
     expect(metrics).not.toHaveProperty('copilotCachedTokenFraction');
+  });
+
+  it('transformCopilotMetrics preserves efficiencySignal', () => {
+    const report = makeReport([
+      {
+        ...copilotSource,
+        metrics: {
+          ...copilotMetrics,
+          efficiencySignal: {
+            kind: 'input_heavy',
+            headline: 'Input-heavy usage pattern detected',
+            explanation: 'Shorter prompts could reduce cost.',
+            inputOutputRatio: 4.29,
+          },
+        },
+      },
+    ]);
+
+    const transformed = transformReportForExport(report) as AnalysisReport;
+    expect((transformed.sources[0].metrics as any).efficiencySignal).toEqual({
+      kind: 'input_heavy',
+      headline: 'Input-heavy usage pattern detected',
+      explanation: 'Shorter prompts could reduce cost.',
+      inputOutputRatio: 4.29,
+    });
   });
 });
 

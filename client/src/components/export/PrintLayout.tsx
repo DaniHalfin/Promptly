@@ -1,6 +1,8 @@
 import React from 'react';
 import type { AnalysisReport, SourceReport, SpendByToolEntry } from '../../types/index.js';
 import { friendlySourceName } from '../../lib/modelNames.js';
+import { EfficiencySignalCallout } from '../Results/EfficiencySignalCallout.js';
+import { getModelSpendRows } from '../Results/ModelSpendMiniBar.js';
 
 interface PrintLayoutProps {
   report: AnalysisReport;
@@ -63,22 +65,30 @@ export function PrintLayout({ report }: PrintLayoutProps) {
   const value: React.CSSProperties = { fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 };
 
   // ── § 1  AnalysisHeader ────────────────────────────────────────────────
-  const AnalysisHeader = () => (
-    <div style={{ textAlign: 'center', marginBottom: 32 }}>
-      <div style={{ fontSize: 40, fontWeight: 800, color: '#0066cc', marginBottom: 4 }}>
-        ${(totalSpend ?? 0).toFixed(2)}
-      </div>
-      <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {spendLabel} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
-      </p>
-      {css.top_recommendations?.[0] && (
-        <div style={{ display: 'inline-block', marginTop: 16, padding: '10px 16px', border: '1px solid #0066cc', borderRadius: 8, textAlign: 'left', maxWidth: 480 }}>
-          <p style={{ ...label, color: '#0066cc' }}>Top Recommendation</p>
-          <p style={{ fontSize: 14, fontWeight: 500, color: '#111827', margin: 0 }}>{css.top_recommendations[0].compact_headline || css.top_recommendations[0].title}</p>
+  const AnalysisHeader = () => {
+    const totalPotentialSavings = css.total_potential_savings_usd ?? 0;
+    const actionableCount = css.actionable_recommendation_count ?? 0;
+    const showPotentialSavings = totalPotentialSavings > 0 && actionableCount > 0;
+
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ fontSize: 40, fontWeight: 800, color: '#0066cc', marginBottom: 4 }}>
+          ${(totalSpend ?? 0).toFixed(2)}
         </div>
-      )}
-    </div>
-  );
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {spendLabel} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
+        </p>
+        {showPotentialSavings && (
+          <div style={{ display: 'inline-block', marginTop: 16, padding: '10px 16px', border: '1px solid #16a34a', borderRadius: 8, textAlign: 'left', maxWidth: 520 }}>
+            <p style={{ ...label, color: '#16a34a' }}>Total Potential Savings</p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: '#111827', margin: 0 }}>
+              Save up to <strong style={{ color: '#16a34a' }}>${totalPotentialSavings.toFixed(2)}</strong> across {actionableCount} {actionableCount === 1 ? 'recommendation' : 'recommendations'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ── § 2  MoneyByToolSection ────────────────────────────────────────────
   const MoneyByToolSection = () => {
@@ -146,6 +156,8 @@ export function PrintLayout({ report }: PrintLayoutProps) {
     const m    = source.metrics;
     const name = friendlySourceName(source.source_id);
     const spend = spendByTool.find(e => e.source_id === source.source_id);
+    const isTierC = source.tier === 'C';
+    const modelSpendRows = getModelSpendRows(source);
 
     if (source.error) {
       return (
@@ -223,8 +235,20 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               )}
             </div>
 
-            {/* Models */}
-            {(m as any).models_identified && ((m as any).models_identified as string[]).length > 0 && (
+            {!isTierC && <EfficiencySignalCallout signal={m.efficiencySignal} />}
+
+            {/* Model spend for Tier B, model chips for Tier C */}
+            {!isTierC && modelSpendRows.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ ...label, marginBottom: 6 }}>Model Spend</p>
+                {modelSpendRows.map(row => (
+                  <p key={row.model} style={{ margin: '2px 0', fontSize: 12, color: '#374151' }}>
+                    {row.model}: {Math.round(row.share * 100)}% of spend
+                  </p>
+                ))}
+              </div>
+            )}
+            {isTierC && (m as any).models_identified && ((m as any).models_identified as string[]).length > 0 && (
               <div style={{ marginTop: 10 }}>
                 <p style={{ ...label, marginBottom: 6 }}>Models Identified</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
