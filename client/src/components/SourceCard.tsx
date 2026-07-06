@@ -432,7 +432,7 @@ function ValidationBadge({ validation }: { validation: SourceValidationState }) 
         aria-live="polite"
         style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
       >
-        Revalidating…
+        Checking data…
       </span>
     );
   }

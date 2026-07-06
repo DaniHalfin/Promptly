@@ -428,11 +428,11 @@ describe('SourceCard — E5 validation badges', () => {
     expect(excluded.textContent).toMatch(/excluded from analysis/i);
   });
 
-  it('validation badge: shows revalidating indicator', () => {
+  it('validation badge: shows checking-data indicator — P1', () => {
     renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
     const badge = screen.getByTestId('source-validation-badge');
     expect(badge).toHaveAttribute('data-validation-status', 'validating');
-    expect(badge.textContent).toMatch(/Revalidating/i);
+    expect(badge.textContent).toBe('Checking data…');
   });
 
   // ── Batch 4: dark/light-mode legibility of badges + error text ────────────
@@ -444,7 +444,7 @@ describe('SourceCard — E5 validation badges', () => {
     expect(badge).toHaveStyle({ color: 'var(--color-critical-text)' });
   });
 
-  it('revalidating badge border is theme-aware (no hardcoded white rgba)', () => {
+  it('checking-data badge border is theme-aware (no hardcoded white rgba)', () => {
     renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
     const badge = screen.getByTestId('source-validation-badge');
     // Hardcoded rgba(255,255,255,0.12) was invisible in light mode; now uses the

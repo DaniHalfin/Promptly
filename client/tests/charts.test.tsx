@@ -86,6 +86,27 @@ describe('DailySpendLine (WP-9)', () => {
     expect(source).toContain("value: 'Daily Spend (USD)'");
     expect(source).not.toContain("value: 'Cost (USD)'");
   });
+
+  it('LineChart left margin is 20 to prevent Y-axis label clipping — P3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('left: 20');
+    expect(source).not.toContain('left: 0');
+  });
+
+  it('YAxis label has dx: -10 to center rotated label in left margin — P3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('dx: -10');
+  });
 });
 
 // ── ModelCostSharePie ────────────────────────────────────────────────────────
