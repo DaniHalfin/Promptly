@@ -198,6 +198,42 @@ describe('W4: rec-focus-target class', () => {
   });
 });
 
+describe('W-FOCUS-01: global focus-visible rule', () => {
+  it('button:focus-visible rule exists in index.css', () => {
+    expect(css).toContain('button:focus-visible');
+    expect(ruleBody(css, 'button:focus-visible,')).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('[role="button"]:focus-visible rule is included in the same ruleset', () => {
+    expect(css).toContain('[role="button"]:focus-visible');
+  });
+
+  it('[role="switch"]:focus-visible rule is included in the same ruleset', () => {
+    expect(css).toContain('[role="switch"]:focus-visible');
+  });
+});
+
+describe('W-A11Y-02: --color-accent contrast in light mode', () => {
+  it('light mode overrides --color-accent to oklch(45% 0.18 275) for WCAG AA ≥4.5:1', () => {
+    const light = css.slice(css.indexOf('[data-theme="light"]'));
+    expect(light).toMatch(/--color-accent:\s*oklch\(45% 0\.18 275\)/);
+  });
+});
+
+describe('W-FOCUS-02: .focus-target class', () => {
+  it('.focus-target rule exists in index.css with outline: none', () => {
+    expect(css).toContain('.focus-target {');
+    const body = ruleBody(css, '.focus-target {');
+    expect(body).toMatch(/outline:\s*none/);
+  });
+
+  it('.focus-target:focus-visible restores outline', () => {
+    expect(css).toContain('.focus-target:focus-visible');
+    const body = ruleBody(css, '.focus-target:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+});
+
 describe('W9: decorative SVGs have aria-hidden="true"', () => {
   it('Landing.tsx logo SVG (viewBox="0 0 32 32") has aria-hidden="true"', () => {
     expect(landingSrc).toContain(
