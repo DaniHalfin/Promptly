@@ -107,7 +107,7 @@ describe('recommendation rules', () => {
         projectedR1SavingsUsd: 11.234,
       })]));
 
-      expect(cards[0].savingsLabel).toBe('Save ~$11.23');
+      expect(cards[0].savingsLabel).toBe('Save $11.23');
     });
 
     it('sets targetRecommendationAnchor to #rec-${sourceId}-R1', () => {
@@ -241,7 +241,7 @@ describe('recommendation rules', () => {
         targetRecommendationAnchor: '#rec-anthropic-R2',
         topSlotEligible: true,
       });
-      expect(cards[0].savingsLabel).toMatch(/^Save ~\$/);
+      expect(cards[0].savingsLabel).toMatch(/^Save \$/);
     });
   });
 
@@ -433,7 +433,7 @@ describe('recommendation rules', () => {
       } as Partial<SourceMetrics>)]))).toHaveLength(0);
     });
 
-    it('marks approximate savings as top-slot eligible with approximate savingsLabel', () => {
+    it('marks estimated savings as top-slot eligible with plain savingsLabel', () => {
       const cards = R3.evaluate(ctx([source({
         sourceId: 'anthropic',
         aggregateInputOutputRatio: 10,
@@ -451,7 +451,9 @@ describe('recommendation rules', () => {
 
       expect(cards).toHaveLength(1);
       expect(cards[0].topSlotEligible).toBe(true);
-      expect(cards[0].savingsLabel).toMatch(/approximate$/);
+      expect(cards[0].savingsLabel).toMatch(/^Save \$/);
+      expect(cards[0].savingsLabel).not.toContain('~');
+      expect(cards[0].savingsLabel).not.toContain('approximate');
       expect(cards[0].targetRecommendationAnchor).toBe('#rec-anthropic-R3');
     });
 
@@ -739,7 +741,7 @@ describe('recommendation rules', () => {
       targetSourceId: 'anthropic',
       targetCardAnchor: '#tool-card-anthropic',
       targetRecommendationAnchor: `#rec-anthropic-${id}`,
-      savingsLabel: `Save ~$${(savings ?? 0).toFixed(2)}`,
+      savingsLabel: `Save $${(savings ?? 0).toFixed(2)}`,
       ...overrides,
     });
 

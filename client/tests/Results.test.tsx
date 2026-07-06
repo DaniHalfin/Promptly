@@ -168,7 +168,7 @@ describe('Results — ADR-9 narrative layout', () => {
       target_card_anchor: '#tool-card-anthropic',
       target_recommendation_anchor: '#rec-anthropic-R1',
       estimated_savings_usd: 12.34,
-      savings_label: 'Save ~$12.34',
+      savings_label: 'Save $12.34',
       severity: 'Medium',
     };
 

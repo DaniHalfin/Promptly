@@ -77,7 +77,7 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
         targetSourceId: source.sourceId,
         targetCardAnchor: `#tool-card-${source.sourceId}`,
         targetRecommendationAnchor: `#rec-${source.sourceId}-R2`,
-        ...(hasSavings ? { savingsLabel: `Save ~$${estimatedSavingsUsd.toFixed(2)}` } : {}),
+        ...(hasSavings ? { savingsLabel: `Save $${estimatedSavingsUsd.toFixed(2)}` } : {}),
       });
     }
   }
@@ -124,7 +124,7 @@ function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
       targetSourceId: 'github_copilot',
       targetCardAnchor: '#tool-card-github_copilot',
       targetRecommendationAnchor: '#rec-github_copilot-R2',
-      ...(hasSavings ? { savingsLabel: `Save ~$${estimatedSavingsUsd.toFixed(2)}` } : {}),
+      ...(hasSavings ? { savingsLabel: `Save $${estimatedSavingsUsd.toFixed(2)}` } : {}),
     } satisfies RecommendationResult];
   });
 }

@@ -16,7 +16,7 @@ const rec: TopRecommendationEntry = {
   target_card_anchor: '#tool-card-anthropic',
   target_recommendation_anchor: '#rec-anthropic-R1',
   estimated_savings_usd: 12.34,
-  savings_label: 'Save ~$12.34',
+  savings_label: 'Save $12.34',
   severity: 'Medium',
 };
 
@@ -25,7 +25,7 @@ describe('MoneyByToolSection top recommendations', () => {
     render(<MoneyByToolSection spendByTool={spendByTool} topRecommendations={[rec]} />);
     expect(screen.getByTestId('top-recommendation-R1-anthropic')).toBeInTheDocument();
     expect(screen.getByText('Enable prompt caching')).toBeInTheDocument();
-    expect(screen.getByText('Save ~$12.34')).toBeInTheDocument();
+    expect(screen.getByText('Save $12.34')).toBeInTheDocument();
   });
 
   it('renders empty optimization-opportunities state when no top recommendations exist', () => {

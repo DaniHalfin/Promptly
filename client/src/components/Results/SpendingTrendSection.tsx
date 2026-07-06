@@ -24,7 +24,7 @@ function TrendBadge({ trend }: { trend: TrendStatus }) {
         background: up ? 'var(--color-critical-muted)' : 'var(--color-positive-muted)',
         color: up ? 'var(--color-critical-text)' : 'var(--color-positive-text)',
       }}>
-        {up ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% MoM
+        {up ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% vs prior 30 days
       </span>
     );
   }
@@ -36,6 +36,10 @@ function TrendBadge({ trend }: { trend: TrendStatus }) {
 }
 
 export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: SpendingTrendSectionProps) {
+  const spikeBody = spikeCallout?.spend_usd != null && spikeCallout.multiple_of_average > 0
+    ? `$${spikeCallout.spend_usd.toFixed(2)} spent — ${spikeCallout.multiple_of_average.toFixed(1)}× your daily average of $${(spikeCallout.spend_usd / spikeCallout.multiple_of_average).toFixed(2)}`
+    : spikeCallout?.message;
+
   return (
     <section data-testid="spending-trend-section" style={{ marginBottom: 32 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -72,7 +76,7 @@ export function SpendingTrendSection({ dailySpend, trend, spikeCallout }: Spendi
               Spike detected on {spikeCallout.date}
             </p>
             <p style={{ margin: '2px 0 0', color: 'var(--color-warning-text)', fontSize: '0.8125rem', opacity: 0.85 }}>
-              {spikeCallout.message}
+              {spikeBody}
             </p>
           </div>
         </div>

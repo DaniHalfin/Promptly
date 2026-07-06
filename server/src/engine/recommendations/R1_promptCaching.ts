@@ -92,6 +92,6 @@ function buildR1Card(
     targetSourceId: sourceId,
     targetCardAnchor: `#tool-card-${sourceId}`,
     targetRecommendationAnchor: `#rec-${sourceId}-R1`,
-    ...(hasSavings ? { savingsLabel: `Save ~$${savings.toFixed(2)}` } : {}),
+    ...(hasSavings ? { savingsLabel: `Save $${savings.toFixed(2)}` } : {}),
   };
 }

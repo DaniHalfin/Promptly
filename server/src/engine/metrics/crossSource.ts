@@ -94,7 +94,7 @@ export function computeSpendSpike(daily: DailySpendEntry[]): SpikeCallout | null
     date: peak.date,
     spend_usd: peak.spend_usd,
     multiple_of_average: multiple,
-    message: `Spike detected on ${peak.date}: $${peak.spend_usd.toFixed(2)} (${multiple.toFixed(1)}× daily average of $${average.toFixed(2)}).`,
+    message: `$${peak.spend_usd.toFixed(2)} spent — ${multiple.toFixed(1)}× your daily average of $${average.toFixed(2)}`,
   };
 }
 
@@ -349,7 +349,7 @@ export function selectTopRecommendations(recommendations: RecommendationResult[]
       target_card_anchor: rec.targetCardAnchor!,
       ...(rec.targetRecommendationAnchor ? { target_recommendation_anchor: rec.targetRecommendationAnchor } : {}),
       estimated_savings_usd: rec.estimatedSavingsUsd ?? 0,
-      savings_label: rec.savingsLabel ?? `Save ~$${(rec.estimatedSavingsUsd ?? 0).toFixed(2)}`,
+      savings_label: rec.savingsLabel ?? `Save $${(rec.estimatedSavingsUsd ?? 0).toFixed(2)}`,
       severity: rec.severity,
     }));
 }

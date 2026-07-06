@@ -17,7 +17,7 @@ const spikeCallout: SpikeCallout = {
   date: '2026-01-02',
   spend_usd: 8.0,
   z_score: 2.5,
-  message: 'Unusual spike in spending',
+  message: 'Spike detected on 2026-01-02: $8.00 (2.5× daily average of $3.20).',
   multiple_of_average: 2.5,
 };
 
@@ -26,31 +26,49 @@ describe('SpendingTrendSection', () => {
     render(
       <SpendingTrendSection
         dailySpend={dailySpend}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={null}
       />
     );
     expect(screen.getByTestId('spending-trend-section')).toBeInTheDocument();
   });
 
-  it('renders spike callout banner when spikeCallout is provided', () => {
-    render(
+  it('renders spike title and a non-duplicative spend body', () => {
+    const { container } = render(
       <SpendingTrendSection
         dailySpend={dailySpend}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={spikeCallout}
       />
     );
-    expect(screen.getByTestId('spike-callout')).toBeInTheDocument();
-    // date appears in both the spike banner and the sr-only table row — use getAllByText
-    expect(screen.getAllByText(/2026-01-02/).length).toBeGreaterThanOrEqual(1);
+
+    const callout = screen.getByTestId('spike-callout');
+    expect(callout).toBeInTheDocument();
+    expect(screen.getByText('Spike detected on 2026-01-02')).toBeInTheDocument();
+    expect(screen.getByText('$8.00 spent — 2.5× your daily average of $3.20')).toBeInTheDocument();
+    expect(callout.textContent).not.toMatch(/Spike detected on 2026-01-02Spike detected/);
+    expect(callout.querySelectorAll('p')[1]?.textContent).not.toMatch(/^Spike detected/);
+    expect(container.textContent).toContain('2.5×');
+  });
+
+  it('labels trend percentage as vs prior 30 days, not MoM', () => {
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 404.2, observed_days: 30, required_days: 30, message: '' }}
+        spikeCallout={null}
+      />
+    );
+
+    expect(screen.getByText('▲ 404.2% vs prior 30 days')).toBeInTheDocument();
+    expect(screen.queryByText(/MoM/)).not.toBeInTheDocument();
   });
 
   it('does NOT render spike callout banner when spikeCallout is null', () => {
     render(
       <SpendingTrendSection
         dailySpend={dailySpend}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={null}
       />
     );
@@ -61,7 +79,7 @@ describe('SpendingTrendSection', () => {
     render(
       <SpendingTrendSection
         dailySpend={dailySpend}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: 'Spending is stable' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: 'Spending is stable' }}
         spikeCallout={null}
       />
     );
@@ -73,7 +91,7 @@ describe('SpendingTrendSection', () => {
     render(
       <SpendingTrendSection
         dailySpend={dailySpend}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={null}
       />
     );
@@ -105,7 +123,7 @@ describe('SpendingTrendSection', () => {
     render(
       <SpendingTrendSection
         dailySpend={withEstimate}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={null}
       />
     );
@@ -119,7 +137,7 @@ describe('SpendingTrendSection', () => {
     const { container } = render(
       <SpendingTrendSection
         dailySpend={withEstimate}
-        trend={{ status: 'stable', observed_days: 30, required_days: 30, message: '' }}
+        trend={{ status: 'insufficient_data', observed_days: 30, required_days: 30, message: '' }}
         spikeCallout={null}
       />
     );

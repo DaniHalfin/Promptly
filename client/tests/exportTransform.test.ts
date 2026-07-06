@@ -196,7 +196,7 @@ describe('SpendByToolBar', () => {
       topSlotEligible: true,
       targetSourceId: 'anthropic',
       targetCardAnchor: '#anthropic-card',
-      savingsLabel: 'Save ~$12/mo',
+      savingsLabel: 'Save $12/mo',
     };
     expect(rec.targetCardAnchor).toBe('#anthropic-card');
     expect(rec.topSlotEligible).toBe(true);

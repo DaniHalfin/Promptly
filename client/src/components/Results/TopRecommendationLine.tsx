@@ -8,7 +8,7 @@ interface TopRecommendationLineProps {
 }
 
 function fallbackSavingsLabel(rec: TopRecommendationEntry): string {
-  return rec.savings_label || `Save ~$${rec.estimated_savings_usd.toFixed(2)}`;
+  return rec.savings_label || `Save $${rec.estimated_savings_usd.toFixed(2)}`;
 }
 
 export function TopRecommendationLine({ rec, onActivate }: TopRecommendationLineProps) {

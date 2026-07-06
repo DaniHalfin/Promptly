@@ -53,7 +53,7 @@ export const R3: Rule = {
         ...(hasSavings
           ? {
               estimatedSavingsUsd: savings,
-              savingsLabel: `Save ~$${savings.toFixed(2)} approximate`,
+              savingsLabel: `Save $${savings.toFixed(2)}`,
             }
           : {}),
       });
