@@ -16,9 +16,11 @@ describe('EfficiencySignalCallout', () => {
       />,
     );
 
-    expect(screen.getByText('Input-heavy usage')).toBeInTheDocument();
-    expect(screen.getByText(/sending context/)).toBeInTheDocument();
-    expect(screen.getByText('Input/output ratio: 9.4:1')).toBeInTheDocument();
+    expect(screen.getByText('Most of your cost went to sending, not receiving')).toBeInTheDocument();
+    expect(screen.getByText(/the bulk of your cost is context/)).toBeInTheDocument();
+    expect(screen.queryByText(/Input-heavy/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^You send roughly/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Input\/output ratio/)).not.toBeInTheDocument();
   });
 
   it('renders output-heavy headline and explanation', () => {
@@ -35,6 +37,7 @@ describe('EfficiencySignalCallout', () => {
 
     expect(screen.getByText('Output-heavy usage')).toBeInTheDocument();
     expect(screen.getByText(/generating a lot/)).toBeInTheDocument();
+    expect(screen.getByText('You receive roughly 1× more text than you send.')).toBeInTheDocument();
   });
 
   it('does not render a special callout for balanced usage', () => {

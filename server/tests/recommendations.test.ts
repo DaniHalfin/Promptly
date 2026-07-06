@@ -243,6 +243,21 @@ describe('recommendation rules', () => {
       });
       expect(cards[0].savingsLabel).toMatch(/^Save \$/);
     });
+
+    it('R2 body uses friendly source name, not raw source_id', () => {
+      const cards = R2.evaluate(ctx([source({
+        sourceId: 'openai',
+        tier: 'B',
+        modelBreakdown: [{ model: 'claude-3-5-sonnet-20241022', estimatedCostShare: 0.8, estimatedCostUsd: 50, inputTokens: 120_000, outputTokens: 200, inputOutputRatio: 500 }],
+        periodStart: '2026-06-01T00:00:00Z',
+        periodEnd: '2026-06-08T00:00:00Z',
+      })], downgradePriceMap));
+
+      expect(cards[0].body).toContain('OpenAI');
+      expect(cards[0].body).not.toContain('openai spend');
+      expect(cards[0].triggerSummary).toContain('OpenAI');
+      expect(cards[0].triggerSummary).not.toContain('openai spend');
+    });
   });
 
   describe('R2 Copilot branch — NormalizedCopilotSession-derived metrics', () => {
@@ -497,6 +512,25 @@ describe('recommendation rules', () => {
       expect(cards[0].topSlotEligible).toBe(false);
       expect(cards[0].estimatedSavingsUsd).toBeUndefined();
       expect(cards[0].savingsLabel).toBeUndefined();
+    });
+
+    it('R3 body uses friendly source name, not raw source_id', () => {
+      const cards = R3.evaluate(ctx([source({
+        sourceId: 'github_copilot',
+        aggregateInputOutputRatio: 10,
+        copilotTokenBreakdownByModel: [{ model: 'gpt-5.4', inputTokens: 120_000, outputTokens: 10_000, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, requestCount: 1, requestCost: 1 }],
+        copilotDailyInputTokens: [{ date: '2026-06-01', inputTokens: 120_000 }],
+        periodStart: '2026-06-01',
+        periodEnd: '2026-06-02',
+      })], inputRatePriceMap));
+
+      expect(cards[0].title).toBe('Your prompts may be longer than needed');
+      expect(cards[0].body).toContain('GitHub Copilot');
+      expect(cards[0].body).toContain('persistent instructions');
+      expect(cards[0].body).toContain("Paste only what's relevant");
+      expect(cards[0].body).not.toContain('github_copilot');
+      expect(cards[0].body).not.toContain('input/output ratio');
+      expect(cards[0].body).not.toContain('p90');
     });
   });
 

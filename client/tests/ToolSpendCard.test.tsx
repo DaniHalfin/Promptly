@@ -189,7 +189,7 @@ describe('ToolSpendCard EfficiencySignalCallout', () => {
 
     render(<ToolSpendCard source={source} recommendations={[]} />);
     expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
-    expect(screen.getByText('Input-heavy usage')).toBeInTheDocument();
+    expect(screen.getByText('Most of your cost went to sending, not receiving')).toBeInTheDocument();
   });
 
   it('does not render the efficiency callout for Tier C sources', () => {

@@ -1,4 +1,5 @@
 import { lookupPrice } from '../../data/priceMap.js';
+import { getSourceDisplayName } from '../../lib/sourceNames.js';
 import { RecommendationResult, SourceMetrics } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
@@ -60,19 +61,22 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
       );
       const hasSavings = estimatedSavingsUsd > 0;
 
+      const sourceName = getSourceDisplayName(source.sourceId);
+      const spendShare = (model.estimatedCostShare * 100).toFixed(1);
+
       cards.push({
         id: 'R2',
         severity: 'High',
         title: 'High-cost model used for low-output tasks',
         body:
-          `${model.model} accounts for ${(model.estimatedCostShare * 100).toFixed(1)}% of ${source.sourceId} spend ` +
-          `but generates an average of only ${Math.round(avgOutputPerDay)} output tokens per day. Consider testing ${downgrade.cheaper}.`,
+          `${model.model} drives ${spendShare}% of ${sourceName} spend, mostly for short responses. ` +
+          `Try ${downgrade.cheaper} for routine tasks and compare quality before switching broadly.`,
         triggeringMetric: 'Model cost share',
-        triggeringValue: `${(model.estimatedCostShare * 100).toFixed(1)}%`,
+        triggeringValue: `${spendShare}%`,
         estimatedSavingsUsd,
         sourceIds: [source.sourceId],
         compactHeadline: `Switch routine ${model.model} usage to ${downgrade.cheaper}`,
-        triggerSummary: `${model.model} is ${(model.estimatedCostShare * 100).toFixed(1)}% of ${source.sourceId} spend`,
+        triggerSummary: `${model.model} drives ${spendShare}% of ${sourceName} spend`,
         topSlotEligible: hasSavings,
         targetSourceId: source.sourceId,
         targetCardAnchor: `#tool-card-${source.sourceId}`,

@@ -12,6 +12,14 @@ export function EfficiencySignalCallout({ signal }: EfficiencySignalCalloutProps
   const background = isInputHeavy ? 'var(--color-warning-muted)' : 'var(--color-info-muted)';
   const border = isInputHeavy ? 'var(--color-warning)' : 'var(--color-info)';
   const text = isInputHeavy ? 'var(--color-warning-text)' : 'var(--text-primary)';
+  const inputOutputMultiplier = Math.max(1, Math.round(signal.inputOutputRatio));
+  const outputInputMultiplier = Math.max(1, Math.round(1 / Math.max(signal.inputOutputRatio, 0.01)));
+  const headline = isInputHeavy
+    ? 'Most of your cost went to sending, not receiving'
+    : signal.headline;
+  const ratioText = isInputHeavy
+    ? `Your prompts send roughly ${inputOutputMultiplier}× more text than you get back — the bulk of your cost is context, not answers. See the recommendation below.`
+    : `You receive roughly ${outputInputMultiplier}× more text than you send.`;
 
   return (
     <div
@@ -26,14 +34,16 @@ export function EfficiencySignalCallout({ signal }: EfficiencySignalCalloutProps
       }}
     >
       <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: text, marginBottom: 2 }}>
-        {signal.headline}
+        {headline}
       </div>
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-        {signal.explanation}
+        {isInputHeavy ? ratioText : signal.explanation}
       </div>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-        Input/output ratio: {signal.inputOutputRatio.toFixed(1)}:1
-      </div>
+      {!isInputHeavy && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          {ratioText}
+        </div>
+      )}
     </div>
   );
 }

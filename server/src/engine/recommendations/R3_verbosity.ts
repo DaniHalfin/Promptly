@@ -1,4 +1,5 @@
 import { lookupPrice } from '../../data/priceMap.js';
+import { getSourceDisplayName } from '../../lib/sourceNames.js';
 import { RecommendationResult, SourceMetrics } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
@@ -32,20 +33,24 @@ export const R3: Rule = {
 
       const savings = estimateR3Savings(source, ctx);
       const hasSavings = savings != null && savings > 0;
+      const sourceName = getSourceDisplayName(source.sourceId);
+      const inputOutputMultiplier = Math.max(1, Math.round(source.aggregateInputOutputRatio ?? 0));
 
       cards.push({
         id: 'R3',
         severity: 'Medium',
-        title: 'High input-token verbosity',
-        body:
-          `${source.sourceId} has a p90 daily input volume of ${Math.round(p90DailyInputTokens).toLocaleString()} tokens ` +
-          `and an input/output ratio of ${(source.aggregateInputOutputRatio ?? 0).toFixed(1)}:1. ` +
-          'Shorten repeated instructions, move stable context into reusable prompts, and trim retrieved context before sending requests.',
+        title: 'Your prompts may be longer than needed',
+        body: `${sourceName} sends roughly ${inputOutputMultiplier}× more text than it receives back — most of your cost is going toward providing context to the AI, not the answers it gives you.
+
+To reduce your input costs:
+• Shorten repeated instructions: if you start many prompts with the same framing or setup, cut or simplify it — the model retains context within a session.
+• Use persistent instructions for background context: most AI tools let you define a "system prompt" or "custom instructions" that applies to every conversation. If you re-explain your role, preferences, or project background each time, move that there — you pay for it once, not every message.
+• Paste only what's relevant: when you include emails, documents, or code for context, copy in only the specific section you need, not the whole thing — every sentence you don't need still costs tokens.`,
         triggeringMetric: 'p90DailyInputTokens / aggregateInputOutputRatio',
         triggeringValue: `${Math.round(p90DailyInputTokens)} / ${(source.aggregateInputOutputRatio ?? 0).toFixed(1)}`,
         sourceIds: [source.sourceId],
         compactHeadline: 'Trim repeated input context',
-        triggerSummary: `${Math.round(p90DailyInputTokens).toLocaleString()} p90 daily input tokens`,
+        triggerSummary: `${sourceName} sends roughly ${inputOutputMultiplier}× more text than it receives back`,
         topSlotEligible: hasSavings,
         targetSourceId: source.sourceId,
         targetCardAnchor: `#tool-card-${source.sourceId}`,

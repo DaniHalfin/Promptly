@@ -1,5 +1,6 @@
 import { AnalysisRequest, CrossSourceSummary, RecommendationResult, SourceReport, TrendStatus, SpikeCallout, SpendByToolEntry, DailySpendEntry, TopRecommendationEntry } from '../../types/index.js';
 import { PriceMap } from '../../data/priceMap.js';
+import { getSourceDisplayName } from '../../lib/sourceNames.js';
 
 const TREND_REQUIRED_DAYS = 60;
 const TREND_WINDOW_DAYS = 30;
@@ -97,15 +98,6 @@ export function computeSpendSpike(daily: DailySpendEntry[]): SpikeCallout | null
     message: `$${peak.spend_usd.toFixed(2)} spent — ${multiple.toFixed(1)}× your daily average of $${average.toFixed(2)}`,
   };
 }
-
-const SOURCE_DISPLAY_NAMES: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  github_copilot: 'GitHub Copilot',
-  chatgpt_export: 'ChatGPT (Export)',
-  claude_export: 'Claude.ai (Export)',
-  claude_code: 'Claude Code',
-};
 
 export function totalActualSpendUsd(sources: SourceReport[]): number {
   return sources.reduce((sum, source) => {
@@ -238,7 +230,7 @@ export function computeCrossSourceMetrics(reports: SourceReport[], _priceMap: Pr
 
     spend_by_tool.push({
       source_id: r.source_id,
-      display_name: SOURCE_DISPLAY_NAMES[r.source_id] ?? r.source_id,
+      display_name: getSourceDisplayName(r.source_id),
       estimated_spend_usd: estimatedSpend,
       percentage_of_total: 0, // computed after sorting
       tier: r.tier,
