@@ -101,7 +101,7 @@ describe('SourceCard', () => {
     const toggle = screen.getByRole('button', { name: /how to connect/i });
     fireEvent.click(toggle);
 
-    expect(screen.getByText(/platform.openai.com\/api-keys/i)).toBeInTheDocument();
+    expect(screen.getByText(/platform\.openai\.com\/api-keys/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /official docs/i })).toBeInTheDocument();
     // toggle label changes
     expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('SourceCard', () => {
 
     // W-A11Y-01: panel stays in the DOM (hidden attr) so aria-controls is never
     // orphaned; the content must be present but not visible when collapsed.
-    expect(screen.getByText(/platform.openai.com\/api-keys/i)).not.toBeVisible();
+    expect(screen.getByText(/platform\.openai\.com\/api-keys/i)).not.toBeVisible();
     expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
   });
 
