@@ -43,8 +43,8 @@ npm --workspace client run test
 npx playwright test
 ```
 
-- **Server unit tests:** 99 tests
-- **Client component tests:** 135 tests
+- **Server unit tests:** 244 tests
+- **Client component tests:** 442 tests
 - **End-to-end tests:** 15 tests
 
 ## Project Structure
@@ -77,7 +77,7 @@ promptly/
 4. Run the full test bar before opening a pull request.
 5. Open a PR with a clear summary, testing notes, and any relevant screenshots.
 
-All 249 tests (234 unit + 15 end-to-end) must pass before review or merge.
+All 701 tests (686 unit + 15 end-to-end) must pass before review or merge.
 
 ## Docs
 
@@ -135,7 +135,7 @@ Packages used only during development and testing of the server workspace (`serv
 
 | Package | Version | Role in Promptly |
 |---|---|---|
-| `vitest` | ^4.1.9 | Test runner for all 99 server unit tests — adapter parsing, metric calculations, recommendation rules |
+| `vitest` | ^4.1.9 | Test runner for all 244 server unit tests — adapter parsing, metric calculations, recommendation rules |
 | `@vitest/coverage-v8` | ^4.1.9 | V8-native code coverage reporter plugged into Vitest — generates per-file line/branch coverage for server code |
 | `tsx` | ^4.7.0 | TypeScript execution engine — powers `tsx watch src/index.ts` for zero-compile hot-reload during development |
 | `typescript` | ^5.3.3 | TypeScript compiler — type-checks and compiles the server to `dist/` for production |
@@ -151,7 +151,7 @@ Packages used only during development and testing of the client workspace (`clie
 | Package | Version | Role in Promptly |
 |---|---|---|
 | `vite` | ^5.0.8 | Build tool and dev server — serves the React app on `localhost:5173` with HMR in development and bundles it for production |
-| `vitest` | ^4.1.9 | Test runner for all 135 client component tests — runs in jsdom so components render without a real browser |
+| `vitest` | ^4.1.9 | Test runner for all 442 client component tests — runs in jsdom so components render without a real browser |
 | `@vitejs/plugin-react` | ^4.2.0 | Vite plugin — enables React Fast Refresh and JSX transform during development and build |
 | `@vitest/coverage-v8` | ^4.1.9 | V8 code coverage for client Vitest runs — tracks which component branches are exercised by tests |
 | `typescript` | ^5.3.3 | TypeScript compiler — type-checks client source and produces the JS bundle via `tsc && vite build` |
@@ -159,7 +159,7 @@ Packages used only during development and testing of the client workspace (`clie
 | `postcss` | ^8.4.31 | CSS post-processor — required by Tailwind to transform utility classes at build time |
 | `autoprefixer` | ^10.4.16 | PostCSS plugin — automatically adds vendor prefixes so Tailwind styles work across target browsers |
 | `jsdom` | ^29.1.1 | Browser DOM emulator — provides the `document` / `window` environment that Vitest needs to render and test React components in Node |
-| `@testing-library/react` | ^16.3.2 | React Testing Library — renders components into jsdom and provides `screen`, `within`, and async query helpers used in all 135 client tests |
+| `@testing-library/react` | ^16.3.2 | React Testing Library — renders components into jsdom and provides `screen`, `within`, and async query helpers used in all 442 client tests |
 | `@testing-library/user-event` | ^14.6.1 | Simulates realistic user interactions (clicks, typing, keyboard navigation) in React Testing Library tests |
 | `@testing-library/jest-dom` | ^6.9.1 | Custom DOM matchers (`toBeInTheDocument`, `toHaveValue`, etc.) that make assertion failures readable in component tests |
 | `jest-axe` | ^10.0.0 | Axe accessibility engine wrapped for Jest/Vitest — used in component tests to assert panels meet WCAG accessibility rules |
