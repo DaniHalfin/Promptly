@@ -227,7 +227,10 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             aria-expanded={showInstructions}
             aria-controls={`${sourceId}-instructions`}
           >
-            {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
+            {showInstructions
+              ? <><span aria-hidden="true">▴</span>{' '}Hide setup steps</>
+              : <><span aria-hidden="true">▾</span>{' '}How to connect</>
+            }
           </button>
 
           <div
@@ -467,14 +470,24 @@ function ValidationBadge({ validation }: { validation: SourceValidationState | n
           ⚠️ Partial data · {validation.daysAvailable ?? 0} days
         </span>
       );
-    } else if (validation.status === 'none' || validation.status === 'error') {
+    } else if (validation.status === 'none') {
       badge = (
         <span
           data-testid="source-validation-badge"
-          data-validation-status={validation.status}
+          data-validation-status="none"
           style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
         >
           ❌ No data in range
+        </span>
+      );
+    } else if (validation.status === 'error') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="error"
+          style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
+        >
+          ❌ Check failed — try again
         </span>
       );
     }

@@ -456,6 +456,47 @@ describe('SourceCard', () => {
     expect(panel).not.toHaveAttribute('hidden');
   });
 });
+
+describe('W3: ValidationBadge differentiates error vs none copy', () => {
+  function renderBadge(status: 'error' | 'none') {
+    return renderSourceCard('openai', {
+      validation: { status, validatedRange: { start: '2024-01-01', end: '2024-01-31' } },
+    });
+  }
+
+  it('renders "No data in range" for status=none', () => {
+    renderBadge('none');
+    expect(screen.getByTestId('source-validation-badge')).toHaveTextContent('No data in range');
+  });
+
+  it('renders "Check failed" for status=error', () => {
+    renderBadge('error');
+    expect(screen.getByTestId('source-validation-badge')).toHaveTextContent('Check failed');
+  });
+
+  it('error and none badge texts are different', () => {
+    const { unmount } = renderBadge('none');
+    const noneBadgeText = screen.getByTestId('source-validation-badge').textContent;
+    unmount();
+    renderBadge('error');
+    const errorBadgeText = screen.getByTestId('source-validation-badge').textContent;
+    expect(noneBadgeText).not.toBe(errorBadgeText);
+  });
+});
+
+describe('W6: disclosure triangles aria-hidden', () => {
+  it('W6: disclosure button accessible name does not contain triangle characters', () => {
+    renderSourceCard('openai');
+    // getByRole queries by accessible name (respects aria-hidden on the triangle span)
+    expect(screen.getByRole('button', { name: /^how to connect$/i })).toBeInTheDocument();
+  });
+
+  it('W6: after expand, disclosure button accessible name does not contain triangle', () => {
+    renderSourceCard('openai');
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+    expect(screen.getByRole('button', { name: /^hide setup steps$/i })).toBeInTheDocument();
+  });
+});
 // ── E5: Inline validation badges ─────────────────────────────────────────
 describe('SourceCard — E5 validation badges', () => {
   it('validation badge: shows data available for full validation', () => {

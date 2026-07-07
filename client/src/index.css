@@ -355,8 +355,13 @@ button:focus-visible,
   flex-shrink: 0;
   pointer-events: none;
 }
-/* W4: programmatic focus targets — suppress default ring but restore for keyboard nav */
+/* W4: programmatic focus targets — suppress default ring but restore on focus */
 .rec-focus-target { outline: none; }
+/* B3: plain :focus fires on programmatic .focus() calls (Chrome/Edge/Safari do NOT
+   fire :focus-visible for programmatic focus). This is safe because rec-focus-target
+   elements have tabIndex={-1} — users cannot naturally tab to them, so the ring
+   only appears on programmatic focus, which is exactly when we need it. */
+.rec-focus-target:focus,
 .rec-focus-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
@@ -364,9 +369,13 @@ button:focus-visible,
 
 /* W-FOCUS-02: programmatic-focus heading ring */
 .focus-target { outline: none; }
+/* B3: plain :focus covers programmatic .focus() in all browsers (not just keyboard nav).
+   Safe because these elements have tabIndex={-1} — not reachable by tab. */
+.focus-target:focus,
 .focus-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 4px;
+  border-radius: var(--radius-sm);
 }
 
 [data-theme="light"] .rec-row:hover {
@@ -485,10 +494,14 @@ button:focus-visible,
 [data-theme="light"] .disclosure-btn {
   border-color: rgba(0, 0, 0, 0.10);
   background: var(--color-bg-inset);
+  /* W1: --text-muted in light mode (oklch 54%) gives ~3.8:1; --text-secondary
+     (oklch 45%) achieves ≥4.5:1 against the light inset background. */
+  color: var(--text-secondary);
 }
 [data-theme="light"] .disclosure-btn:hover {
   border-color: rgba(0, 0, 0, 0.20);
   background: var(--color-bg-elevated);
+  color: var(--text-primary);
 }
 
 /* ─── Screen reader only ─────────────────────────────────────────────────── */
@@ -526,6 +539,11 @@ button:focus-visible,
   width: auto;
   height: auto;
   overflow: visible;
+  /* W2: WCAG 2.5.5 — minimum 44×44px focus/touch target */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
   outline: 2px solid var(--color-accent-light);
   outline-offset: 2px;
 }

@@ -117,7 +117,7 @@ export function TokenRatioBar({
             labelStyle={{ color: 'var(--chart-tooltip-text)' }}
             itemStyle={{ color: 'var(--chart-tooltip-text)' }}
           />
-          <Bar dataKey="value" fill="#8884d8" radius={[0, 8, 8, 0]}>
+          <Bar dataKey="value" fill={COLORS[0]} radius={[0, 8, 8, 0]}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />
             ))}

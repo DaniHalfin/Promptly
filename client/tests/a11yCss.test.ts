@@ -5,8 +5,8 @@
  * (contrast tokens, skip link, 44px touch targets) fail loudly.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
 const cssPath = resolve(__dirname, '../src/index.css');
 const htmlPath = resolve(__dirname, '../index.html');
@@ -26,6 +26,8 @@ const convLengthBarPath = resolve(__dirname, '../src/components/Results/charts/C
 const tokenRatioBarPath = resolve(__dirname, '../src/components/Results/charts/TokenRatioBar.tsx');
 const convLengthBarSrc = readFileSync(convLengthBarPath, 'utf-8');
 const tokenRatioBarSrc = readFileSync(tokenRatioBarPath, 'utf-8');
+const appPath = resolve(__dirname, '../src/App.tsx');
+const appSrc = readFileSync(appPath, 'utf-8');
 
 /** Extract the body of the first CSS rule matching the given selector. */
 function ruleBody(source: string, selector: string): string {
@@ -120,6 +122,16 @@ describe('A2: touch targets', () => {
     const body = ruleBody(css, '.upload-file-clear {');
     expect(body).toMatch(/min-width:\s*44px/);
     expect(body).toMatch(/min-height:\s*44px/);
+  });
+
+  it('W2: .skip-link:focus has min-height: 44px', () => {
+    const focusBlock = ruleBody(css, '.skip-link:focus {');
+    expect(focusBlock).toMatch(/min-height:\s*44px/);
+  });
+
+  it('W2: .skip-link:focus has min-width: 44px', () => {
+    const focusBlock = ruleBody(css, '.skip-link:focus {');
+    expect(focusBlock).toMatch(/min-width:\s*44px/);
   });
 });
 
@@ -320,5 +332,117 @@ describe('W9: decorative SVGs have aria-hidden="true"', () => {
     const moonIdx = themeToggleSrc.indexOf("/* Moon icon */");
     const moonSvgTag = themeToggleSrc.slice(moonIdx, themeToggleSrc.indexOf('>', moonIdx) + 1);
     expect(moonSvgTag).toContain('aria-hidden="true"');
+  });
+});
+
+describe('B1: skip-link target focusability', () => {
+  it('App.tsx <main id="main-content"> has tabIndex={-1}', () => {
+    // The main element must carry tabIndex={-1} so .focus() from the skip link works.
+    // A future dev removing it breaks keyboard skip-link navigation.
+    expect(appSrc).toMatch(/<main\s[^>]*id="main-content"[^>]*tabIndex=\{-1\}/s);
+  });
+
+  it('index.html skip link target #main-content exists', () => {
+    expect(html).toContain('href="#main-content"');
+  });
+});
+
+describe('B3: programmatic focus ring via plain :focus rules', () => {
+  // CORRECT — trailing comma only exists in the combined selector after the fix
+  it('B3: .focus-target has a plain :focus rule (not just :focus-visible)', () => {
+    const idx = css.indexOf('.focus-target:focus,');
+    expect(idx).toBeGreaterThan(-1);
+    const block = css.slice(idx, css.indexOf('}', idx));
+    expect(block).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('B3: .rec-focus-target has a plain :focus rule (not just :focus-visible)', () => {
+    const idx = css.indexOf('.rec-focus-target:focus,');
+    expect(idx).toBeGreaterThan(-1);
+    const block = css.slice(idx, css.indexOf('}', idx));
+    expect(block).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+});
+
+describe('B4: zero tabIndex={-1} elements with inline outline:none', () => {
+  // Recursively collect all TSX files in src/
+  function collectTsxFiles(dir: string): string[] {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) files.push(...collectTsxFiles(full));
+      else if (entry.name.endsWith('.tsx')) files.push(full);
+    }
+    return files;
+  }
+
+  const srcDir = resolve(__dirname, '../src');
+  const tsxFiles = collectTsxFiles(srcDir);
+
+  it('no TSX file has tabIndex={-1} AND outline:none in the same element', () => {
+    const violations: string[] = [];
+
+    for (const filePath of tsxFiles) {
+      const src = readFileSync(filePath, 'utf-8');
+      // Detect elements with tabIndex={-1} that ALSO have an inline outline:none
+      // This regex finds a JSX opening tag containing both patterns within ~300 chars.
+      const tagPattern = /<(?:h[1-6]|div|section|main)[^>]{0,300}tabIndex=\{-1\}[^>]{0,300}outline:\s*['"]none['"]/gs;
+      const reversePattern = /<(?:h[1-6]|div|section|main)[^>]{0,300}outline:\s*['"]none['"][^>]{0,300}tabIndex=\{-1\}/gs;
+      if (tagPattern.test(src) || reversePattern.test(src)) {
+        violations.push(filePath.replace(srcDir, 'src'));
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
+
+describe('B5: no hardcoded hex colors on Recharts chart primitive props', () => {
+  // Note: src/components/export/PrintLayout.tsx intentionally excluded —
+  // html2canvas PDF export requires literal hex values, not CSS variables.
+  // See B5 decision log and PrintLayout.test.ts.
+  const chartDir = resolve(__dirname, '../src/components/Results/charts');
+  const chartFiles = readdirSync(chartDir)
+    .filter(f => f.endsWith('.tsx'))
+    .map(f => ({ name: f, src: readFileSync(join(chartDir, f), 'utf-8') }));
+
+  it('no chart file uses fill="#..." on Recharts primitives (Bar, Pie, Line, Area)', () => {
+    const violations: string[] = [];
+    // Match fill="<hex>" or stroke="<hex>" where hex is #RGB or #RRGGBB or #RRGGBBAA
+    const hexPropPattern = /(?:fill|stroke)="#[0-9a-fA-F]{3,8}"/g;
+    for (const { name, src } of chartFiles) {
+      const matches = src.match(hexPropPattern);
+      if (matches) violations.push(`${name}: ${matches.join(', ')}`);
+    }
+    expect(violations).toEqual([]);
+  });
+});
+
+describe('W1: disclosure-btn light-mode contrast', () => {
+  it('[data-theme="light"] .disclosure-btn overrides color to var(--text-secondary)', () => {
+    const light = css.slice(css.indexOf('[data-theme="light"]'));
+    // The light-mode block for .disclosure-btn must set color: var(--text-secondary)
+    // --text-secondary in light mode is oklch(45% 0.04 245) which achieves ≥4.5:1
+    // against the light inset background. --text-muted (oklch 54%) does not.
+    const btnBlock = light.slice(
+      light.indexOf('[data-theme="light"] .disclosure-btn {'),
+      light.indexOf('}', light.indexOf('[data-theme="light"] .disclosure-btn {')) + 1,
+    );
+    expect(btnBlock).toContain('color: var(--text-secondary)');
+  });
+});
+
+describe('W7: no spatial directional language in run-disabled copy', () => {
+  it('runDisabledReason strings do not contain bare "above" or "below" referencing UI position', () => {
+    // Extract all string literals in runDisabledReason ternary chain.
+    // Match quoted string literals that would appear as run-disabled-reason text.
+    const disabledReasonBlock = landingSrc.slice(
+      landingSrc.indexOf('runDisabledReason ='),
+      landingSrc.indexOf('runDisabled ='),
+    );
+    // Fail if any of the user-facing strings contain "above" or "below" as a spatial reference.
+    expect(disabledReasonBlock).not.toMatch(/['"][^'"]*\babove\b[^'"]*['"]/i);
+    expect(disabledReasonBlock).not.toMatch(/['"][^'"]*\bbelow\b[^'"]*['"]/i);
   });
 });

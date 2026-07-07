@@ -28,11 +28,12 @@ export function Error() {
         {/* WP-2: aria-hidden — decorative emoji has no information value for AT users */}
         <div style={{ marginBottom: 24, fontSize: '3.75rem', lineHeight: 1, color: 'var(--color-critical-text)' }} aria-hidden="true">⚠️</div>
         {/* WP-7: tabIndex={-1} + data-focus-on-mount enables programmatic focus on phase transition */}
+        {/* B4: className="focus-target" replaces inline outline:none — ring is visible on programmatic .focus() via B3 fix */}
         <h1
           tabIndex={-1}
           data-focus-on-mount
+          className="focus-target"
           style={{
-            outline: 'none',
             margin: '0 0 16px',
             fontSize: 'var(--text-title)',
             fontWeight: 700,

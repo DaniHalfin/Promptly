@@ -16,6 +16,7 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-pressed={theme === 'dark'}
       style={{
         width: 44,
         height: 44,

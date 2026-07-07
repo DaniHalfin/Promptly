@@ -125,7 +125,7 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
       id={`tool-card-${source_id}`}
       data-testid={`tool-spend-card-${source_id}`}
       tabIndex={-1}
-      className="card"
+      className="card rec-focus-target"
       style={{ marginBottom: 16, borderLeft: '4px solid var(--color-accent)' }}
     >
       {/* Header */}

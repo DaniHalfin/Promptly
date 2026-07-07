@@ -96,7 +96,7 @@ export function ModelCostSharePie({ data }: ModelCostSharePieProps) {
             label={renderCustomizedLabel}
             outerRadius={100}
             innerRadius={60}
-            fill="#8884d8"
+            fill={COLORS[0]}
             dataKey="costUsd"
             nameKey="model"
           >

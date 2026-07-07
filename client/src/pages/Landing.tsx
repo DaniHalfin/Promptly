@@ -177,13 +177,13 @@ export function Landing() {
     });
 
   const runDisabledReason = enabledSourceIds.length === 0
-    ? 'Validate at least one source above to enable analysis.'
+    ? 'Connect and validate a source card to enable analysis.'
     : isValidating
-      ? 'Validating selected sources…'
+      ? 'Sources are being checked…'                             // W4: distinct from spinner
       : allResolvedNoData
         ? 'No selected source has data for this period.'
         : !hasAnyUsableSource
-          ? 'Validate at least one source above to enable analysis.'
+          ? 'Connect and validate a source card to enable analysis.'
           : null;
 
   const runDisabled = enabledSourceIds.length === 0 || isValidating || !hasAnyUsableSource;

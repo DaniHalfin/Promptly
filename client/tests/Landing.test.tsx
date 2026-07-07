@@ -252,7 +252,7 @@ describe('Landing — E4 validation orchestration & gating', () => {
   it('Run Analysis disabled while validation is running', () => {
     renderLanding({ openai: { status: 'connected', credential: 'sk-test', validation: { status: 'validating' } } });
     expect(screen.getByRole('button', { name: /Run Analysis/i })).toBeDisabled();
-    expect(screen.getByTestId('run-disabled-reason').textContent).toMatch(/Validating/i);
+    expect(screen.getByTestId('run-disabled-reason').textContent).toMatch(/Sources are being checked/i);
   });
 
   it('Run Analysis disabled + explains when all enabled sources have no data', () => {
@@ -357,5 +357,27 @@ describe('B-RUNTIME-01: dynamic footer padding', () => {
     // ResizeObserver mock in setup.ts is a no-op, so footerHeight stays at the
     // initial value (ACTION_FOOTER_RESERVED_HEIGHT = 220). Assert style is set.
     expect(sourceList).toHaveStyle({ paddingBottom: '220px' });
+  });
+});
+
+describe('W4: no duplicate validation text', () => {
+  it('spinner text and run-disabled-reason text differ when both present', async () => {
+    // Arrange: render Landing with a source in validating state and showValidationSpinner=true
+    // We can check this via a source scan test more reliably than simulating the timer.
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const landingSrc = readFileSync(resolve(__dirname, '../src/pages/Landing.tsx'), 'utf-8');
+
+    // Extract the spinner text (the string literal passed to the spinner <p>)
+    const spinnerMatch = landingSrc.match(/data-testid="validation-spinner"[^>]*>\s*\n?\s*([^\n<]+)/);
+    // Extract the validating branch of runDisabledReason
+    const validatingMatch = landingSrc.match(/isValidating\s*\?\s*['"]([^'"]+)['"]/);
+
+    expect(spinnerMatch).not.toBeNull();
+    expect(validatingMatch).not.toBeNull();
+
+    const spinnerText = spinnerMatch![1].trim();
+    const disabledReasonText = validatingMatch![1].trim();
+    expect(spinnerText).not.toBe(disabledReasonText);
   });
 });
