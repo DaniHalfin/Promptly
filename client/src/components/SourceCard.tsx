@@ -358,7 +358,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', margin: 0 }}>
             Scans <code>{info.localPath}</code> on this machine.
           </p>
-          {validating && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-accent-light)', marginTop: 8 }}>{info.localCheckMessage ?? 'Checking local data...'}</p>}
         </div>
       ) : (
         <div>

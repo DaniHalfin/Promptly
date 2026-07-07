@@ -81,7 +81,7 @@ export function Analysis() {
               source_id: sourceId,
               tier: null,
               connected: false,
-              error: (err as Error).message,
+              error: normalizeErrorMessage((err as Error).message),
               metrics: null,
             });
             setSourceProgress(prev => ({ ...prev, [sourceId]: 'error' }));

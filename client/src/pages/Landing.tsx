@@ -4,7 +4,7 @@ import 'react-day-picker/dist/style.css';
 import { useSession } from '../context/SessionContext.js';
 import { SourceCard } from '../components/SourceCard.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
-import { apiClient } from '../api/client.js';
+import { apiClient, normalizeErrorMessage } from '../api/client.js';
 import type { SourceConfig, SourceId } from '../types/index.js';
 import {
   PERIOD_PRESETS,
@@ -32,6 +32,36 @@ const SOURCE_LABELS: Record<string, string> = {
   chatgpt_export: 'ChatGPT Export',
   claude_export: 'Claude Export',
 };
+
+// SF4: contextual guidance for analysis error banner
+function getAnalysisErrorHint(errors: Array<{ sourceId: SourceId; error?: string | null }>): string {
+  const apiSources = new Set<SourceId>(['openai', 'anthropic']);
+  const localSources = new Set<SourceId>(['github_copilot', 'claude_code']);
+  const fileSources = new Set<SourceId>(['chatgpt_export', 'claude_export']);
+
+  const hasApi = errors.some(e => apiSources.has(e.sourceId));
+  const hasLocal = errors.some(e => localSources.has(e.sourceId));
+  const hasFile = errors.some(e => fileSources.has(e.sourceId));
+
+  const hasAuthError = errors.some(e =>
+    apiSources.has(e.sourceId) &&
+    /key|auth|credential|unauthorized|forbidden/i.test(e.error ?? '')
+  );
+
+  if (hasApi && hasAuthError) {
+    return "Check that your API key is valid and has not expired, then try again. You can verify your key in your provider's account settings.";
+  }
+  if (hasApi) {
+    return 'Check your API key and ensure your account has API access enabled, then try again.';
+  }
+  if (hasLocal) {
+    return 'Verify the local data path exists and contains activity data for the selected date range, then try again.';
+  }
+  if (hasFile) {
+    return 'Try re-uploading your export file. Ensure it is a valid JSON or JSONL export from your AI provider.';
+  }
+  return 'Check your source configuration and try again. If the error persists, try a different date range.';
+}
 
 export function Landing() {
   const { state, dispatch, updateSource } = useSession();
@@ -400,11 +430,14 @@ export function Landing() {
                 {state.analysisErrors.map(err => (
                   <li key={err.sourceId} style={{ fontSize: '0.8125rem', color: 'var(--color-critical-text)', marginBottom: 2 }}>
                     <strong>{SOURCE_LABELS[err.sourceId] ?? err.sourceId}</strong>
-                    {err.error ? ` — ${err.error}` : ''}
+                    {err.error ? ` — ${normalizeErrorMessage(err.error)}` : ''}
                     {(!err.error && err.warnings && err.warnings.length > 0) ? ` — ${err.warnings.join('; ')}` : ''}
                   </li>
                 ))}
               </ul>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-critical-text)', margin: '8px 0 0', lineHeight: 1.5 }}>
+                {getAnalysisErrorHint(state.analysisErrors)}
+              </p>
             </div>
           )}
 

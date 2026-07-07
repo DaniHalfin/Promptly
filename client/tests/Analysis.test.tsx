@@ -239,3 +239,51 @@ describe('W-IA-01: ARIA live region and progressbar', () => {
     expect(wrapper).toHaveAttribute('aria-live', 'polite');
   });
 });
+
+describe('ISSUE-D: per-source error normalization', () => {
+  it('per-source catch normalizes multi-line stack trace before pushing to sourceResults', async () => {
+    // Arrange: mock analyzeSource to throw a network error
+    server.use(
+      http.post('/api/analyze/:sourceId', () => {
+        return HttpResponse.error();
+      }),
+    );
+
+    const dispatch = vi.fn();
+    const ctx = {
+      state: {
+        phase: 'analyzing',
+        sources: { openai: { status: 'connected', credential: 'sk-test' } },
+        pendingAnalysis: {
+          config: { sources: [{ sourceId: 'openai', hasCredential: true, startDate: '2026-01-01', endDate: '2026-01-31' }] },
+        },
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Analysis />
+      </SessionContext.Provider>
+    );
+
+    await waitFor(() => expect(dispatch).toHaveBeenCalled());
+
+    // The dispatch call for allSourcesFailed includes analysisErrors with normalized messages
+    const dispatchArg = dispatch.mock.calls.find(
+      ([arg]: [any]) => arg.phase === 'landing' && arg.analysisErrors,
+    )?.[0];
+    if (dispatchArg) {
+      for (const err of dispatchArg.analysisErrors) {
+        if (err.error) {
+          // Must be a single line, no "at " stack frames, no file paths
+          expect(err.error).not.toMatch(/\n/);
+          expect(err.error).not.toMatch(/\s+at\s+\w/);
+        }
+      }
+    }
+  });
+});

@@ -43,11 +43,13 @@ describe('FIX-9 / W5: ThemeToggle aria-label describes current state (not next a
     expect(btn).toBeInTheDocument();
   });
 
-  it('aria-label is "Light mode" after toggling to light mode', () => {
+  it('aria-label stays "Dark mode" (fixed) after toggling to light mode — ARIA 1.1', () => {
     render(<ThemeToggle />);
     const btn = screen.getByRole('button');
     fireEvent.click(btn);
-    expect(screen.getByRole('button', { name: 'Light mode' })).toBeInTheDocument();
+    // Label must NOT change — only aria-pressed changes
+    expect(screen.getByRole('button', { name: 'Dark mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Light mode' })).not.toBeInTheDocument();
   });
 
   it('aria-pressed is true when dark mode is active', () => {
@@ -60,7 +62,7 @@ describe('FIX-9 / W5: ThemeToggle aria-label describes current state (not next a
     render(<ThemeToggle />);
     const btn = screen.getByRole('button');
     fireEvent.click(btn);
-    expect(screen.getByRole('button', { name: 'Light mode' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Dark mode' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('aria-pressed toggles to false after click (light mode) — legacy test updated', () => {
@@ -76,5 +78,15 @@ describe('FIX-9 / W5: ThemeToggle aria-label describes current state (not next a
     const src = readFileSync(resolve(__dirname, '../src/components/ThemeToggle.tsx'), 'utf-8');
     expect(src).not.toContain('Switch to light mode');
     expect(src).not.toContain('Switch to dark mode');
+  });
+
+  it('ISSUE-C regression ban: aria-label must never be "Light mode" (dynamic label banned)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../src/components/ThemeToggle.tsx'), 'utf-8');
+    expect(src).not.toContain("'Light mode'");
+    expect(src).not.toContain('"Light mode"');
+    // Fixed label pattern must be present
+    expect(src).toContain('aria-label="Dark mode"');
   });
 });

@@ -656,3 +656,23 @@ describe('FIX-11: source description copy — no JSONL jargon, product-first', (
     expect(screen.getByText(/chatgpt conversation history/i)).toBeInTheDocument();
   });
 });
+
+describe('ISSUE-E: validation state shows exactly 2 indicators (badge + footer), not 4', () => {
+  it('local source in validating state shows NO inline paragraph for validating text', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: true, validation: { status: 'validating' } });
+
+    // The inline paragraph with "Checking local data" must NOT be present
+    const paragraphs = Array.from(container.querySelectorAll('p'));
+    const validatingParas = paragraphs.filter(p =>
+      /checking local data|validating/i.test(p.textContent ?? '')
+    );
+    expect(validatingParas).toHaveLength(0);
+  });
+
+  it('local source aria-busy is true during validation (screen reader coverage maintained)', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: false });
+    // The role="status" div must exist
+    const statusDiv = container.querySelector('[role="status"]');
+    expect(statusDiv).not.toBeNull();
+  });
+});

@@ -26,6 +26,15 @@ vi.mock('../src/api/client.js', () => ({
   apiClient: {
     validate: (...args: [string, string?, string?]) => validateMock(...args),
   },
+  normalizeErrorMessage: (raw: string | undefined | null): string => {
+    if (!raw) return 'An unknown error occurred.';
+    const lines = raw.split('\n').map((l: string) => l.trim()).filter(Boolean);
+    if (lines.length > 1) {
+      const first = lines[0];
+      return first.replace(/^Error:\s*/i, '') || 'An unexpected error occurred.';
+    }
+    return raw;
+  },
 }));
 
 // A source that is enabled AND already validated as full — passes E4 gating.
@@ -379,5 +388,138 @@ describe('W4: no duplicate validation text', () => {
     const spinnerText = spinnerMatch![1].trim();
     const disabledReasonText = validatingMatch![1].trim();
     expect(spinnerText).not.toBe(disabledReasonText);
+  });
+});
+
+describe('ISSUE-D: Landing analysis error banner normalizes error strings', () => {
+  it('renders single-line error message even when analysisErrors contains stack trace', () => {
+    const dispatch = vi.fn();
+    const stackTraceError = 'Connection refused\n    at fetchData (client.ts:42:5)\n    at async runAnalysis (Analysis.tsx:68:9)';
+    const ctx = {
+      state: {
+        phase: 'landing',
+        sources: { openai: { status: 'connected', credential: 'sk-test', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } } },
+        analysisErrors: [{ sourceId: 'openai' as const, error: stackTraceError, warnings: [] }],
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+
+    const errorBanner = screen.getByTestId('landing-analysis-errors');
+    // Multi-line stack trace must NOT appear in DOM
+    expect(errorBanner.textContent).not.toContain('at fetchData');
+    expect(errorBanner.textContent).not.toContain('at async');
+    // First line must appear (possibly cleaned)
+    expect(errorBanner.textContent).toContain('Connection refused');
+  });
+});
+
+describe('ISSUE-F: analysis error banner shows next-step guidance', () => {
+  it('shows API key guidance when an API source fails with auth error', () => {
+    const dispatch = vi.fn();
+    const ctx = {
+      state: {
+        phase: 'landing',
+        sources: {},
+        analysisErrors: [{ sourceId: 'openai' as const, error: 'Invalid API key', warnings: [] }],
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+
+    const banner = screen.getByTestId('landing-analysis-errors');
+    expect(banner.textContent).toMatch(/API key/i);
+    // Must contain actionable next step (not just the error)
+    expect(banner.textContent).toMatch(/try again/i);
+  });
+
+  it('shows local path guidance when a local source fails', () => {
+    const dispatch = vi.fn();
+    const ctx = {
+      state: {
+        phase: 'landing',
+        sources: {},
+        analysisErrors: [{ sourceId: 'claude_code' as const, error: 'Directory not found', warnings: [] }],
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+
+    const banner = screen.getByTestId('landing-analysis-errors');
+    expect(banner.textContent).toMatch(/local data path|path exists/i);
+  });
+
+  it('shows generic guidance when error context is ambiguous', () => {
+    const dispatch = vi.fn();
+    const ctx = {
+      state: {
+        phase: 'landing',
+        sources: {},
+        analysisErrors: [{ sourceId: 'openai' as const, error: 'An unexpected error occurred.', warnings: [] }],
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+
+    const banner = screen.getByTestId('landing-analysis-errors');
+    // Must have SOME guidance
+    expect(banner.textContent).toMatch(/try again|check/i);
+  });
+
+  it('guidance text is inside the role=alert element so AT announces it', () => {
+    const dispatch = vi.fn();
+    const ctx = {
+      state: {
+        phase: 'landing',
+        sources: {},
+        analysisErrors: [{ sourceId: 'anthropic' as const, error: null, warnings: ['No data for range'] }],
+      },
+      dispatch,
+      updateSource: vi.fn(),
+      clearSession: vi.fn(),
+      abortControllerRef: { current: null as AbortController | null },
+    };
+
+    render(
+      <SessionContext.Provider value={ctx as any}>
+        <Landing />
+      </SessionContext.Provider>
+    );
+
+    const alertEl = screen.getByRole('alert');
+    // All guidance must be inside the alert (not outside)
+    expect(alertEl.textContent).toMatch(/check|try again/i);
   });
 });

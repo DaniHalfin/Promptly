@@ -15,9 +15,9 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      // FIX-9: aria-label describes current state (not next action).
-      // "Dark mode" / "Light mode" — unambiguous current-state labels.
-      aria-label={theme === 'dark' ? 'Dark mode' : 'Light mode'}
+      // ARIA 1.1 toggle button pattern: label names the FEATURE (fixed string),
+      // aria-pressed conveys the state. "Dark mode, pressed" = on; "Dark mode, not pressed" = off.
+      aria-label="Dark mode"
       aria-pressed={theme === 'dark'}
       style={{
         width: 44,

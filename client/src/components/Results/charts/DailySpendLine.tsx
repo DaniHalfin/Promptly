@@ -58,10 +58,10 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
+        <LineChart data={data} margin={{ top: 5, right: 30, left: 70, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
-          <YAxis label={{ value: 'Daily Spend (USD)', angle: -90, position: 'insideLeft', dx: -10 }} />
+          <YAxis label={{ value: 'Daily Spend (USD)', angle: -90, position: 'insideLeft', dx: -30, style: { textAnchor: 'middle' } }} />
           <Tooltip
             formatter={(value, name) => {
               const label = name === 'costUsd' ? 'Daily Spend' : name;

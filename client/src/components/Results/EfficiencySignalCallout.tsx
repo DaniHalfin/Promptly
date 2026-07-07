@@ -39,11 +39,6 @@ export function EfficiencySignalCallout({ signal }: EfficiencySignalCalloutProps
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         {isInputHeavy ? ratioText : signal.explanation}
       </div>
-      {!isInputHeavy && (
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          {ratioText}
-        </div>
-      )}
     </div>
   );
 }

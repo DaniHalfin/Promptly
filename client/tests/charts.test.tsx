@@ -93,20 +93,35 @@ describe('DailySpendLine (WP-9)', () => {
       resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
       'utf8',
     );
-    // Must be 50 (or any value ≥ 40); must not be the old insufficient 20 or 0.
-    expect(source).toContain('left: 50');
+    // Must be 70 or greater; old values 20, 50 are banned
+    const match = source.match(/left:\s*(\d+)/);
+    const leftMargin = match ? parseInt(match[1], 10) : 0;
+    expect(leftMargin).toBeGreaterThanOrEqual(70);
     expect(source).not.toContain('left: 20');
-    expect(source).not.toContain('left: 0');
+    expect(source).not.toContain('left: 50');
   });
 
-  it('YAxis label has dx: -10 to center rotated label in left margin — P3', async () => {
+  it('YAxis label dx is ≤ -20 so rotated label clears tick numbers', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
       resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
       'utf8',
     );
-    expect(source).toContain('dx: -10');
+    const dxMatch = source.match(/dx:\s*(-\d+)/);
+    const dxValue = dxMatch ? parseInt(dxMatch[1], 10) : 0;
+    // dx must be negative (pushes label left) and ≥20 in magnitude
+    expect(dxValue).toBeLessThanOrEqual(-20);
+  });
+
+  it('YAxis label has textAnchor: middle to vertically center the rotated text', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("textAnchor: 'middle'");
   });
 });
 
@@ -249,26 +264,40 @@ describe('chart empty states use CSS vars, not inert Tailwind', () => {
 
 // ── FIX-3: Y-axis label clipping ─────────────────────────────────────────────
 
-describe('ConversationLengthBar (FIX-3 Y-axis margin)', () => {
-  it('BarChart left margin is ≥40 to prevent Y-axis label clipping — FIX-3', async () => {
+describe('ConversationLengthBar Y-axis label (ISSUE-A full fix)', () => {
+  it('BarChart left margin is ≥60 to prevent Y-axis label clipping', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
       resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx'),
       'utf8',
     );
-    expect(source).toContain('left: 50');
-    expect(source).not.toContain('left: 0');
+    const match = source.match(/left:\s*(\d+)/);
+    const leftMargin = match ? parseInt(match[1], 10) : 0;
+    expect(leftMargin).toBeGreaterThanOrEqual(60);
+    expect(source).not.toContain('left: 50');
   });
 
-  it('YAxis label has dx offset so rotated label does not overlap tick numbers — FIX-3', async () => {
+  it('YAxis label dx is ≤ -15 to push label into blank margin area', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
       resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx'),
       'utf8',
     );
-    expect(source).toMatch(/YAxis.*label.*dx:/s);
+    const dxMatch = source.match(/dx:\s*(-\d+)/);
+    const dxValue = dxMatch ? parseInt(dxMatch[1], 10) : 0;
+    expect(dxValue).toBeLessThanOrEqual(-15);
+  });
+
+  it('YAxis label has textAnchor: middle to vertically center the rotated Count label', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("textAnchor: 'middle'");
   });
 });
 

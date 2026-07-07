@@ -37,7 +37,7 @@ describe('EfficiencySignalCallout', () => {
 
     expect(screen.getByText('Output-heavy usage')).toBeInTheDocument();
     expect(screen.getByText(/generating a lot/)).toBeInTheDocument();
-    expect(screen.getByText('You receive roughly 1× more text than you send.')).toBeInTheDocument();
+    expect(screen.queryByText(/You receive roughly.*more text than you send/)).not.toBeInTheDocument();
   });
 
   it('does not render a special callout for balanced usage', () => {
@@ -75,5 +75,51 @@ describe('FIX-5: note/recommendation separation', () => {
       'utf-8'
     );
     expect(src).not.toMatch(/['"][^'"]*\bbelow\b[^'"]*['"]/i);
+  });
+});
+
+describe('ISSUE-B: note and recommendation do not duplicate content', () => {
+  it('output_heavy note does not contain ratio measurement text', () => {
+    render(
+      <EfficiencySignalCallout
+        signal={{
+          kind: 'output_heavy',
+          headline: 'Output-heavy usage',
+          explanation: "You're generating a lot — typical for coding or writing workflows.",
+          inputOutputRatio: 0.5,
+        }}
+      />,
+    );
+    // The callout note must NOT show the ratio line — that is measurement noise, not guidance
+    expect(screen.queryByText(/receive roughly \d+×/)).not.toBeInTheDocument();
+  });
+
+  it('output_heavy note shows explanation text (the qualitative observation)', () => {
+    render(
+      <EfficiencySignalCallout
+        signal={{
+          kind: 'output_heavy',
+          headline: 'Output-heavy usage',
+          explanation: "You're generating a lot — typical for coding or writing workflows.",
+          inputOutputRatio: 0.5,
+        }}
+      />,
+    );
+    expect(screen.getByText(/generating a lot/)).toBeInTheDocument();
+  });
+
+  it('input_heavy note still shows ratio text (measurement is primary for input_heavy)', () => {
+    render(
+      <EfficiencySignalCallout
+        signal={{
+          kind: 'input_heavy',
+          headline: 'Input-heavy',
+          explanation: 'Cost driven by input.',
+          inputOutputRatio: 8,
+        }}
+      />,
+    );
+    expect(screen.getByText(/prompts send roughly 8×/)).toBeInTheDocument();
+    // input_heavy DOES show ratio — only output_heavy is banned
   });
 });

@@ -77,10 +77,10 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={validData} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
+        <BarChart data={validData} margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="bucket" />
-          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft', dx: -5 }} />
+          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft', dx: -20, style: { textAnchor: 'middle' } }} />
           <Tooltip
             formatter={(value) => {
               if (typeof value === 'number') {
