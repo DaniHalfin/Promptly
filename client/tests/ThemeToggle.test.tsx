@@ -72,21 +72,25 @@ describe('FIX-9 / W5: ThemeToggle aria-label describes current state (not next a
     expect(btn).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('FIX-9 regression ban: aria-label must NOT contain "Switch to" (action-first pattern banned)', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(resolve(__dirname, '../src/components/ThemeToggle.tsx'), 'utf-8');
-    expect(src).not.toContain('Switch to light mode');
-    expect(src).not.toContain('Switch to dark mode');
+  it('FIX-9 regression ban: aria-label must NOT contain "Switch to" — LS-7 behavioral', () => {
+    // LS-7: behavioral — render and assert the DOM attribute is not "Switch to ..."
+    render(<ThemeToggle />);
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('aria-label')).not.toMatch(/Switch to/i);
+    // After clicking (light mode), label still must not be "Switch to ..."
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-label')).not.toMatch(/Switch to/i);
   });
 
-  it('ISSUE-C regression ban: aria-label must never be "Light mode" (dynamic label banned)', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(resolve(__dirname, '../src/components/ThemeToggle.tsx'), 'utf-8');
-    expect(src).not.toContain("'Light mode'");
-    expect(src).not.toContain('"Light mode"');
-    // Fixed label pattern must be present
-    expect(src).toContain('aria-label="Dark mode"');
+  it('ISSUE-C regression ban: aria-label is never "Light mode" — LS-7 behavioral', () => {
+    // LS-7: behavioral — fixed label "Dark mode" must be present at all times
+    render(<ThemeToggle />);
+    const btn = screen.getByRole('button');
+    // Initial state: dark mode active
+    expect(btn).toHaveAttribute('aria-label', 'Dark mode');
+    // After toggling to light mode: label must STILL be "Dark mode" (fixed label pattern)
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute('aria-label', 'Dark mode');
+    expect(btn).not.toHaveAttribute('aria-label', 'Light mode');
   });
 });

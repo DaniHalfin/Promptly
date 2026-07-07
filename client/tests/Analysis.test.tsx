@@ -244,6 +244,20 @@ describe('ISSUE-D: per-source error normalization', () => {
   it('per-source catch normalizes multi-line stack trace before pushing to sourceResults', async () => {
     // Arrange: mock analyzeSource to throw a network error
     server.use(
+      // RT-4: recommendations handler FIRST (exact path takes priority over :sourceId param match)
+      http.post('/api/analyze/recommendations', () => {
+        return HttpResponse.json({
+          ...mockReport,
+          cross_source_summary: {
+            ...mockReport.cross_source_summary,
+            allSourcesFailed: true,
+          },
+          sources: [
+            { source_id: 'openai', tier: null, connected: false, error: 'Fetch failed', metrics: null },
+          ],
+        });
+      }),
+      // Source-level failure — triggers per-source error catch in Analysis.tsx
       http.post('/api/analyze/:sourceId', () => {
         return HttpResponse.error();
       }),
@@ -276,14 +290,39 @@ describe('ISSUE-D: per-source error normalization', () => {
     const dispatchArg = dispatch.mock.calls.find(
       ([arg]: [any]) => arg.phase === 'landing' && arg.analysisErrors,
     )?.[0];
-    if (dispatchArg) {
-      for (const err of dispatchArg.analysisErrors) {
-        if (err.error) {
-          // Must be a single line, no "at " stack frames, no file paths
-          expect(err.error).not.toMatch(/\n/);
-          expect(err.error).not.toMatch(/\s+at\s+\w/);
-        }
+    // RT-4: dispatchArg must always exist when dispatch was called with analysisErrors
+    expect(dispatchArg).toBeDefined();
+    for (const err of dispatchArg.analysisErrors) {
+      if (err.error) {
+        // Must be a single line, no "at " stack frames, no file paths
+        expect(err.error).not.toMatch(/\n/);
+        expect(err.error).not.toMatch(/\s+at\s+\w/);
       }
+    }
+  });
+});
+
+describe('Analysis — CG-8: AbortController cancel flow', () => {
+  it('calls abort when Cancel button is clicked during an in-flight analysis', async () => {
+    // Keep the analysis POST open so the Cancel button stays visible.
+    server.use(
+      http.post('/api/analyze/:sourceId', () => new Promise(() => {}) as any)
+    );
+
+    const abortSpy = vi.spyOn(AbortController.prototype, 'abort');
+    try {
+      renderAnalysis({
+        openai: { status: 'connected', credential: 'sk-test' },
+      });
+
+      // CG-8: wait for the Cancel button to actually appear (analysis effect must have run)
+      const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
+      fireEvent.click(cancelBtn);
+
+      // abort() must have been called (at least once for the cancel click)
+      expect(abortSpy).toHaveBeenCalled();
+    } finally {
+      abortSpy.mockRestore();
     }
   });
 });

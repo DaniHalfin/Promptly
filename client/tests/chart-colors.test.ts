@@ -108,20 +108,26 @@ describe('PDF_EXPORT_COLOR_OVERRIDES (WP-11)', () => {
 });
 
 describe('N6 chart/border tokens and white-rgba sweep', () => {
-  it('defines chart color and border CSS variables in index.css', async () => {
+  it('defines chart color and border CSS variables in index.css — LS-2 format check', async () => {
+    // LS-2: replace exact string equality with format check (oklch format regex).
+    // The specific L/C/H values may change during design iteration — what matters
+    // is that each variable is defined and uses the oklch() format.
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const css = readFileSync(resolve(__dirname, '../src/index.css'), 'utf8');
-    expect(css).toContain('--chart-color-1: oklch(62% 0.19 270);');
-    expect(css).toContain('--chart-color-2: oklch(60% 0.20 300);');
-    expect(css).toContain('--chart-color-3: oklch(65% 0.16 240);');
-    expect(css).toContain('--chart-color-4: oklch(68% 0.17 180);');
-    expect(css).toContain('--chart-color-5: oklch(70% 0.18 150);');
+
+    // Each chart-color-N must be declared and must use oklch() format
+    for (let i = 1; i <= 5; i++) {
+      const pattern = new RegExp(`--chart-color-${i}:\\s*oklch\\(`);
+      expect(css, `--chart-color-${i} must be present and use oklch() format`).toMatch(pattern);
+    }
+
     expect(css).toContain('--color-border-subtle:');
     expect(css).toContain('--chart-tooltip-border: var(--color-border-subtle);');
   });
 
-  it('does not inline dark-mode white rgba values in client source', async () => {
+  it('does not inline dark-mode white rgba values in client source — LS-3 comment-excluding', async () => {
+    // LS-3: exclude comment lines from the rgba sweep to prevent false positives.
     const { readFileSync, readdirSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const pattern = /rgba\(255,\s*255,\s*255/;
@@ -135,7 +141,12 @@ describe('N6 chart/border tokens and white-rgba sweep', () => {
           found.push(...walk(child));
         } else if (/\.(tsx?|css)$/.test(entry.name)) {
           readFileSync(child, 'utf8').split('\n').forEach((line, i) => {
-            if (pattern.test(line)) found.push(`${child}:${i + 1}:${line.trim()}`);
+            // LS-3: skip comment lines — /* ... */ in CSS, // ... in TS/TSX
+            const trimmed = line.trimStart();
+            const isComment = trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*');
+            if (!isComment && pattern.test(line)) {
+              found.push(`${child}:${i + 1}:${line.trim()}`);
+            }
           });
         }
       }

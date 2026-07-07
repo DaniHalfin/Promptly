@@ -89,8 +89,18 @@ describe('AnalysisHeader', () => {
     expect(note?.textContent).toMatch(/All spend figures are estimates/i);
   });
 
-  it('spend-estimate disclosure is visible even without savings callout — FIX-6', () => {
-    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={0} actionableRecommendationCount={0} />);
+  it('savings callout and spend-estimate disclosure coexist in the same render — RT-5', () => {
+    // RT-5: the two FIX-6 duplicate tests had identical bodies. This replacement
+    // verifies that both the savings callout AND the disclosure note are rendered
+    // together when savings are non-zero.
+    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={5.00} actionableRecommendationCount={2} />);
+
+    // Savings callout must appear (non-zero totalPotentialSavingsUsd)
+    const callout = screen.getByTestId('potential-savings-callout');
+    expect(callout).toBeInTheDocument();
+    expect(callout.textContent).toMatch(/\$5\.00/);
+
+    // Disclosure note must still appear alongside the callout
     const note = document.querySelector('[role="note"]');
     expect(note).not.toBeNull();
     expect(note?.textContent).toMatch(/All spend figures are estimates/i);

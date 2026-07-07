@@ -77,3 +77,26 @@ describe('WP-10: Landing page — axe accessibility scan', () => {
     expect(results).toHaveNoViolations();
   });
 });
+
+describe('WP-10: axe incomplete results contain only contrast rules — LS-8', () => {
+  it('any incomplete results are only color-contrast checks (not structural violations)', async () => {
+    // LS-8: jsdom cannot resolve CSS custom properties, so color-contrast rules appear
+    // as "incomplete" (needs-review) rather than violations. This test guards against
+    // any non-contrast rule appearing in the incomplete set — which would indicate a
+    // new structural accessibility issue that was masked.
+    const container = renderLanding();
+    const results = await axe(container);
+
+    // No violations allowed
+    expect(results).toHaveNoViolations();
+
+    // Filter out contrast-related incomplete items
+    const nonContrastIncomplete = (results.incomplete ?? []).filter(
+      (item) => !item.id.includes('color-contrast')
+    );
+
+    // Any remaining incomplete items must not be structural ARIA/landmark issues
+    // (If this fails, there is a new accessibility issue that needs fixing in source.)
+    expect(nonContrastIncomplete).toHaveLength(0);
+  });
+});

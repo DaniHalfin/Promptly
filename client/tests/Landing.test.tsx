@@ -160,28 +160,32 @@ describe('Landing — A2 MoM nudge & validation', () => {
     expect(err).toBe('End date cannot be in the future.');
   });
 
-  it('surfaces an inline error and does not dispatch when custom range is incomplete', async () => {
-    // Genuine Landing gate: switching to Custom then clearing to a single-ended
-    // range makes effectiveDateRange incomplete; Run Analysis must block + warn.
-    const { dispatch } = renderLanding();
-    fireEvent.click(screen.getByTestId('period-preset-custom'));
-    const enabledDays = Array.from(
-      document.querySelectorAll('.rdp-day:not(.rdp-day_disabled)')
-    ) as HTMLElement[];
-    // Two clicks on the same day → range collapses to a single endpoint (no end).
-    fireEvent.click(enabledDays[3]);
-    fireEvent.click(enabledDays[3]);
-    const summary = screen.getByTestId('period-summary').textContent ?? '';
-    const complete = /\d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}/.test(summary);
-    fireEvent.click(screen.getByRole('button', { name: /Run Analysis/i }));
-    if (complete) {
-      // Selection happened to complete a valid range → dispatch is allowed.
-      expect(dispatch).toHaveBeenCalledTimes(1);
-    } else {
-      expect(screen.getByTestId('date-range-error')).toBeInTheDocument();
+  it('surfaces an inline error and does not dispatch when validateDateRange returns an error', async () => {
+    // Import the module namespace so vi.spyOn can intercept the call that
+    // Landing.tsx makes to validateDateRange(effectiveDateRange).
+    // (Landing.tsx imports validateDateRange from the same module, so the spy
+    //  intercepts via the live ESM binding in Vitest's module registry.)
+    const dateRangeModule = await import('../src/lib/dateRange.js');
+    const validateSpy = vi.spyOn(dateRangeModule, 'validateDateRange')
+      .mockReturnValue('Select both a start and end date.');
+
+    try {
+      const { dispatch } = renderLanding();
+
+      // Clicking Run Analysis triggers handleAnalyze → validateDateRange(effectiveDateRange)
+      // → spy returns the error string → setDateError fires → return (no dispatch)
+      fireEvent.click(screen.getByRole('button', { name: /Run Analysis/i }));
+
+      // The inline error element must appear with the mocked error text
+      const errorEl = screen.getByTestId('date-range-error');
+      expect(errorEl).toBeInTheDocument();
+      expect(errorEl).toHaveTextContent('Select both a start and end date.');
+
+      // dispatch must NOT have been called — the range guard must have fired
       expect(dispatch).not.toHaveBeenCalled();
+    } finally {
+      validateSpy.mockRestore();
     }
-    await waitFor(() => expect(validateMock).toHaveBeenCalled());
   });
 
   it('blocks analysis + inline error when custom start is after end', () => {
@@ -360,12 +364,47 @@ describe('B-RUNTIME-01: dynamic footer padding', () => {
     expect(screen.getByTestId('landing-action-footer')).toBeInTheDocument();
   });
 
-  it('source-list div has a paddingBottom style (ResizeObserver mock keeps initial value)', () => {
-    renderLanding({});
-    const sourceList = screen.getByTestId('source-list');
-    // ResizeObserver mock in setup.ts is a no-op, so footerHeight stays at the
-    // initial value (ACTION_FOOTER_RESERVED_HEIGHT = 220). Assert style is set.
-    expect(sourceList).toHaveStyle({ paddingBottom: '220px' });
+  it('source-list paddingBottom reflects dynamically measured footer height via ResizeObserver', () => {
+    // Replace the no-op ResizeObserver with a functional mock that captures the callback.
+    // Landing.tsx registers a ResizeObserver on footerRef and calls setFooterHeight(Math.ceil(h)).
+    let capturedCallback: ResizeObserverCallback | undefined;
+    const observeMock = vi.fn();
+    const disconnectMock = vi.fn();
+
+    // Must use a regular function (not arrow) so it can be called with `new`
+    function MockResizeObserver(this: any, cb: ResizeObserverCallback) {
+      capturedCallback = cb;
+      this.observe = observeMock;
+      this.disconnect = disconnectMock;
+      this.unobserve = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
+    try {
+      renderLanding({});
+
+      // Before callback fires: paddingBottom is the static fallback (220px).
+      const sourceList = screen.getByTestId('source-list');
+      expect(sourceList).toHaveStyle({ paddingBottom: '220px' });
+
+      // Simulate ResizeObserver firing with a new footer height of 350px.
+      // W-1: inlineSize (not inlineSizeSize) — matches the ResizeObserverSize interface.
+      act(() => {
+        if (capturedCallback) {
+          capturedCallback(
+            [{ borderBoxSize: [{ blockSize: 350, inlineSize: 0 }], contentRect: { height: 350 } } as any],
+            null as any
+          );
+        }
+      });
+
+      // After callback: paddingBottom reflects the mocked measurement.
+      expect(sourceList).toHaveStyle({ paddingBottom: '350px' });
+    } finally {
+      // W-2: always unstub even if an assertion throws, to prevent mock leak
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -385,6 +424,22 @@ describe('W4: no duplicate validation text', () => {
     renderLanding({ openai: { status: 'connected', credential: 'sk-test', validation: { status: 'none', daysAvailable: 0, daysRequested: 60 } } });
     expect(screen.getByTestId('run-disabled-reason')).toBeInTheDocument();
     expect(screen.getByTestId('run-disabled-reason').textContent).toMatch(/no.*data/i);
+  });
+
+  it('exactly one validation-spinner and zero run-disabled-reason when showValidationSpinner is true', async () => {
+    vi.useFakeTimers();
+    try {
+      validateMock.mockImplementation(() => new Promise(() => {}) as any);
+      renderLanding({ openai: { ...fullOpenAi } });
+      await act(async () => { vi.advanceTimersByTime(200); });
+
+      const spinners = document.querySelectorAll('[data-testid="validation-spinner"]');
+      expect(spinners).toHaveLength(1);
+      const reasons = document.querySelectorAll('[data-testid="run-disabled-reason"]');
+      expect(reasons).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

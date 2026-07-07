@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { transformReportForExport } from '../src/lib/exportTransform';
-import type { AnalysisReport, SourceReport, SourceMetrics, CrossSourceSummary, RecommendationResult } from '../src/types/index.js';
+import type { AnalysisReport, SourceReport, SourceMetrics, CrossSourceSummary, RecommendationResult, SpendByToolEntry } from '../src/types/index.js';
 
 /** Shared stub for the new required CrossSourceSummary fields (Phase 1 implements full logic). */
 const stubCrossSummary: CrossSourceSummary = {
@@ -231,5 +231,24 @@ describe('SpendByToolBar', () => {
     };
     expect(rec.targetCardAnchor).toBe('#anthropic-card');
     expect(rec.topSlotEligible).toBe(true);
+  });
+
+  it('LS-1: spend_by_tool entries with rank are sortable in ascending rank order', () => {
+    // LS-1: behavioral sort contract for SpendByToolEntry[] — rank 1 (highest spend) comes first.
+    const entries: SpendByToolEntry[] = [
+      { source_id: 'anthropic', display_name: 'Anthropic', rank: 2, estimated_spend_usd: 40, percentage_of_total: 33.3, tier: 'B', is_estimated: false },
+      { source_id: 'openai', display_name: 'OpenAI', rank: 1, estimated_spend_usd: 80, percentage_of_total: 66.7, tier: 'B', is_estimated: false },
+    ];
+
+    const sorted = [...entries].sort((a, b) => a.rank - b.rank);
+
+    // After ascending rank sort: rank-1 (openai, $80) is first
+    expect(sorted[0].source_id).toBe('openai');
+    expect(sorted[0].estimated_spend_usd).toBe(80);
+    // rank-2 (anthropic, $40) is second
+    expect(sorted[1].source_id).toBe('anthropic');
+    expect(sorted[1].estimated_spend_usd).toBe(40);
+    // Spend is monotonically decreasing after sort
+    expect(sorted[0].estimated_spend_usd).toBeGreaterThan(sorted[1].estimated_spend_usd);
   });
 });

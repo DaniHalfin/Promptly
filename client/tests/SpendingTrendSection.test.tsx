@@ -87,7 +87,7 @@ describe('SpendingTrendSection', () => {
     expect(screen.queryByTestId('spike-callout')).not.toBeInTheDocument();
   });
 
-  it('renders trend badge with status text', () => {
+  it('renders trend badge with status text — RT-3', () => {
     render(
       <SpendingTrendSection
         dailySpend={dailySpend}
@@ -95,8 +95,10 @@ describe('SpendingTrendSection', () => {
         spikeCallout={null}
       />
     );
-    // The trend badge should appear in the section
+    // RT-3: anchor the assertion to the actual text, not just section existence
     expect(screen.getByTestId('spending-trend-section')).toBeInTheDocument();
+    expect(screen.getByText('Spending is stable')).toBeInTheDocument();
+    expect(screen.getByText('Spending is stable').textContent).toContain('Spending is stable');
   });
 
   it('renders DailySpendLine when dailySpend has entries', () => {
@@ -182,23 +184,39 @@ describe('SpendingTrendSection', () => {
     expect(srOnly!.textContent).toMatch(/Up|Down/);
   });
 
-  it('W15: TrendBadge span has whiteSpace:nowrap — source scan', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(
-      resolve(__dirname, '../src/components/Results/SpendingTrendSection.tsx'),
-      'utf8',
+  it('W15: TrendBadge span has whiteSpace:nowrap — LS-5 behavioral', () => {
+    // Behavioral (LS-5): render a trend-available state so the badge renders, then assert style.
+    render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 10.0, observed_days: 30, required_days: 30, window_days: 30, message: '' }}
+        spikeCallout={null}
+      />
     );
-    expect(src).toContain("whiteSpace: 'nowrap'");
+    // The trend badge span uses whiteSpace: nowrap as a React inline style
+    const badge = document.querySelector('[data-testid="trend-badge"]') as HTMLElement
+      ?? document.querySelector('.trend-badge') as HTMLElement;
+    // If no testid, find by the sr-only sibling — the badge wraps both
+    // Fallback: find the span that contains the percentage text
+    const allSpans = Array.from(document.querySelectorAll('span')) as HTMLElement[];
+    const badgeSpan = allSpans.find(s => s.textContent?.includes('10.0%'));
+    expect(badgeSpan).toBeDefined();
+    expect(badgeSpan).toHaveStyle({ whiteSpace: 'nowrap' });
   });
 
-  it('W15: heading row flex container has flexWrap:wrap — source scan', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(
-      resolve(__dirname, '../src/components/Results/SpendingTrendSection.tsx'),
-      'utf8',
+  it('W15: heading row flex container has flexWrap:wrap — LS-5 behavioral', () => {
+    // Behavioral (LS-5): the div that wraps the H2 + trend badge uses flexWrap: wrap.
+    const { container } = render(
+      <SpendingTrendSection
+        dailySpend={dailySpend}
+        trend={{ status: 'available', mom_change_pct: 10.0, observed_days: 30, required_days: 30, window_days: 30, message: '' }}
+        spikeCallout={null}
+      />
     );
-    expect(src).toContain("flexWrap: 'wrap'");
+    // Find the flex row container — it's the div with flexWrap in its inline style
+    const flexDivs = Array.from(container.querySelectorAll('div')) as HTMLElement[];
+    const wrapDiv = flexDivs.find(d => d.style.flexWrap === 'wrap');
+    expect(wrapDiv).toBeDefined();
+    expect(wrapDiv).toHaveStyle({ flexWrap: 'wrap' });
   });
 });

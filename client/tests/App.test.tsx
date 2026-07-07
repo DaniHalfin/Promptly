@@ -75,13 +75,16 @@ describe('App routing', () => {
   });
 });
 
-describe('Landing phase — date picker visible', () => {
-  // We need the real Landing for this test (not the mock above).
-  // Use a separate test file to avoid module mock conflicts — this test
-  // verifies the routing shape only (that `<Landing />` is rendered).
-  it('landing phase renders Landing (not Connection)', () => {
+describe('App routing — landing phase renders only Landing — LS-9', () => {
+  // LS-9: rename the describe and make the assertion more complete — assert
+  // that ALL other pages are absent, not just connection-page.
+  it('landing phase renders Landing and no other page', () => {
     renderWithPhase('landing');
     expect(screen.getByTestId('landing-page')).toBeInTheDocument();
+    // All other pages must be absent
     expect(screen.queryByTestId('connection-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('analysis-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('results-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('error-page')).not.toBeInTheDocument();
   });
 });

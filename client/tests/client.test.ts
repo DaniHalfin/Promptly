@@ -44,6 +44,32 @@ describe('FIX-7: normalizeErrorMessage', () => {
     // Error.tsx must not directly dereference .message or .stack
     expect(errorSrc).not.toMatch(/error\.message|error\.stack/);
   });
+
+  // CG-1: edge cases for double-prefix, bare "Error:", and whitespace-only input
+  it('CG-1: strips only the outermost "Error:" prefix (does not double-strip)', () => {
+    // normalizeErrorMessage('Error: Error: something') strips the first 'Error: '
+    // and returns 'Error: something' — only one pass of prefix stripping.
+    const result = normalizeErrorMessage('Error: Error: something');
+    // First "Error: " is stripped; "Error: something" is the remainder
+    expect(result).toBe('Error: something');
+    // The original input is not returned unchanged
+    expect(result).not.toBe('Error: Error: something');
+    // Content after both prefixes is still present
+    expect(result).toContain('something');
+  });
+
+  it('CG-1: bare "Error:" alone returns safe fallback', () => {
+    // "Error:" with nothing after the colon → stripped to empty string → fallback
+    const result = normalizeErrorMessage('Error:');
+    // The source code fallback for an empty string after prefix strip is 'An unexpected error occurred.'
+    expect(result).toMatch(/An (unknown|unexpected) error occurred\./);
+  });
+
+  it('CG-1: whitespace-only string returns safe fallback', () => {
+    // Non-empty but all-whitespace → trim() produces empty string → fallback
+    expect(normalizeErrorMessage('   ')).toMatch(/An (unknown|unexpected) error occurred\./);
+    expect(normalizeErrorMessage('\t\n')).toMatch(/An (unknown|unexpected) error occurred\./);
+  });
 });
 
 describe('apiClient.validate', () => {
@@ -99,5 +125,32 @@ describe('apiClient.validate', () => {
 
     const result = await apiClient.validate('openai', '2026-01-01', '2026-03-01');
     expect(result.availability).toBe('partial');
+  });
+});
+
+describe('apiClient.validate — network failure paths — CG-3', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('CG-3: throws a normalized error string on TypeError (network failure)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('Failed to fetch')
+    );
+
+    await expect(apiClient.validate('openai', '2026-01-01', '2026-03-01'))
+      .rejects.toThrow(/Failed to fetch|network|unknown/i);
+  });
+
+  it('CG-3: throws when server returns HTTP 500 with HTML error page', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        '<html><body>Internal Server Error</body></html>',
+        { status: 500, headers: { 'Content-Type': 'text/html' } },
+      ) as unknown as Response,
+    );
+
+    await expect(apiClient.validate('openai', '2026-01-01', '2026-03-01'))
+      .rejects.toThrow();
   });
 });

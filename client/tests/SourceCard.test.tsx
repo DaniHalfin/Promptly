@@ -54,16 +54,24 @@ describe('SourceCard', () => {
     expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
   });
 
-  it('claude_export source is intentionally disabled with no description — B1', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const source = readFileSync(
-      resolve(__dirname, '../src/components/SourceCard.tsx'),
-      'utf8',
-    );
-    expect(source).toContain("disabled: true");
-    expect(source).not.toContain("Disabled MVP stub");
-    expect(source).toContain("Intentionally disabled");
+  it('claude_export source is intentionally disabled with no description — B1', () => {
+    // Behavioral: renderSourceCard('claude_export') renders the disabled UI branch.
+    // SourceCard.tsx: info.disabled=true → renders "Currently disabled" with aria-disabled.
+    renderSourceCard('claude_export');
+
+    // No setup/enable toggle
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /how to connect/i })).not.toBeInTheDocument();
+    // No validate button
+    expect(screen.queryByRole('button', { name: /validate/i })).not.toBeInTheDocument();
+    // No file upload UI
+    expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
+
+    // Disabled state is rendered with accessible attribute and user-visible copy
+    const disabledDiv = document.querySelector('[aria-disabled="true"]');
+    expect(disabledDiv).not.toBeNull();
+    expect(disabledDiv?.textContent).toContain('Currently disabled');
+    expect(disabledDiv?.textContent).toContain('Claude export upload is not available in this MVP');
   });
 
   it('shows validated indicator for connected status — WP-13 badge copy', () => {
@@ -669,10 +677,140 @@ describe('ISSUE-E: validation state shows exactly 2 indicators (badge + footer),
     expect(validatingParas).toHaveLength(0);
   });
 
-  it('local source aria-busy is true during validation (screen reader coverage maintained)', () => {
+  it('local source aria-busy is true during validation (screen reader coverage maintained)', async () => {
+    // Hold the validate POST open so validating=true persists for the assertion.
+    server.use(
+      http.post('/api/sources/claude_code/validate', () =>
+        new Promise(() => {}) as any // never resolves
+      )
+    );
+
     const { container } = renderSourceCard('claude_code', { enabled: false });
-    // The role="status" div must exist
+
+    // Before toggling: aria-busy must be false (idle)
     const statusDiv = container.querySelector('[role="status"]');
     expect(statusDiv).not.toBeNull();
+    expect(statusDiv).toHaveAttribute('aria-busy', 'false');
+
+    // Toggle on — triggers handleLocalToggle → setValidating(true) synchronously
+    fireEvent.click(screen.getByRole('switch', { name: /enable local claude code analysis/i }));
+
+    // While the deferred fetch is in-flight, aria-busy must be true
+    await waitFor(() => {
+      expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    });
+  });
+});
+
+describe('SourceCard file drop edge cases — FIX-10', () => {
+  it('dropping two files simultaneously only processes the first file', () => {
+    const { updateSource } = renderSourceCard('chatgpt_export');
+    // W-5: use named role selector matching aria-label on the drop zone div
+    // SourceCard.tsx line 382: aria-label="Click or drag a .json or .jsonl file here"
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    const file1 = new File(['{"conversations":[]}'], 'export1.json', { type: 'application/json' });
+    const file2 = new File(['{"conversations":[]}'], 'export2.json', { type: 'application/json' });
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [file1, file2] },
+    });
+
+    // Drop handler reads only files[0] — only one updateSource call for file1
+    expect(updateSource).toHaveBeenCalledTimes(1);
+    const [, update] = updateSource.mock.calls[0];
+    expect((update as any).file?.name).toBe('export1.json');
+  });
+
+  it('rejects a file with .jsonl extension but spoofed text/html MIME type', () => {
+    renderSourceCard('chatgpt_export');
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    // Valid extension, invalid MIME — isAcceptedFile returns false
+    const spoofed = new File(['[]'], 'export.jsonl', { type: 'text/html' });
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [spoofed] } });
+
+    expect(screen.getByTestId('chatgpt_export-file-type-error')).toBeInTheDocument();
+    expect(screen.getByTestId('chatgpt_export-file-type-error').textContent)
+      .toMatch(/only .json and .jsonl files/i);
+  });
+
+  it('accepts a zero-byte .json file — size is not a rejection criterion', () => {
+    const { updateSource } = renderSourceCard('chatgpt_export');
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    const empty = new File([], 'empty.json', { type: 'application/json' });
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [empty] } });
+
+    // isAcceptedFile: hasValidExt=true, hasValidMime=true → accepted
+    expect(screen.queryByTestId('chatgpt_export-file-type-error')).not.toBeInTheDocument();
+    expect(updateSource).toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: empty, status: 'ready' }));
+  });
+});
+
+describe('B-ARIA-01: aria-live region state transitions', () => {
+  it('aria-live="polite" region persists across all validation state transitions', () => {
+    const { rerender } = renderSourceCard('openai', { validation: { status: 'validating' } });
+    // Pending: live region exists
+    let liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to validating
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'pending', validation: { status: 'validating' } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to connected (full validation)
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'connected', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to error
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'error', validation: { status: 'error' } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+  });
+});
+
+describe('ISSUE-E: validation indicator exact count', () => {
+  it('validating state shows exactly one source-validation-badge in the card', () => {
+    const { container } = renderSourceCard('openai', {
+      validation: { status: 'validating' },
+    });
+    const badges = container.querySelectorAll('[data-testid="source-validation-badge"]');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveAttribute('data-validation-status', 'validating');
   });
 });

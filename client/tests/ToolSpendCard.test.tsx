@@ -335,3 +335,34 @@ describe('ToolSpendCard recommendation anchors', () => {
     expect(document.getElementById('rec-openai-R1-0')).not.toBeInTheDocument();
   });
 });
+
+describe('CG-5: EfficiencySignalCallout output_heavy — R3 boundary', () => {
+  it('R3 boundary: output_heavy signal does NOT trigger R3 suppression logic', () => {
+    // output_heavy is never suppressed by R3 (R3 only overlaps with input_heavy).
+    // Even when recs includes R3, the callout for output_heavy must be rendered.
+    const outputHeavySource = makeSource('openai', 'B', {
+      totalActualSpendUsd: 50,
+      efficiencySignal: {
+        kind: 'output_heavy' as const,
+        headline: 'Output-heavy usage',
+        explanation: "You're generating a lot — typical for coding or writing workflows.",
+        inputOutputRatio: 0.4,
+      },
+    });
+    const r3Rec: RecommendationResult = {
+      id: 'R3' as any,
+      title: 'Your prompts may be longer than needed',
+      body: 'Prompts send more tokens than expected.',
+      severity: 'Medium',
+      triggeringMetric: 'aggregateInputOutputRatio',
+      triggeringValue: '15',
+      sourceIds: ['openai' as any],
+    };
+
+    render(<ToolSpendCard source={outputHeavySource} recommendations={[r3Rec]} />);
+
+    // Callout must appear — output_heavy is not R3-suppressed
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText('Output-heavy usage')).toBeInTheDocument();
+  });
+});

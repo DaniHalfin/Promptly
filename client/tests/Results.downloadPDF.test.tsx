@@ -163,4 +163,23 @@ describe('Results - downloadPDF', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('shows an alert and does NOT call pdf.save() when html2canvas rejects (CG-7)', async () => {
+    // CG-7: rejection path — html2canvas throws (e.g., network/render error)
+    mockHtml2canvas.mockRejectedValueOnce(new Error('canvas render failed'));
+
+    const alertSpy: MockInstance = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<Results />);
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledOnce();
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith('Failed to generate PDF. Please try again.');
+    expect(mockSave).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
 });

@@ -279,12 +279,60 @@ describe('Results — ADR-9 narrative layout', () => {
 });
 
 describe('FIX-2: Results h1 center alignment', () => {
-  it('Results h1 eyebrow is center-aligned to match AnalysisHeader', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(resolve(__dirname, '../src/pages/Results.tsx'), 'utf8');
-    const h1Start = src.indexOf('id="results-heading"');
-    const h1Block = src.slice(h1Start, src.indexOf('>', h1Start + 400));
-    expect(h1Block).toContain("textAlign: 'center'");
+  it('Results h1 eyebrow is center-aligned to match AnalysisHeader — LS-6', () => {
+    // Behavioral (LS-6): render the component and assert the computed style.
+    render(<Results />);
+    const h1 = document.getElementById('results-heading') as HTMLElement;
+    expect(h1).not.toBeNull();
+    // React inline style → jsdom reflects via element.style
+    expect(h1).toHaveStyle({ textAlign: 'center' });
+  });
+});
+
+describe('Results — empty sources edge case — CG-9', () => {
+  it('does not crash when report.sources is an empty array', () => {
+    vi.mocked(useSession).mockReturnValueOnce({
+      state: {
+        report: {
+          ...mockReport,
+          sources: [],
+          cross_source_summary: {
+            ...mockReport.cross_source_summary,
+            spend_by_tool: [],
+          },
+        },
+      },
+      dispatch: vi.fn(),
+    } as any);
+
+    // Must not throw — renders without ToolSpendCards
+    expect(() => render(<Results />)).not.toThrow();
+    // No tool spend cards
+    expect(document.querySelectorAll('[data-testid^="tool-spend-card-"]').length).toBe(0);
+  });
+});
+
+describe('Results ADR-9 — behavioral contracts — LS-1', () => {
+  it('renders ToolSpendCards in spend rank order (rank 1 before rank 2)', () => {
+    // mockReport has openai rank=1, anthropic rank=2
+    render(<Results />);
+    const cards = document.querySelectorAll('[data-testid^="tool-spend-card-"]');
+    expect(cards.length).toBe(2);
+    expect(cards[0].getAttribute('data-testid')).toBe('tool-spend-card-openai');
+    expect(cards[1].getAttribute('data-testid')).toBe('tool-spend-card-anthropic');
+  });
+
+  it('passes spend_by_tool rank-1 entry as spendEntry to the first ToolSpendCard', () => {
+    render(<Results />);
+    // Rank-1 = openai (spend_by_tool[0]) → card rendered first
+    const openaiCard = document.querySelector('[data-testid="tool-spend-card-openai"]');
+    expect(openaiCard).toBeInTheDocument();
+    // Rank-2 = anthropic card
+    const anthropicCard = document.querySelector('[data-testid="tool-spend-card-anthropic"]');
+    expect(anthropicCard).toBeInTheDocument();
+    // Order in DOM: openai before anthropic
+    const cards = Array.from(document.querySelectorAll('[data-testid^="tool-spend-card-"]'));
+    expect(cards[0]).toBe(openaiCard);
+    expect(cards[1]).toBe(anthropicCard);
   });
 });

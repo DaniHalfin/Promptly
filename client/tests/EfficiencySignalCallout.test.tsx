@@ -41,6 +41,7 @@ describe('EfficiencySignalCallout', () => {
   });
 
   it('does not render a special callout for balanced usage', () => {
+    // CG-5: balanced signal renders null — container must be empty
     const { container } = render(
       <EfficiencySignalCallout
         signal={{
@@ -52,29 +53,40 @@ describe('EfficiencySignalCallout', () => {
       />,
     );
 
-    expect(container).toBeEmptyDOMElement();
+    // Component returns null for balanced → DOM should be empty
+    expect(container.firstChild).toBeNull();
   });
 });
 
 describe('FIX-5: note/recommendation separation', () => {
-  it('note copy does not contain "See the recommendation" (redundancy banned)', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(
-      resolve(__dirname, '../src/components/Results/EfficiencySignalCallout.tsx'),
-      'utf-8'
+  it('input_heavy callout note text does not contain "See the recommendation"', () => {
+    // LS-10: behavioral — render the component and assert rendered output, not source text
+    const { container } = render(
+      <EfficiencySignalCallout
+        signal={{
+          kind: 'input_heavy',
+          headline: 'Input-heavy usage',
+          explanation: 'Cost driven by input.',
+          inputOutputRatio: 8,
+        }}
+      />,
     );
-    expect(src).not.toContain('See the recommendation');
+    expect(container.textContent).not.toContain('See the recommendation');
   });
 
-  it('note copy does not contain directional "below" spatial reference', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const src = readFileSync(
-      resolve(__dirname, '../src/components/Results/EfficiencySignalCallout.tsx'),
-      'utf-8'
+  it('input_heavy callout note text does not contain directional "below" spatial reference', () => {
+    // LS-10: behavioral — no spatial "below" reference in rendered content
+    const { container } = render(
+      <EfficiencySignalCallout
+        signal={{
+          kind: 'input_heavy',
+          headline: 'Input-heavy usage',
+          explanation: 'Cost driven by input.',
+          inputOutputRatio: 8,
+        }}
+      />,
     );
-    expect(src).not.toMatch(/['"][^'"]*\bbelow\b[^'"]*['"]/i);
+    expect(container.textContent).not.toMatch(/\bbelow\b/i);
   });
 });
 
