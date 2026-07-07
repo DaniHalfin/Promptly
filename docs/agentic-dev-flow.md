@@ -160,10 +160,10 @@ After the full suite runs, diagnoses any failures and applies targeted fixes.
 
 | Suite | Location | Tests | Framework |
 |---|---|---|---|
-| Server unit tests | `server/tests/` | 44 | Vitest |
-| Client component tests | `client/tests/` | 20 | Vitest + React Testing Library |
-| End-to-end tests | `e2e/` | 14 | Playwright (mocked) |
-| **Total** | | **78** | |
+| Server unit tests | `server/tests/` | 244 | Vitest |
+| Client component tests | `client/tests/` | 442 | Vitest + React Testing Library |
+| End-to-end tests | `e2e/` | 15 | Playwright (mocked) |
+| **Total** | | **701** | |
 
 ### Loop
 
@@ -173,7 +173,7 @@ tests written → full suite runs → failures diagnosed → fixes applied → r
 
 ### Output
 
-78 passing tests. `npm test` runs the full suite from the repo root. No credentials needed.
+701 passing tests. `npm test` runs the full suite from the repo root. No credentials needed.
 
 ---
 

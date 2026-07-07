@@ -33,20 +33,6 @@ npm run dev
 
 Open <http://localhost:5173>.
 
-## Running Tests
-
-All test suites run locally and require no credentials.
-
-```bash
-npm --workspace server run test
-npm --workspace client run test
-npx playwright test
-```
-
-- **Server unit tests:** 244 tests
-- **Client component tests:** 442 tests
-- **End-to-end tests:** 15 tests
-
 ## Project Structure
 
 ```text
@@ -78,6 +64,20 @@ promptly/
 5. Open a PR with a clear summary, testing notes, and any relevant screenshots.
 
 All 701 tests (686 unit + 15 end-to-end) must pass before review or merge.
+
+## Running Tests
+
+All test suites run locally and require no credentials.
+
+```bash
+npm --workspace server run test
+npm --workspace client run test
+npx playwright test
+```
+
+- **Server unit tests:** 244 tests
+- **Client component tests:** 442 tests
+- **End-to-end tests:** 15 tests
 
 ## Docs
 
