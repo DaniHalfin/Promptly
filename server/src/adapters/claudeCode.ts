@@ -168,6 +168,41 @@ async function parseSessionFile(filePath: string) {
   };
 }
 
+/**
+ * Count the distinct calendar days (UTC date prefix of each record timestamp)
+ * that contain at least one valid Claude Code session record under `base`.
+ *
+ * Used by validate() to report `daysAvailable` (data coverage). Mirrors the
+ * date bucketing in parseSessionFile() but only collects distinct dates, so a
+ * connected-but-empty projects dir yields 0 → route maps to 'none'.
+ */
+async function countAvailableDays(base: string): Promise<number> {
+  const files = await collectJsonlFiles(base);
+  const days = new Set<string>();
+
+  for (const file of files.slice(0, MAX_SESSION_FILES)) {
+    const stream = createReadStream(file.path, { encoding: 'utf-8' });
+    const lines = createInterface({ input: stream, crlfDelay: Infinity });
+    for await (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+      const record = asRecord(parsed);
+      if (!record) continue;
+      const timestamp = validTimestamp(record.timestamp);
+      if (!timestamp) continue;
+      days.add(dateFromTimestamp(timestamp));
+    }
+  }
+
+  return days.size;
+}
+
 const claudeCodeAdapter: SourceAdapter = {
   id: SOURCE_ID,
 
@@ -186,7 +221,9 @@ const claudeCodeAdapter: SourceAdapter = {
         },
       };
     }
-    return { valid: true, error: null };
+    // Report actual coverage: number of distinct days with session records.
+    const daysAvailable = await countAvailableDays(base);
+    return { valid: true, error: null, daysAvailable };
   },
 
   async run(ctx: AdapterContext): Promise<AdapterResult> {

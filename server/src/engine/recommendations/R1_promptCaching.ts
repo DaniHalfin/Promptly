@@ -4,10 +4,16 @@ import type { Rule, RuleContext } from './index.js';
 const MIN_INPUT_TOKENS = 100_000;
 const LOW_CACHE_FRACTION = 0.1;
 
+/** Guard: R1 only fires when at least one Tier B source has data. */
+function hasTierBSource(ctx: RuleContext): boolean {
+  return ctx.sources.some(s => s.tier === 'B');
+}
+
 export const R1: Rule = {
   id: 'R1',
   severity: 'Medium',
   evaluate(ctx: RuleContext): RecommendationResult[] {
+    if (!hasTierBSource(ctx)) return [];
     const cards: RecommendationResult[] = [];
 
     const anthropic = ctx.sources.find(source => source.sourceId === 'anthropic');
@@ -66,8 +72,8 @@ function buildR1Card(
 ): RecommendationResult {
   const totalInputTokens =
     sourceId === 'anthropic' ? metrics.totalInputTokensAnthropic ?? 0 : metrics.totalInputTokensClaudeCode ?? 0;
-  const savings =
-    sourceId === 'anthropic' ? metrics.cachedTokenSavingsUsdAnthropic : metrics.cachedTokenSavingsUsdClaudeCode;
+  const savings = metrics.projectedR1SavingsUsd;
+  const hasSavings = savings != null && savings > 0;
 
   return {
     id: 'R1',
@@ -80,5 +86,12 @@ function buildR1Card(
     triggeringValue,
     estimatedSavingsUsd: savings,
     sourceIds: [sourceId],
+    compactHeadline: 'Enable prompt caching',
+    triggerSummary: `${Math.round(totalInputTokens).toLocaleString()} input tokens with low cache reuse`,
+    topSlotEligible: hasSavings,
+    targetSourceId: sourceId,
+    targetCardAnchor: `#tool-card-${sourceId}`,
+    targetRecommendationAnchor: `#rec-${sourceId}-R1`,
+    ...(hasSavings ? { savingsLabel: `Save $${savings.toFixed(2)}` } : {}),
   };
 }

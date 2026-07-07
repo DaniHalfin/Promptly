@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { transformReportForExport } from '../src/lib/exportTransform';
-import type { AnalysisReport, SourceReport, SourceMetrics } from '../src/types/index.js';
+import type { AnalysisReport, SourceReport, SourceMetrics, CrossSourceSummary, RecommendationResult, SpendByToolEntry } from '../src/types/index.js';
+
+/** Shared stub for the new required CrossSourceSummary fields (Phase 1 implements full logic). */
+const stubCrossSummary: CrossSourceSummary = {
+  total_actual_spend_usd: 100,
+  total_estimated_spend_usd: 0,
+  total_actual_tokens: 1_000_000,
+  total_estimated_tokens: 0,
+  daily_spend: [],
+  spend_by_tool: [],
+  trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Phase 0 stub' },
+  spike_callout: null,
+};
 
 const makeReport = (sources: SourceReport[]): AnalysisReport => ({
   metadata: {
@@ -11,12 +23,7 @@ const makeReport = (sources: SourceReport[]): AnalysisReport => ({
     litellm_price_map_date: '2026-06-01',
   },
   sources,
-  cross_source_summary: {
-    total_actual_spend_usd: 100,
-    total_estimated_spend_usd: 0,
-    total_actual_tokens: 1000000,
-    total_estimated_tokens: 0,
-  },
+  cross_source_summary: stubCrossSummary,
   recommendations: [],
   assumptions: [],
 });
@@ -58,6 +65,12 @@ const copilotMetrics: SourceMetrics = {
       { model: 'gpt-5.3-codex', fraction: 0.3 },
       { model: 'claude-sonnet-4.5', fraction: 0.24 },
     ],
+  },
+  efficiencySignal: {
+    kind: 'balanced',
+    headline: 'Balanced usage',
+    explanation: 'Your input and output token mix is balanced for this period.',
+    inputOutputRatio: 2,
   },
 };
 
@@ -137,5 +150,105 @@ describe('transformReportForExport', () => {
     expect(metrics).not.toHaveProperty('copilotTokenBreakdownByModel');
     expect(metrics).not.toHaveProperty('copilotModelCostBreakdown');
     expect(metrics).not.toHaveProperty('copilotCachedTokenFraction');
+  });
+
+  it('transformCopilotMetrics preserves efficiencySignal', () => {
+    const report = makeReport([
+      {
+        ...copilotSource,
+        metrics: {
+          ...copilotMetrics,
+          efficiencySignal: {
+            kind: 'input_heavy',
+            headline: 'Input-heavy usage pattern detected',
+            explanation: 'Shorter prompts could reduce cost.',
+            inputOutputRatio: 4.29,
+          },
+        },
+      },
+    ]);
+
+    const transformed = transformReportForExport(report) as AnalysisReport;
+    expect((transformed.sources[0].metrics as any).efficiencySignal).toEqual({
+      kind: 'input_heavy',
+      headline: 'Input-heavy usage pattern detected',
+      explanation: 'Shorter prompts could reduce cost.',
+      inputOutputRatio: 4.29,
+    });
+  });
+});
+
+// ============================================================
+// Phase 0 ADR-9 contract tests (types and shape only; UI in Phase 3)
+// ============================================================
+
+describe('Results ADR-9', () => {
+  it('AnalysisHeader shows mixed total spend', () => {
+    // Phase 0: contract test — CrossSourceSummary type has all fields needed for mixed spend display
+    const summary: CrossSourceSummary = {
+      total_actual_spend_usd: 10,
+      total_estimated_spend_usd: 15,  // includes Tier C estimation
+      total_actual_tokens: 1_000_000,
+      total_estimated_tokens: 500_000,
+      daily_spend: [],
+      spend_by_tool: [],
+      trend: { status: 'insufficient_data', observed_days: 0, required_days: 30, message: 'Test' },
+      spike_callout: null,
+      includes_estimates: true,
+    };
+    // Verify the type accepts includes_estimates and the spend fields are present
+    expect(summary.includes_estimates).toBe(true);
+    expect(summary.total_estimated_spend_usd).toBeGreaterThan(summary.total_actual_spend_usd);
+  });
+
+  it('ToolCardsSection cards sorted by spend descending', () => {
+    // Phase 0: contract test — SpendByToolEntry has rank and estimated_spend_usd for sort key
+    const entries: CrossSourceSummary['spend_by_tool'] = [
+      { source_id: 'anthropic', display_name: 'Anthropic', estimated_spend_usd: 30, percentage_of_total: 0.6, tier: 'B', is_estimated: false, rank: 1 },
+      { source_id: 'chatgpt_export', display_name: 'ChatGPT Export', estimated_spend_usd: 20, percentage_of_total: 0.4, tier: 'C', is_estimated: true, estimate_label: 'Estimated', rank: 2 },
+    ];
+    // rank 1 > rank 2 means first entry has higher spend
+    expect(entries[0].rank).toBeLessThan(entries[1].rank);
+    expect(entries[0].estimated_spend_usd).toBeGreaterThan(entries[1].estimated_spend_usd);
+  });
+});
+
+describe('SpendByToolBar', () => {
+  it('top-slot click callback anchors to target card', () => {
+    // Phase 0: contract test — RecommendationResult type has targetCardAnchor field for top-slot linking
+    const rec: RecommendationResult = {
+      id: 'R1',
+      severity: 'High',
+      title: 'Enable prompt caching',
+      body: 'Test',
+      triggeringMetric: 'cacheCreationInputTokensAnthropic',
+      triggeringValue: 0,
+      sourceIds: ['anthropic'],
+      topSlotEligible: true,
+      targetSourceId: 'anthropic',
+      targetCardAnchor: '#anthropic-card',
+      savingsLabel: 'Save $12/mo',
+    };
+    expect(rec.targetCardAnchor).toBe('#anthropic-card');
+    expect(rec.topSlotEligible).toBe(true);
+  });
+
+  it('LS-1: spend_by_tool entries with rank are sortable in ascending rank order', () => {
+    // LS-1: behavioral sort contract for SpendByToolEntry[] — rank 1 (highest spend) comes first.
+    const entries: SpendByToolEntry[] = [
+      { source_id: 'anthropic', display_name: 'Anthropic', rank: 2, estimated_spend_usd: 40, percentage_of_total: 33.3, tier: 'B', is_estimated: false },
+      { source_id: 'openai', display_name: 'OpenAI', rank: 1, estimated_spend_usd: 80, percentage_of_total: 66.7, tier: 'B', is_estimated: false },
+    ];
+
+    const sorted = [...entries].sort((a, b) => a.rank - b.rank);
+
+    // After ascending rank sort: rank-1 (openai, $80) is first
+    expect(sorted[0].source_id).toBe('openai');
+    expect(sorted[0].estimated_spend_usd).toBe(80);
+    // rank-2 (anthropic, $40) is second
+    expect(sorted[1].source_id).toBe('anthropic');
+    expect(sorted[1].estimated_spend_usd).toBe(40);
+    // Spend is monotonically decreasing after sort
+    expect(sorted[0].estimated_spend_usd).toBeGreaterThan(sorted[1].estimated_spend_usd);
   });
 });

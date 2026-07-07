@@ -21,17 +21,41 @@ type LocalSourceState = {
   error?: string | null;
 };
 
+export type SourceValidationStatus = 'idle' | 'validating' | 'full' | 'partial' | 'none' | 'error';
+
+export interface SourceValidationState {
+  status: SourceValidationStatus;
+  daysAvailable?: number;
+  daysRequested?: number;
+  message?: string;
+  validatedRange?: { start: string; end: string };
+  excluded?: boolean;
+}
+
 type SourceState = (ApiSourceState | FileSourceState | LocalSourceState) & {
   credential?: string;
   file?: File;
   enabled?: boolean;
+  validation?: SourceValidationState;
 };
 
+export interface PendingAnalysis {
+  config: { sources: SourceConfig[] };
+}
+
+export interface LandingSourceError {
+  sourceId: SourceId;
+  error?: string | null;
+  warnings?: string[];
+}
+
 interface SessionState {
-  phase?: 'landing' | 'connection' | 'analyzing' | 'results' | 'error';
+  phase?: 'landing' | 'analyzing' | 'results' | 'error';
   sources: Partial<Record<SourceId, SourceState>>;
   report?: AnalysisReport;
   analysisError?: string;
+  analysisErrors?: LandingSourceError[];
+  pendingAnalysis?: PendingAnalysis;
 }
 
 interface SessionContextType {

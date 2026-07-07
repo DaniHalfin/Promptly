@@ -106,3 +106,53 @@ describe('PDF_EXPORT_COLOR_OVERRIDES (WP-11)', () => {
     }
   });
 });
+
+describe('N6 chart/border tokens and white-rgba sweep', () => {
+  it('defines chart color and border CSS variables in index.css — LS-2 format check', async () => {
+    // LS-2: replace exact string equality with format check (oklch format regex).
+    // The specific L/C/H values may change during design iteration — what matters
+    // is that each variable is defined and uses the oklch() format.
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(resolve(__dirname, '../src/index.css'), 'utf8');
+
+    // Each chart-color-N must be declared and must use oklch() format
+    for (let i = 1; i <= 5; i++) {
+      const pattern = new RegExp(`--chart-color-${i}:\\s*oklch\\(`);
+      expect(css, `--chart-color-${i} must be present and use oklch() format`).toMatch(pattern);
+    }
+
+    expect(css).toContain('--color-border-subtle:');
+    expect(css).toContain('--chart-tooltip-border: var(--color-border-subtle);');
+  });
+
+  it('does not inline dark-mode white rgba values in client source — LS-3 comment-excluding', async () => {
+    // LS-3: exclude comment lines from the rgba sweep to prevent false positives.
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const pattern = /rgba\(255,\s*255,\s*255/;
+    const srcRoot = resolve(__dirname, '../src');
+
+    const walk = (dir: string): string[] => {
+      const found: string[] = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const child = resolve(dir, entry.name);
+        if (entry.isDirectory()) {
+          found.push(...walk(child));
+        } else if (/\.(tsx?|css)$/.test(entry.name)) {
+          readFileSync(child, 'utf8').split('\n').forEach((line, i) => {
+            // LS-3: skip comment lines — /* ... */ in CSS, // ... in TS/TSX
+            const trimmed = line.trimStart();
+            const isComment = trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*');
+            if (!isComment && pattern.test(line)) {
+              found.push(`${child}:${i + 1}:${line.trim()}`);
+            }
+          });
+        }
+      }
+      return found;
+    };
+
+    expect(walk(srcRoot)).toEqual([]);
+  });
+});

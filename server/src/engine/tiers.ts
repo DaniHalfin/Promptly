@@ -14,8 +14,8 @@ export function classifyTier(data: NormalizedSourceData | null): Tier | null {
     return 'B';
   }
 
-  // Tier C: has tokens or conversation data
-  if (data.dailyTokensByModel?.length || data.conversations?.length) {
+  // Tier C: has tokens, conversation data, or canonical ChatGPT aggregates
+  if (data.dailyTokensByModel?.length || data.conversations?.length || data.chatgptAggregates) {
     return 'C';
   }
 

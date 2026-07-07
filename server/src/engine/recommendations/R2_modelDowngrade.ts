@@ -1,4 +1,5 @@
 import { lookupPrice } from '../../data/priceMap.js';
+import { getSourceDisplayName } from '../../lib/sourceNames.js';
 import { RecommendationResult, SourceMetrics } from '../../types/index.js';
 import type { Rule, RuleContext } from './index.js';
 
@@ -17,10 +18,16 @@ const COPILOT_DOWNGRADE_MAP: Array<{ pattern: RegExp; cheaper: string; rationale
   { pattern: /^claude-fable-5/i, cheaper: 'claude-sonnet-4-6', rationale: 'Significant cost reduction; Fable 5 reserved for complex multi-step tasks' },
 ];
 
+/** Guard: R2 only fires when at least one Tier B source has data. */
+function hasTierBSource(ctx: RuleContext): boolean {
+  return ctx.sources.some(s => s.tier === 'B');
+}
+
 export const R2: Rule = {
   id: 'R2',
   severity: 'High',
   evaluate(ctx: RuleContext): RecommendationResult[] {
+    if (!hasTierBSource(ctx)) return [];
     return [...evaluateTierBTokenSources(ctx), ...evaluateCopilot(ctx)];
   },
 };
@@ -44,28 +51,37 @@ function evaluateTierBTokenSources(ctx: RuleContext): RecommendationResult[] {
 
       const currentPrice = lookupPrice(ctx.priceMap, model.model);
       const cheaperPrice = lookupPrice(ctx.priceMap, downgrade.cheaper);
-      const estimatedSavingsUsd =
-        currentPrice && cheaperPrice
-          ? Math.max(
-              0,
-              model.inputTokens * currentPrice.input_cost_per_token +
-                model.outputTokens * currentPrice.output_cost_per_token -
-                (model.inputTokens * cheaperPrice.input_cost_per_token +
-                  model.outputTokens * cheaperPrice.output_cost_per_token)
-            )
-          : undefined;
+      if (!currentPrice || !cheaperPrice) continue;
+      const estimatedSavingsUsd = Math.max(
+        0,
+        model.inputTokens * currentPrice.input_cost_per_token +
+          model.outputTokens * currentPrice.output_cost_per_token -
+          (model.inputTokens * cheaperPrice.input_cost_per_token +
+            model.outputTokens * cheaperPrice.output_cost_per_token)
+      );
+      const hasSavings = estimatedSavingsUsd > 0;
+
+      const sourceName = getSourceDisplayName(source.sourceId);
+      const spendShare = (model.estimatedCostShare * 100).toFixed(1);
 
       cards.push({
         id: 'R2',
         severity: 'High',
         title: 'High-cost model used for low-output tasks',
         body:
-          `${model.model} accounts for ${(model.estimatedCostShare * 100).toFixed(1)}% of ${source.sourceId} spend ` +
-          `but generates an average of only ${Math.round(avgOutputPerDay)} output tokens per day. Consider testing ${downgrade.cheaper}.`,
+          `${model.model} drives ${spendShare}% of ${sourceName} spend, mostly for short responses. ` +
+          `Try ${downgrade.cheaper} for routine tasks and compare quality before switching broadly.`,
         triggeringMetric: 'Model cost share',
-        triggeringValue: `${(model.estimatedCostShare * 100).toFixed(1)}%`,
+        triggeringValue: `${spendShare}%`,
         estimatedSavingsUsd,
         sourceIds: [source.sourceId],
+        compactHeadline: 'Try a lighter model for routine tasks',
+        triggerSummary: `${model.model} drives ${spendShare}% of ${sourceName} spend`,
+        topSlotEligible: hasSavings,
+        targetSourceId: source.sourceId,
+        targetCardAnchor: `#tool-card-${source.sourceId}`,
+        targetRecommendationAnchor: `#rec-${source.sourceId}-R2`,
+        ...(hasSavings ? { savingsLabel: `Save $${estimatedSavingsUsd.toFixed(2)}` } : {}),
       });
     }
   }
@@ -93,6 +109,7 @@ function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
     if (avgOutputPerDay >= 500) return [];
 
     const estimatedSavingsUsd = estimateCopilotSavings(copilot, model.model, downgrade.cheaper);
+    const hasSavings = estimatedSavingsUsd != null && estimatedSavingsUsd > 0;
 
     return [{
       id: 'R2',
@@ -105,6 +122,13 @@ function evaluateCopilot(ctx: RuleContext): RecommendationResult[] {
       triggeringValue: `${(model.costShare * 100).toFixed(1)}%`,
       estimatedSavingsUsd,
       sourceIds: ['github_copilot'],
+      compactHeadline: 'Try a lighter model for routine tasks',
+      triggerSummary: `${model.model} is ${(model.costShare * 100).toFixed(1)}% of Copilot AI credit spend`,
+      topSlotEligible: hasSavings,
+      targetSourceId: 'github_copilot',
+      targetCardAnchor: '#tool-card-github_copilot',
+      targetRecommendationAnchor: '#rec-github_copilot-R2',
+      ...(hasSavings ? { savingsLabel: `Save $${estimatedSavingsUsd.toFixed(2)}` } : {}),
     } satisfies RecommendationResult];
   });
 }
@@ -125,4 +149,3 @@ function computeDataWindowDays(start?: string, end?: string): number {
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) return 1;
   return Math.max(1, Math.floor((endMs - startMs) / 86_400_000) + 1);
 }
-

@@ -81,6 +81,22 @@ export interface NormalizedSourceData {
   claudeCodePeakHourFraction?: number;
   periodStart: string;
   periodEnd: string;
+  /**
+   * ChatGPT Export canonical pre-computed aggregates (Phase 1+).
+   * Stored instead of raw conversations to preserve privacy.
+   * Never contains message text, titles, or per-message content.
+   */
+  chatgptAggregates?: {
+    total_conversations: number;
+    total_messages: number;
+    active_days: number;
+    models_identified: string[];
+    daily_conversation_activity: DailyConversationActivityEntry[];
+    estimated_token_volume: number;
+    estimated_user_tokens: number;
+    estimated_assistant_tokens: number;
+    newest_conversation_date?: string;
+  };
 }
 
 export interface TierClassification {
@@ -115,6 +131,7 @@ export interface SourceMetrics {
   dailySpend?: { date: string; spendUsd: number }[];
   modelBreakdown?: ModelBreakdownEntry[];
   aggregateInputOutputRatio?: number;
+  efficiencySignal?: EfficiencySignal;
   cachedTokenFractionAnthropic?: number;
   cachedTokenSavingsUsdAnthropic?: number;
   cachedTokenFractionClaudeCode?: number;
@@ -172,7 +189,7 @@ export interface SourceMetrics {
   copilotDailyInputTokens?: { date: string; inputTokens: number }[];
   // Per-day Σ inputTokens across all models and sessions. Used by R3 getP90DailyInputTokens().
 
-  // Tier C (file exports)
+  // Tier C (file exports) — legacy camelCase fields (temporary migration compatibility)
   estimatedTotalTokens?: number;
   conversationCount?: number;
   avgConversationLengthTokens?: number;
@@ -182,6 +199,63 @@ export interface SourceMetrics {
   assistantTokenShare?: number;
   estimatedRelativeCostUsd?: number;
   baselineModelAssumption?: string;
+
+  // Tier C canonical snake_case fields (spec v2.2 §7.19–§7.25)
+  total_conversations?: number;
+  total_messages?: number;
+  active_days?: number;
+  models_identified?: string[];
+  estimated_relative_cost_usd?: number;
+  daily_conversation_activity?: DailyConversationActivityEntry[];
+  estimated_token_volume?: number;
+  newest_conversation_date?: string;
+  // Tier C trend and spike (computed by tierC.ts from daily_conversation_activity)
+  trend?: TrendStatus;
+  spike_callout?: SpikeCallout | null;
+}
+
+export interface EfficiencySignal {
+  kind: 'input_heavy' | 'output_heavy' | 'balanced';
+  headline: string;
+  explanation: string;
+  inputOutputRatio: number;
+}
+
+// ====== Tier C (ChatGPT Export) canonical types (spec v2.2 §7.19–§7.25) ======
+
+export interface DailyConversationActivityEntry {
+  date: string;
+  conversation_count: number;
+}
+
+export type TrendStatus =
+  | { status: 'available'; mom_change_pct: number; observed_days: number; required_days: number; window_days: number; message: string }
+  | { status: 'insufficient_data'; observed_days: number; required_days: number; message: string }
+  | { status: 'no_prior_spend'; observed_days: number; required_days: number; message: string };
+
+export interface SpikeCallout {
+  date: string;
+  spend_usd?: number;
+  conversation_count?: number;
+  multiple_of_average: number;
+  message: string;
+}
+
+export interface TierCChatGptExportMetrics {
+  total_conversations: number;
+  total_messages: number;
+  active_days: number;
+  models_identified: string[];
+  estimated_relative_cost_usd: number;
+  daily_conversation_activity: DailyConversationActivityEntry[];
+  estimated_token_volume: number;
+  trend: TrendStatus;
+  spike_callout: SpikeCallout | null;
+  newest_conversation_date?: string;
+  total_spend_usd?: null;
+  cache_savings_usd?: null;
+  session_cost_usd?: null;
+  dominant_model?: null;
 }
 
 export interface SourceReport {
@@ -190,11 +264,14 @@ export interface SourceReport {
   connected: boolean;
   error: string | null;
   metrics: SourceMetrics | null;
+  warnings?: string[];
 }
 
 // ====== Recommendations ======
 
-export type RecommendationId = 'R1' | 'R2' | 'R3' | 'R4';
+export type RecommendationId =
+  | 'R1' | 'R2' | 'R3'
+  | 'RC1' | 'RC3' | 'RC4a' | 'RC4b' | 'RC5' | 'RC6';
 
 export interface RecommendationResult {
   id: RecommendationId;
@@ -206,6 +283,26 @@ export interface RecommendationResult {
   estimatedSavingsUsd?: number | null;
   supportingChartRef?: { sourceId: SourceId; chartId: string };
   sourceIds: SourceId[];
+  // Presentation metadata for progressive disclosure (ADR-9, spec §8)
+  compactHeadline?: string;
+  triggerSummary?: string;
+  topSlotEligible?: boolean;
+  targetSourceId?: SourceId;
+  targetCardAnchor?: string;
+  targetRecommendationAnchor?: string;
+  savingsLabel?: string;
+}
+
+export interface TopRecommendationEntry {
+  id: RecommendationId;
+  title: string;
+  compact_headline: string;
+  source_id: SourceId;
+  target_card_anchor: string;
+  target_recommendation_anchor?: string;
+  estimated_savings_usd: number;
+  savings_label: string;
+  severity: 'High' | 'Medium' | 'Low';
 }
 
 /** A computed §7 metric for inclusion in the report.
@@ -229,12 +326,40 @@ export interface AnalysisReportMetadata {
   litellm_price_map_date: string;
 }
 
+// ====== Cross-source summary types ======
+
+export interface DailySpendEntry {
+  date: string;
+  spend_usd: number;
+  includes_estimated_tier_c?: boolean;
+}
+
+export interface SpendByToolEntry {
+  source_id: SourceId;
+  display_name: string;
+  estimated_spend_usd: number;
+  percentage_of_total: number;
+  tier: Tier | null;
+  is_estimated: boolean;
+  estimate_label?: string;
+  rank: number;
+}
+
 export interface CrossSourceSummary {
   total_actual_spend_usd: number;
   total_estimated_spend_usd: number;
   total_actual_tokens: number;
   total_estimated_tokens: number;
+  total_potential_savings_usd: number;
+  actionable_recommendation_count: number;
+  effective_cost_per_million_tokens_usd?: number | null;
+  daily_spend: DailySpendEntry[];
+  spend_by_tool: SpendByToolEntry[];
+  trend: TrendStatus;
+  spike_callout: SpikeCallout | null;
+  includes_estimates?: boolean;
   allSourcesFailed?: boolean;
+  top_recommendations?: TopRecommendationEntry[];
 }
 
 export interface AnalysisReport {

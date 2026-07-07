@@ -121,6 +121,51 @@ export function normalizeSession(event: ShutdownEvent, sourceFile: string): Norm
   return { date, sourceFile, models, totalCost: event.data.totalPremiumRequests ?? 0 };
 }
 
+/**
+ * Count the distinct local calendar days that contain at least one valid
+ * session.shutdown event across all session subdirectories under `root`.
+ *
+ * Used by validate() to report `daysAvailable` (data coverage), which the
+ * /validate route compares against the requested window to derive availability.
+ * Malformed files/events are skipped silently — this is a coverage probe, not
+ * the metered run() path.
+ */
+async function countAvailableDays(root: string): Promise<number> {
+  const days = new Set<string>();
+
+  const rootDir = await opendir(root).catch((err: NodeJS.ErrnoException) => {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  });
+  if (rootDir === null) return 0;
+
+  for await (const entry of rootDir) {
+    if (!entry.isDirectory()) continue;
+
+    const eventsFilePath = path.join(root, entry.name, 'events.jsonl');
+    try {
+      const info = await stat(eventsFilePath);
+      if (!info.isFile()) continue;
+    } catch {
+      continue;
+    }
+
+    let events: ShutdownEvent[];
+    try {
+      events = await parseEventsFile(eventsFilePath);
+    } catch {
+      continue;
+    }
+
+    for (const event of events) {
+      if (!Number.isFinite(event.data?.sessionStartTime)) continue;
+      days.add(localDateString(event.data.sessionStartTime));
+    }
+  }
+
+  return days.size;
+}
+
 const githubCopilotAdapter: SourceAdapter = {
   id: SOURCE_ID,
 
@@ -139,7 +184,10 @@ const githubCopilotAdapter: SourceAdapter = {
         },
       };
     }
-    return { valid: true, error: null };
+    // Report actual coverage: number of distinct days with session data.
+    // A connected-but-empty session-state dir yields 0 → route maps to 'none'.
+    const daysAvailable = await countAvailableDays(root);
+    return { valid: true, error: null, daysAvailable };
   },
 
   async run(ctx: AdapterContext): Promise<AdapterResult> {

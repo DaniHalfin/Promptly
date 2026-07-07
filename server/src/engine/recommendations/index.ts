@@ -3,7 +3,12 @@ import { RecommendationResult, SourceMetrics, SourceReport } from '../../types/i
 import { R1 } from './R1_promptCaching.js';
 import { R2 } from './R2_modelDowngrade.js';
 import { R3 } from './R3_verbosity.js';
-import { R4 } from './R4_offPeak.js';
+import { RC1 } from './RC1_dataFreshness.js';
+import { RC3 } from './RC3_coverage.js';
+import { RC4a } from './RC4a_highVolume.js';
+import { RC4b } from './RC4b_lowActivity.js';
+import { RC5 } from './RC5_spike.js';
+import { RC6 } from './RC6_noModelInfo.js';
 
 export interface RuleContext {
   sources: SourceMetrics[];
@@ -17,7 +22,7 @@ export interface Rule {
   evaluate(ctx: RuleContext): RecommendationResult[];
 }
 
-const RULES: Rule[] = [R1, R2, R3, R4];
+const RULES: Rule[] = [R1, R2, R3, RC1, RC3, RC4a, RC4b, RC5, RC6];
 
 const SEVERITY_ORDER: Record<RecommendationResult['severity'], number> = {
   High: 0,

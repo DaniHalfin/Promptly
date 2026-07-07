@@ -53,6 +53,10 @@ vi.mock('react-dom/client', () => ({
 // ─── Component mocks ──────────────────────────────────────────────────────────
 vi.mock('../src/components/export/PrintLayout.js',             () => ({ PrintLayout:      () => null }));
 vi.mock('../src/components/ThemeToggle.js',                    () => ({ ThemeToggle:       () => null }));
+vi.mock('../src/components/Results/AnalysisHeader.js',         () => ({ AnalysisHeader:    () => <div data-testid="analysis-header" /> }));
+vi.mock('../src/components/Results/MoneyByToolSection.js',     () => ({ MoneyByToolSection: () => <div data-testid="money-by-tool-section" /> }));
+vi.mock('../src/components/Results/SpendingTrendSection.js',   () => ({ SpendingTrendSection: () => <div data-testid="spending-trend-section" /> }));
+vi.mock('../src/components/Results/ToolSpendCard.js',          () => ({ ToolSpendCard:     () => <div data-testid="tool-spend-card" /> }));
 vi.mock('../src/components/Results/panels/OpenAIPanel.js',     () => ({ OpenAIPanel:       () => null }));
 vi.mock('../src/components/Results/panels/AnthropicPanel.js',  () => ({ AnthropicPanel:    () => null }));
 vi.mock('../src/components/Results/panels/CopilotPanel.js',    () => ({ CopilotPanel:      () => null }));
@@ -73,6 +77,13 @@ const mockReport = {
   ],
   cross_source_summary: {
     total_actual_spend_usd: 80,
+    total_estimated_spend_usd: 0,
+    total_actual_tokens: 0,
+    total_estimated_tokens: 0,
+    daily_spend: [],
+    spend_by_tool: [],
+    trend: { status: 'insufficient_data' as const, observed_days: 0, required_days: 30, message: 'Phase 0 stub' },
+    spike_callout: null,
     allSourcesFailed: false,
   },
   recommendations: [],
@@ -137,6 +148,25 @@ describe('Results - downloadPDF', () => {
       capturedContainer = el;
       return Promise.resolve({ width: 0, height: 0, toDataURL: vi.fn() });
     });
+
+    const alertSpy: MockInstance = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<Results />);
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledOnce();
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith('Failed to generate PDF. Please try again.');
+    expect(mockSave).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('shows an alert and does NOT call pdf.save() when html2canvas rejects (CG-7)', async () => {
+    // CG-7: rejection path — html2canvas throws (e.g., network/render error)
+    mockHtml2canvas.mockRejectedValueOnce(new Error('canvas render failed'));
 
     const alertSpy: MockInstance = vi.spyOn(window, 'alert').mockImplementation(() => {});
 

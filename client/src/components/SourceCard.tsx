@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useSession } from '../context/SessionContext.js';
+import type { SourceValidationState } from '../context/SessionContext.js';
 import { SourceId } from '../types/index.js';
 import { apiClient } from '../api/client.js';
 
@@ -11,7 +12,7 @@ interface SetupInstructions {
 
 const sourceInfo: Record<
   SourceId,
-  { label: string; type: 'api' | 'file' | 'local'; description: string; disabled?: boolean; setupInstructions?: SetupInstructions; localPath?: string; localCheckMessage?: string; }
+  { label: string; type: 'api' | 'file' | 'local'; description?: string; disabled?: boolean; setupInstructions?: SetupInstructions; localPath?: string; localCheckMessage?: string; }
 > = {
   openai: {
     label: 'OpenAI',
@@ -56,7 +57,8 @@ const sourceInfo: Record<
   chatgpt_export: {
     label: 'ChatGPT Export',
     type: 'file',
-    description: 'Exported conversation JSON',
+    /* FIX-11: Product-first (not format-first) description */
+    description: 'Your ChatGPT conversation history',
     setupInstructions: {
       steps: [
         'In ChatGPT, go to Settings → Data controls → Export data',
@@ -67,17 +69,18 @@ const sourceInfo: Record<
       docsUrl: 'https://help.openai.com/en/articles/7260999-how-do-i-export-my-chatgpt-history-and-data',
     },
   },
+  // Intentionally disabled — Claude Export file upload is not yet implemented.
+  // Claude data is available via claude_code (local ~/.claude/projects path).
   claude_export: {
     label: 'Claude Export',
     type: 'file',
-    description: 'Disabled MVP stub; use Claude Code local projects instead',
     disabled: true,
   },
   claude_code: {
     label: 'Claude Code',
     type: 'local',
-    /* WP-13: Shorter copy — footer covers global privacy claim; JSONL glossed inline */
-    description: 'Local JSONL logs — no API key or upload required.',
+    /* FIX-11: Replaced "JSONL logs" with plain-language "conversation logs" */
+    description: 'Claude Code conversation logs — no API key or upload required.',
     localPath: '~/.claude/projects',
     localCheckMessage: 'Checking local Claude Code data...',
     setupInstructions: {
@@ -95,24 +98,24 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
   const source = state.sources[sourceId];
   const [validating, setValidating] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [fileTypeError, setFileTypeError] = useState<string | null>(null);
   const credInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const checkboxRef = useRef<HTMLInputElement>(null);
 
   const isConnected = source?.status === 'connected' || source?.status === 'ready';
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, button, a, label')) return;
-    if (info.disabled) return;
-    if (info.type === 'local') {
-      checkboxRef.current?.click();
-    } else if (info.type === 'api') {
-      credInputRef.current?.focus();
-    } else if (info.type === 'file') {
-      fileInputRef.current?.focus();
-    }
-  };
+  /** FIX-10: validate file type before accepting a drop or input selection. */
+  const ACCEPTED_EXTENSIONS = ['.json', '.jsonl'];
+  const ACCEPTED_MIMES = ['application/json', 'application/jsonlines', 'application/x-ndjson', 'text/plain'];
+
+  function isAcceptedFile(file: File): boolean {
+    const name = file.name.toLowerCase();
+    const hasValidExt = ACCEPTED_EXTENSIONS.some(ext => name.endsWith(ext));
+    // MIME check is secondary (some systems report text/plain for .jsonl)
+    const hasValidMime = !file.type || ACCEPTED_MIMES.some(m => file.type.startsWith(m));
+    return hasValidExt && hasValidMime;
+  }
 
   const handleCredentialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateSource(sourceId, { credential: e.target.value, status: 'pending' });
@@ -120,6 +123,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (file && !isAcceptedFile(file)) {
+      setFileTypeError('Only .json and .jsonl files are accepted. Please select a valid file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setFileTypeError(null);
     updateSource(sourceId, { file, status: file ? 'ready' : 'pending' });
   };
 
@@ -131,9 +140,17 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         apiClient.setCredential(sourceId, source.credential);
       }
       const result = await apiClient.validate(sourceId);
-      updateSource(sourceId, { status: 'connected', error: null });
+      if (!result.valid || result.availability === 'none') {
+        updateSource(sourceId, { status: 'error', error: result.errorMessage || 'No data available for this source' });
+      } else {
+        updateSource(sourceId, { status: 'connected', error: null });
+      }
     } catch (err) {
-      updateSource(sourceId, { status: 'error', error: (err as Error).message });
+      console.error('[SourceCard] validation error for', sourceId, err);
+      updateSource(sourceId, {
+        status: 'error',
+        error: "Couldn't reach the service — check your connection and try again.",
+      });
     }
     setValidating(false);
   };
@@ -148,10 +165,19 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     updateSource(sourceId, { enabled: true, status: 'pending', error: null });
     setValidating(true);
     try {
-      await apiClient.validate(sourceId);
-      updateSource(sourceId, { enabled: true, status: 'connected', error: null });
+      const result = await apiClient.validate(sourceId);
+      if (!result.valid || result.availability === 'none') {
+        updateSource(sourceId, { enabled: true, status: 'error', error: result.errorMessage || 'No data available for this source' });
+      } else {
+        updateSource(sourceId, { enabled: true, status: 'connected', error: null });
+      }
     } catch (err) {
-      updateSource(sourceId, { enabled: true, status: 'error', error: (err as Error).message });
+      console.error('[SourceCard] local-toggle error for', sourceId, err);
+      updateSource(sourceId, {
+        enabled: true,
+        status: 'error',
+        error: "Couldn't reach the service — check your connection and try again.",
+      });
     }
     setValidating(false);
   };
@@ -160,7 +186,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     ? '2px solid var(--color-accent-border)'
     : source?.status === 'error'
     ? '1px solid var(--color-critical)'
-    : '1px solid rgba(255,255,255,0.07)';
+    : '1px solid var(--color-border-subtle)';
 
   const cardBg = isConnected
     ? 'color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-surface))'
@@ -171,7 +197,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
     <div
       role="group"
       aria-labelledby={`${sourceId}-heading`}
-      onClick={handleCardClick}
       style={{
         borderRadius: 'var(--radius-lg)',
         padding: '16px 20px',
@@ -179,7 +204,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 0,
-        cursor: info.disabled ? 'default' : 'pointer',
+        cursor: 'default',
         border: cardBorder,
         background: cardBg,
         WebkitFontSmoothing: 'antialiased',
@@ -189,7 +214,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <h3 id={`${sourceId}-heading`} style={{ margin: 0, fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{info.label}</h3>
-        {(source?.status === 'connected' || source?.status === 'ready') && (
+        {/* B-ARIA-01: always render ValidationBadge so the aria-live region stays in the
+            DOM throughout the session; badge content is null for idle/no-validation. */}
+        <ValidationBadge validation={source?.validation ?? null} />
+        {/* Credential-validated badge: visible only when no data-availability check is active */}
+        {(!source?.validation || source.validation.status === 'idle') &&
+          (source?.status === 'connected' || source?.status === 'ready') && (
           /* WP-13: "Validated" is more accurate — confirms credentials, not that analysis has run */
           <span style={{
             padding: '2px 8px',
@@ -203,7 +233,9 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           }}>✓ Validated</span>
         )}
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
+      {info.description && (
+        <p style={{ margin: '0 0 12px', fontSize: 'var(--text-note)', color: 'var(--text-secondary)' }}>{info.description}</p>
+      )}
 
       {!info.disabled && info.setupInstructions && (
         <div style={{ marginBottom: 16 }}>
@@ -213,45 +245,51 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             className="disclosure-btn"
             onClick={() => setShowInstructions((v) => !v)}
             aria-expanded={showInstructions}
+            aria-controls={`${sourceId}-instructions`}
           >
-            {showInstructions ? '▴ Hide setup steps' : '▾ How to connect'}
+            {showInstructions
+              ? <><span aria-hidden="true">▴</span>{' '}Hide setup steps</>
+              : <><span aria-hidden="true">▾</span>{' '}How to connect</>
+            }
           </button>
 
-          {showInstructions && (
-            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
-                {info.setupInstructions.steps.map((step, i) => (
-                  <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
-                ))}
-              </ol>
-              {info.setupInstructions.note && (
-                <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--color-warning-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
-                  <p style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', margin: 0 }}>{info.setupInstructions.note}</p>
-                </div>
-              )}
-              {info.setupInstructions.docsUrl && (
-                <a
-                  href={info.setupInstructions.docsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'inline-block', marginTop: 8, fontSize: 'var(--text-note)', color: 'var(--color-accent-light)' }}
-                >
-                  Official docs →
-                </a>
-              )}
-            </div>
-          )}
+          <div
+            id={`${sourceId}-instructions`}
+            hidden={!showInstructions}
+            style={{ marginTop: 8, padding: '10px 14px', background: 'var(--color-bg-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}
+          >
+            <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal' }}>
+              {info.setupInstructions.steps.map((step, i) => (
+                <li key={i} style={{ fontSize: 'var(--text-note)', color: 'var(--text-secondary)', marginBottom: 4 }}>{step}</li>
+              ))}
+            </ol>
+            {info.setupInstructions.note && (
+              <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--color-warning-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-warning)' }}>
+                <p style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', margin: 0 }}>{info.setupInstructions.note}</p>
+              </div>
+            )}
+            {info.setupInstructions.docsUrl && (
+              <a
+                href={info.setupInstructions.docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: 8, fontSize: 'var(--text-note)', color: 'var(--color-accent-light)' }}
+              >
+                Official docs →
+              </a>
+            )}
+          </div>
         </div>
       )}
 
       {info.disabled ? (
-        <div style={{ borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.08)', background: 'var(--color-bg-inset)', padding: '10px 14px' }} aria-disabled="true">
+        <div style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-inset)', padding: '10px 14px' }} aria-disabled="true">
           <p style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>Currently disabled</p>
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Claude export upload is not available in this MVP.</p>
         </div>
       ) : info.type === 'api' ? (
         /* WP-6: aria-busy signals async state to AT immediately */
-        <div aria-busy={validating} aria-label={validating ? 'Validating…' : undefined}>
+        <div role="status" aria-busy={validating} aria-label={validating ? 'Validating…' : undefined}>
           <label htmlFor={`${sourceId}-credential`} style={{ display: 'block', fontSize: 'var(--text-body)', fontWeight: 500, marginBottom: 8 }}>API Key</label>
           <input
             ref={credInputRef}
@@ -277,7 +315,8 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           />
           {/* WP-3: aria-describedby on button so screen readers announce error when button is focused after a failed attempt */}
           <button
-            className="secondary w-full"
+            className="secondary"
+            style={{ width: '100%' }}
             onClick={handleValidate}
             disabled={validating || !source?.credential}
             aria-describedby={source?.error ? `${sourceId}-error` : undefined}
@@ -287,7 +326,7 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       ) : info.type === 'local' ? (
         /* WP-6: aria-busy on the local-toggle container mirrors async state for AT */
-        <div aria-busy={validating}>
+        <div role="status" aria-busy={validating}>
           <button
             role="switch"
             aria-checked={Boolean(source?.enabled)}
@@ -319,7 +358,6 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
           <p style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', margin: 0 }}>
             Scans <code>{info.localPath}</code> on this machine.
           </p>
-          {validating && <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-accent-light)', marginTop: 8 }}>{info.localCheckMessage ?? 'Checking local data...'}</p>}
         </div>
       ) : (
         <div>
@@ -330,17 +368,23 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             onDrop={(e) => {
               e.preventDefault();
               const file = e.dataTransfer.files?.[0];
-              if (file) updateSource(sourceId, { file, status: 'ready' });
+              if (!file) return;
+              if (!isAcceptedFile(file)) {
+                setFileTypeError('Only .json and .jsonl files are accepted. Please drop a valid file.');
+                return;
+              }
+              setFileTypeError(null);
+              updateSource(sourceId, { file, status: 'ready' });
             }}
             role="button"
             tabIndex={0}
-            /* WP-2: aria-label matches visible text exactly (WCAG 2.5.3 Label-in-name) */
+            /* WP-2: aria-label and visible text match exactly (WCAG 2.5.3 Label-in-name) */
             aria-label="Click or drag a .json or .jsonl file here"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           >
             <span className="upload-area-icon">📂</span>
             <span className="upload-area-label">
-              Click or drag a .json / .jsonl file here
+              Click or drag a .json or .jsonl file here
             </span>
           </div>
           <input
@@ -352,6 +396,15 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+          {fileTypeError && (
+            <p
+              role="alert"
+              data-testid={`${sourceId}-file-type-error`}
+              style={{ fontSize: 'var(--text-note)', color: 'var(--color-critical-text)', marginTop: 6, margin: '6px 0 0' }}
+            >
+              {fileTypeError}
+            </p>
+          )}
           {source?.file && (
             <div className="upload-file-selected">
               <span>✓ {source.file.name}</span>
@@ -372,16 +425,115 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
         </div>
       )}
 
+      {/* E5: Partial-data warning and no-data exclusion explanation */}
+      {source?.validation?.status === 'partial' && (
+        <p
+          data-testid={`${sourceId}-partial-warning`}
+          style={{ fontSize: 'var(--text-note)', color: 'var(--color-warning-text)', marginTop: 8 }}
+        >
+          ⚠️ Partial data · {source.validation.daysAvailable ?? 0} of {source.validation.daysRequested ?? 0} days available
+        </p>
+      )}
+      {source?.validation?.status === 'none' && (
+        <p
+          data-testid={`${sourceId}-excluded`}
+          style={{ fontSize: 'var(--text-note)', color: 'var(--text-muted)', marginTop: 8 }}
+        >
+          No data for the selected period — this source will be excluded from analysis.
+        </p>
+      )}
+
       {/* WP-3: role="alert" announces errors to AT immediately; id enables aria-describedby on related inputs */}
       {source?.error && (
         <p
           id={`${sourceId}-error`}
           role="alert"
-          style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical)', marginTop: 8 }}
+          style={{ fontSize: 'var(--text-body)', color: 'var(--color-critical-text)', marginTop: 8 }}
         >
           {source.error}
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * E5: Inline per-source validation badge driven by session validation state.
+ * Reflects date-range data availability (distinct from credential/connection status).
+ */
+function ValidationBadge({ validation }: { validation: SourceValidationState | null }) {
+  const base: React.CSSProperties = {
+    padding: '2px 8px',
+    fontSize: 'var(--text-note)',
+    fontWeight: 600,
+    borderRadius: 'var(--radius-pill)',
+    flexShrink: 0,
+  };
+
+  let badge: React.ReactNode = null;
+
+  if (validation) {
+    if (validation.status === 'validating') {
+      badge = (
+        /* aria-live moved to outer wrapper — inner span no longer needs it */
+        /* FIX-8: --color-bg-inset (hsl 230 20% 9%) + --text-muted fails WCAG AA at 4.36:1.
+           --color-bg-elevated (hsl 226 15% 15%) raises contrast to ~6.5:1. */
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="validating"
+          style={{ ...base, background: 'var(--color-bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
+        >
+          Checking data…
+        </span>
+      );
+    } else if (validation.status === 'full') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="full"
+          style={{ ...base, background: 'var(--color-positive-muted)', color: 'var(--color-positive-text)', border: '1px solid var(--color-positive)' }}
+        >
+          ✅ Data available
+        </span>
+      );
+    } else if (validation.status === 'partial') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="partial"
+          style={{ ...base, background: 'var(--color-warning-muted)', color: 'var(--color-warning-text)', border: '1px solid var(--color-warning)' }}
+        >
+          ⚠️ Partial data · {validation.daysAvailable ?? 0} days
+        </span>
+      );
+    } else if (validation.status === 'none') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="none"
+          style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
+        >
+          ❌ No data in range
+        </span>
+      );
+    } else if (validation.status === 'error') {
+      badge = (
+        <span
+          data-testid="source-validation-badge"
+          data-validation-status="error"
+          style={{ ...base, background: 'var(--color-critical-muted)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical)' }}
+        >
+          ❌ Check failed — try again
+        </span>
+      );
+    }
+  }
+
+  /* W5: persistent live region — all state transitions (validating → full/partial/none/error)
+     are announced by AT because the wrapper element stays in the DOM. */
+  return (
+    <span aria-live="polite" aria-atomic="true">
+      {badge}
+    </span>
   );
 }

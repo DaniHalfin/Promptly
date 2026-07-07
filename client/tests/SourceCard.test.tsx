@@ -12,7 +12,7 @@ function renderSourceCard(sourceId: SourceId, sourceState: Record<string, unknow
   const updateSource = vi.fn();
   const value = {
     state: {
-      phase: 'connection',
+      phase: 'landing',
       sources: {
         [sourceId]: { status: 'pending', ...sourceState },
       },
@@ -54,14 +54,24 @@ describe('SourceCard', () => {
     expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
   });
 
-  it('renders Claude export as a disabled stub', () => {
+  it('claude_export source is intentionally disabled with no description — B1', () => {
+    // Behavioral: renderSourceCard('claude_export') renders the disabled UI branch.
+    // SourceCard.tsx: info.disabled=true → renders "Currently disabled" with aria-disabled.
     renderSourceCard('claude_export');
 
-    expect(screen.getByRole('heading', { name: 'Claude Export' })).toBeInTheDocument();
-    expect(screen.getByText(/disabled mvp stub/i)).toBeInTheDocument();
-    expect(screen.getByText(/currently disabled/i)).toBeInTheDocument();
-    expect(screen.getByText(/not available in this mvp/i)).toBeInTheDocument();
+    // No setup/enable toggle
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /how to connect/i })).not.toBeInTheDocument();
+    // No validate button
+    expect(screen.queryByRole('button', { name: /validate/i })).not.toBeInTheDocument();
+    // No file upload UI
     expect(screen.queryByLabelText(/upload file/i)).not.toBeInTheDocument();
+
+    // Disabled state is rendered with accessible attribute and user-visible copy
+    const disabledDiv = document.querySelector('[aria-disabled="true"]');
+    expect(disabledDiv).not.toBeNull();
+    expect(disabledDiv?.textContent).toContain('Currently disabled');
+    expect(disabledDiv?.textContent).toContain('Claude export upload is not available in this MVP');
   });
 
   it('shows validated indicator for connected status — WP-13 badge copy', () => {
@@ -91,7 +101,7 @@ describe('SourceCard', () => {
     const toggle = screen.getByRole('button', { name: /how to connect/i });
     fireEvent.click(toggle);
 
-    expect(screen.getByText(/platform.openai.com\/api-keys/i)).toBeInTheDocument();
+    expect(screen.getByText(/platform\.openai\.com\/api-keys/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /official docs/i })).toBeInTheDocument();
     // toggle label changes
     expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument();
@@ -104,7 +114,9 @@ describe('SourceCard', () => {
     fireEvent.click(toggle); // expand
     fireEvent.click(screen.getByRole('button', { name: /hide/i })); // collapse
 
-    expect(screen.queryByText(/platform.openai.com\/api-keys/i)).not.toBeInTheDocument();
+    // W-A11Y-01: panel stays in the DOM (hidden attr) so aria-controls is never
+    // orphaned; the content must be present but not visible when collapsed.
+    expect(screen.getByText(/platform\.openai\.com\/api-keys/i)).not.toBeVisible();
     expect(screen.getByRole('button', { name: /how to connect/i })).toBeInTheDocument();
   });
 
@@ -150,11 +162,31 @@ describe('SourceCard', () => {
     expect(screen.getAllByText(/validated/i)).toHaveLength(1);
   });
 
+  // ── 0.6 Phase 0 contract: claude_export stays disabled ────────────────────
+
+  it('claude_export card shows disabled state and cannot be activated', () => {
+    // Phase 0 (0.6): disabled UI must remain disabled — no enable toggle, no file upload
+    renderSourceCard('claude_export');
+
+    expect(screen.getByRole('heading', { name: 'Claude Export' })).toBeInTheDocument();
+    // Disabled indicator must be present
+    expect(screen.getByText(/currently disabled/i)).toBeInTheDocument();
+    // No switch to enable it
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    // No file upload path available
+    expect(screen.queryByRole('button', { name: /click or drag/i })).not.toBeInTheDocument();
+  });
+
   it('renders styled upload area for file-type source with correct aria-label — WP-2', () => {
     renderSourceCard('chatgpt_export');
 
-    // WP-2: aria-label now matches the visible text (WCAG 2.5.3 Label-in-name)
-    expect(screen.getByRole('button', { name: /click or drag a .json or .jsonl file here/i })).toBeInTheDocument();
+    // WP-2/B1: aria-label matches the visible text exactly (WCAG 2.5.3 Label-in-name)
+    const upload = screen.getByRole('button', { name: 'Click or drag a .json or .jsonl file here' });
+    expect(upload).toBeInTheDocument();
+    // Visible text must equal the accessible name (no "/" slash copy)
+    expect(upload).toHaveTextContent('Click or drag a .json or .jsonl file here');
+    expect(upload.textContent).not.toMatch(/\.json \/ \.jsonl/);
+    expect(upload.getAttribute('aria-label')).toBe('Click or drag a .json or .jsonl file here');
 
     // No file selected yet — no clear button
     expect(screen.queryByRole('button', { name: /clear file/i })).not.toBeInTheDocument();
@@ -181,13 +213,6 @@ describe('SourceCard', () => {
     expect(sw).not.toHaveAttribute('aria-disabled');
   });
 
-  it('date inputs in Connection page are bound to their labels via htmlFor/id — WP-2', () => {
-    // Tested structurally: labels have htmlFor matching input ids (Connection.tsx)
-    // This is a code-level assertion — verified by TypeScript compilation + visual inspection
-    // RTL would need Connection component in scope; covered by TypeScript + review
-    expect(true).toBe(true); // placeholder — WP-2 Connection change verified via TypeScript build
-  });
-
   // ── WP-3: Error announcement ────────────────────────────────────────────
 
   it('error paragraph has role="alert" when source.error is set — WP-3', () => {
@@ -204,6 +229,51 @@ describe('SourceCard', () => {
     const errorEl = container.querySelector('#openai-error');
     expect(errorEl).not.toBeNull();
     expect(errorEl!.getAttribute('role')).toBe('alert');
+  });
+
+  it('shows a friendly error message (not raw network text) — M3', () => {
+    // The error state is stored by the catch block; test the rendered output
+    renderSourceCard('openai', {
+      status: 'error',
+      error: "Couldn't reach the service — check your connection and try again.",
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/check your connection/i);
+    // Raw node/http error strings must not be surfaced as the primary copy
+    expect(alert.textContent).not.toMatch(/ECONNREFUSED|Failed to fetch|NetworkError/);
+  });
+
+  it('catch blocks in SourceCard store friendly error strings, not raw Error.message — M3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/SourceCard.tsx'),
+      'utf8',
+    );
+    // Both catch blocks must have been updated — no raw .message surface
+    expect(source).not.toMatch(/error: \(err as Error\)\.message/);
+    // Friendly copy is present
+    expect(source).toMatch(/check your connection/i);
+  });
+
+  it('card outer element does not have cursor:pointer — S2 (whole-card click removed)', () => {
+    const { container } = renderSourceCard('openai');
+    const group = container.querySelector('[role="group"]') as HTMLElement;
+    // After removing onClick, the group no longer masquerades as a clickable element
+    expect(group.style.cursor).not.toBe('pointer');
+  });
+
+  it('card outer element has cursor:default for disabled source — S2', () => {
+    const { container } = renderSourceCard('claude_export');
+    const group = container.querySelector('[role="group"]') as HTMLElement;
+    expect(group.style.cursor).toBe('default');
+  });
+
+  it('API card inner controls are still individually activatable after S2 — S2', () => {
+    renderSourceCard('openai', { credential: 'sk-test' });
+    // The validate button is present and not blocked by any wrapper
+    expect(screen.getByRole('button', { name: /validate/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/api key/i)).toBeInTheDocument();
   });
 
   it('API key input has aria-describedby linking to error element — WP-3', () => {
@@ -340,5 +410,407 @@ describe('SourceCard', () => {
     await waitFor(() => {
       expect(container.querySelector('[aria-busy="false"]')).not.toBeNull();
     });
+  });
+
+  it('W7: API section aria-busy div also has role="status"', () => {
+    const { container } = renderSourceCard('openai', { credential: 'sk-test' });
+    const busyDiv = container.querySelector('[aria-busy]') as HTMLElement;
+    expect(busyDiv).not.toBeNull();
+    expect(busyDiv.getAttribute('role')).toBe('status');
+  });
+
+  it('W7: local section aria-busy div also has role="status"', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: false });
+    const busyDiv = container.querySelector('[aria-busy]') as HTMLElement;
+    expect(busyDiv).not.toBeNull();
+    expect(busyDiv.getAttribute('role')).toBe('status');
+  });
+
+  it('B-ARIA-01: aria-live="polite" region is always in DOM regardless of validation state', () => {
+    renderSourceCard('openai', { status: 'pending' });
+    // No validation data — but the live region wrapper must still be present
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+    // No badge content rendered when there is nothing to announce
+    expect(screen.queryByTestId('source-validation-badge')).not.toBeInTheDocument();
+  });
+
+  it('B-ARIA-01: aria-live="polite" region stays in DOM when validation transitions to idle', () => {
+    renderSourceCard('openai', { status: 'connected', validation: { status: 'idle' } });
+    expect(document.querySelector('[aria-live="polite"]')).toBeInTheDocument();
+    // idle → no badge, but "✓ Validated" still shows because source is connected
+    expect(screen.getByText(/validated/i)).toBeInTheDocument();
+  });
+
+  it('W-A11Y-01: disclosure button has aria-controls pointing to instructions panel id', () => {
+    renderSourceCard('openai');
+    const button = screen.getByRole('button', { name: /how to connect/i });
+    expect(button.getAttribute('aria-controls')).toBe('openai-instructions');
+    // Panel is in DOM even when hidden
+    expect(document.getElementById('openai-instructions')).toBeInTheDocument();
+  });
+
+  it('W-A11Y-01: instructions panel has hidden attribute when collapsed', () => {
+    renderSourceCard('openai');
+    const panel = document.getElementById('openai-instructions');
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute('hidden');
+  });
+
+  it('W-A11Y-01: instructions panel removes hidden attribute when expanded', () => {
+    renderSourceCard('openai');
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+    const panel = document.getElementById('openai-instructions');
+    expect(panel).not.toHaveAttribute('hidden');
+  });
+});
+
+describe('W3: ValidationBadge differentiates error vs none copy', () => {
+  function renderBadge(status: 'error' | 'none') {
+    return renderSourceCard('openai', {
+      validation: { status, validatedRange: { start: '2024-01-01', end: '2024-01-31' } },
+    });
+  }
+
+  it('renders "No data in range" for status=none', () => {
+    renderBadge('none');
+    expect(screen.getByTestId('source-validation-badge')).toHaveTextContent('No data in range');
+  });
+
+  it('renders "Check failed" for status=error', () => {
+    renderBadge('error');
+    expect(screen.getByTestId('source-validation-badge')).toHaveTextContent('Check failed');
+  });
+
+  it('error and none badge texts are different', () => {
+    const { unmount } = renderBadge('none');
+    const noneBadgeText = screen.getByTestId('source-validation-badge').textContent;
+    unmount();
+    renderBadge('error');
+    const errorBadgeText = screen.getByTestId('source-validation-badge').textContent;
+    expect(noneBadgeText).not.toBe(errorBadgeText);
+  });
+});
+
+describe('W6: disclosure triangles aria-hidden', () => {
+  it('W6: disclosure button accessible name does not contain triangle characters', () => {
+    renderSourceCard('openai');
+    // getByRole queries by accessible name (respects aria-hidden on the triangle span)
+    expect(screen.getByRole('button', { name: /^how to connect$/i })).toBeInTheDocument();
+  });
+
+  it('W6: after expand, disclosure button accessible name does not contain triangle', () => {
+    renderSourceCard('openai');
+    fireEvent.click(screen.getByRole('button', { name: /how to connect/i }));
+    expect(screen.getByRole('button', { name: /^hide setup steps$/i })).toBeInTheDocument();
+  });
+});
+// ── E5: Inline validation badges ─────────────────────────────────────────
+describe('SourceCard — E5 validation badges', () => {
+  it('validation badge: shows data available for full validation', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'full');
+    expect(badge.textContent).toMatch(/Data available/i);
+  });
+
+  it('validation badge: shows partial data with day count', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'partial', daysAvailable: 18, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'partial');
+    expect(badge.textContent).toMatch(/18 days/);
+    // Fuller warning line under the card
+    const warning = screen.getByTestId('openai-partial-warning');
+    expect(warning.textContent).toMatch(/18 of 60 days available/);
+  });
+
+  it('validation badge: shows no data in range + exclusion explanation', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'none', daysAvailable: 0, daysRequested: 60, excluded: true } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'none');
+    expect(badge.textContent).toMatch(/No data in range/i);
+    const excluded = screen.getByTestId('openai-excluded');
+    expect(excluded.textContent).toMatch(/excluded from analysis/i);
+  });
+
+  it('validation badge: shows checking-data indicator — P1', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
+    const badge = screen.getByTestId('source-validation-badge');
+    expect(badge).toHaveAttribute('data-validation-status', 'validating');
+    expect(badge.textContent).toBe('Checking data…');
+  });
+
+  // ── Batch 4: dark/light-mode legibility of badges + error text ────────────
+  it('no-data badge uses the themed critical-text token (readable in both modes)', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'none', daysAvailable: 0, daysRequested: 60 } });
+    const badge = screen.getByTestId('source-validation-badge');
+    // Batch 4: --color-critical-text now has a darkened light-mode override so
+    // the badge clears WCAG AA on the pale muted background (was ~1.9:1).
+    expect(badge).toHaveStyle({ color: 'var(--color-critical-text)' });
+  });
+
+  it('checking-data badge border is theme-aware (no hardcoded white rgba)', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk', validation: { status: 'validating' } });
+    const badge = screen.getByTestId('source-validation-badge');
+    // Hardcoded rgba(255,255,255,0.12) was invisible in light mode; now uses the
+    // theme-aware input-border token (white-alpha in dark, black-alpha in light).
+    const border = badge.getAttribute('style') ?? '';
+    expect(border).toContain('var(--color-input-border)');
+    expect(border).not.toContain('rgba(255,255,255,0.12)');
+  });
+
+  it('error message uses the themed critical-text token (AA in both modes)', () => {
+    renderSourceCard('openai', { status: 'error', credential: 'sk', error: 'Invalid or expired API key' });
+    const err = screen.getByRole('alert');
+    expect(err.textContent).toMatch(/Invalid or expired API key/);
+    // Was --color-critical (4.0–4.4:1, under AA for 14px body); now critical-text (7:1+).
+    expect(err).toHaveStyle({ color: 'var(--color-critical-text)' });
+  });
+
+  it('validate button spans full width via inline style, not inert Tailwind w-full', () => {
+    renderSourceCard('openai', { status: 'connected', credential: 'sk' });
+    const btn = screen.getByRole('button', { name: /^validate$/i });
+    expect(btn).toHaveStyle({ width: '100%' });
+    expect(btn.className).not.toMatch(/w-full/);
+    expect(btn).toHaveClass('secondary');
+  });
+
+  it('W5: ValidationBadge wrapper has aria-live="polite" and aria-atomic="true"', () => {
+    renderSourceCard('openai', {
+      status: 'connected',
+      credential: 'sk',
+      validation: { status: 'full', daysAvailable: 60, daysRequested: 60 },
+    });
+    const badge = screen.getByTestId('source-validation-badge');
+    const wrapper = badge.parentElement!;
+    expect(wrapper.tagName).toBe('SPAN');
+    expect(wrapper).toHaveAttribute('aria-live', 'polite');
+    expect(wrapper).toHaveAttribute('aria-atomic', 'true');
+  });
+});
+
+describe('FIX-10: file drop-zone type filter', () => {
+  it('accepts a .json file drop without showing an error', async () => {
+    const { container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const jsonFile = new File(['{"messages":[]}'], 'conversations.json', { type: 'application/json' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [jsonFile] },
+    });
+
+    expect(container.querySelector('[data-testid="chatgpt_export-file-type-error"]')).toBeNull();
+  });
+
+  it('rejects a .pdf drop and shows an inline error without processing the file', () => {
+    const { updateSource, container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const pdfFile = new File(['%PDF-1.4'], 'document.pdf', { type: 'application/pdf' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [pdfFile] },
+    });
+
+    const errorEl = container.querySelector('[data-testid="chatgpt_export-file-type-error"]');
+    expect(errorEl).not.toBeNull();
+    expect(errorEl!.textContent).toMatch(/only .json and .jsonl/i);
+    expect(updateSource).not.toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: pdfFile }));
+  });
+
+  it('rejects a .txt drop and shows an inline error', () => {
+    const { updateSource, container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const txtFile = new File(['hello'], 'export.txt', { type: 'text/plain' });
+    // .txt extension will be rejected even though MIME type is text/plain
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [txtFile] },
+    });
+
+    const errorEl = container.querySelector('[data-testid="chatgpt_export-file-type-error"]');
+    expect(errorEl).not.toBeNull();
+    expect(updateSource).not.toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: txtFile }));
+  });
+
+  it('accepts a .jsonl file drop regardless of MIME variant (x-ndjson)', async () => {
+    const { container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+    const jsonlFile = new File(['{"role":"user"}'], 'export.jsonl', { type: 'application/x-ndjson' });
+    fireEvent.drop(dropZone, { dataTransfer: { files: [jsonlFile] } });
+    expect(container.querySelector('[data-testid="chatgpt_export-file-type-error"]')).toBeNull();
+  });
+});
+
+describe('FIX-11: source description copy — no JSONL jargon, product-first', () => {
+  it('claude_code description does not use "JSONL" jargon', () => {
+    renderSourceCard('claude_code', { enabled: false });
+    const description = screen.queryByText(/JSONL/i);
+    expect(description).toBeNull();
+  });
+
+  it('claude_code description uses plain-language "conversation logs"', () => {
+    renderSourceCard('claude_code', { enabled: false });
+    expect(screen.getByText(/conversation logs/i)).toBeInTheDocument();
+  });
+
+  it('chatgpt_export description is product-first (not "Exported conversation JSON")', () => {
+    renderSourceCard('chatgpt_export');
+    const descriptions = screen.queryAllByText(/exported conversation json/i);
+    expect(descriptions).toHaveLength(0);
+  });
+
+  it('chatgpt_export description mentions ChatGPT conversation history', () => {
+    renderSourceCard('chatgpt_export');
+    expect(screen.getByText(/chatgpt conversation history/i)).toBeInTheDocument();
+  });
+});
+
+describe('ISSUE-E: validation state shows exactly 2 indicators (badge + footer), not 4', () => {
+  it('local source in validating state shows NO inline paragraph for validating text', () => {
+    const { container } = renderSourceCard('claude_code', { enabled: true, validation: { status: 'validating' } });
+
+    // The inline paragraph with "Checking local data" must NOT be present
+    const paragraphs = Array.from(container.querySelectorAll('p'));
+    const validatingParas = paragraphs.filter(p =>
+      /checking local data|validating/i.test(p.textContent ?? '')
+    );
+    expect(validatingParas).toHaveLength(0);
+  });
+
+  it('local source aria-busy is true during validation (screen reader coverage maintained)', async () => {
+    // Hold the validate POST open so validating=true persists for the assertion.
+    server.use(
+      http.post('/api/sources/claude_code/validate', () =>
+        new Promise(() => {}) as any // never resolves
+      )
+    );
+
+    const { container } = renderSourceCard('claude_code', { enabled: false });
+
+    // Before toggling: aria-busy must be false (idle)
+    const statusDiv = container.querySelector('[role="status"]');
+    expect(statusDiv).not.toBeNull();
+    expect(statusDiv).toHaveAttribute('aria-busy', 'false');
+
+    // Toggle on — triggers handleLocalToggle → setValidating(true) synchronously
+    fireEvent.click(screen.getByRole('switch', { name: /enable local claude code analysis/i }));
+
+    // While the deferred fetch is in-flight, aria-busy must be true
+    await waitFor(() => {
+      expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    });
+  });
+});
+
+describe('SourceCard file drop edge cases — FIX-10', () => {
+  it('dropping two files simultaneously only processes the first file', () => {
+    const { updateSource } = renderSourceCard('chatgpt_export');
+    // W-5: use named role selector matching aria-label on the drop zone div
+    // SourceCard.tsx line 382: aria-label="Click or drag a .json or .jsonl file here"
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    const file1 = new File(['{"conversations":[]}'], 'export1.json', { type: 'application/json' });
+    const file2 = new File(['{"conversations":[]}'], 'export2.json', { type: 'application/json' });
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [file1, file2] },
+    });
+
+    // Drop handler reads only files[0] — only one updateSource call for file1
+    expect(updateSource).toHaveBeenCalledTimes(1);
+    const [, update] = updateSource.mock.calls[0];
+    expect((update as any).file?.name).toBe('export1.json');
+  });
+
+  it('rejects a file with .jsonl extension but spoofed text/html MIME type', () => {
+    renderSourceCard('chatgpt_export');
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    // Valid extension, invalid MIME — isAcceptedFile returns false
+    const spoofed = new File(['[]'], 'export.jsonl', { type: 'text/html' });
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [spoofed] } });
+
+    expect(screen.getByTestId('chatgpt_export-file-type-error')).toBeInTheDocument();
+    expect(screen.getByTestId('chatgpt_export-file-type-error').textContent)
+      .toMatch(/only .json and .jsonl files/i);
+  });
+
+  it('accepts a zero-byte .json file — size is not a rejection criterion', () => {
+    const { updateSource } = renderSourceCard('chatgpt_export');
+    const dropZone = screen.getByRole('button', {
+      name: /click or drag a \.json or \.jsonl file here/i,
+    });
+
+    const empty = new File([], 'empty.json', { type: 'application/json' });
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [empty] } });
+
+    // isAcceptedFile: hasValidExt=true, hasValidMime=true → accepted
+    expect(screen.queryByTestId('chatgpt_export-file-type-error')).not.toBeInTheDocument();
+    expect(updateSource).toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: empty, status: 'ready' }));
+  });
+});
+
+describe('B-ARIA-01: aria-live region state transitions', () => {
+  it('aria-live="polite" region persists across all validation state transitions', () => {
+    const { rerender } = renderSourceCard('openai', { validation: { status: 'validating' } });
+    // Pending: live region exists
+    let liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to validating
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'pending', validation: { status: 'validating' } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to connected (full validation)
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'connected', validation: { status: 'full', daysAvailable: 60, daysRequested: 60 } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // Transition to error
+    rerender(
+      <SessionContext.Provider value={{
+        state: { phase: 'landing', sources: { openai: { status: 'error', validation: { status: 'error' } } } },
+        dispatch: vi.fn(), updateSource: vi.fn(), clearSession: vi.fn(),
+        abortControllerRef: { current: null },
+      } as any}>
+        <SourceCard sourceId="openai" />
+      </SessionContext.Provider>
+    );
+    liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+  });
+});
+
+describe('ISSUE-E: validation indicator exact count', () => {
+  it('validating state shows exactly one source-validation-badge in the card', () => {
+    const { container } = renderSourceCard('openai', {
+      validation: { status: 'validating' },
+    });
+    const badges = container.querySelectorAll('[data-testid="source-validation-badge"]');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveAttribute('data-validation-status', 'validating');
   });
 });

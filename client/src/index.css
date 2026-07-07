@@ -29,12 +29,13 @@
   --color-info-muted:     oklch(68% 0.08 230 / 0.15);
 
   /* Input borders — WP-10: raised to 0.35 opacity for WCAG 3:1 non-text contrast */
-  --color-input-border: rgba(255, 255, 255, 0.35);
+  --color-input-border: oklch(100% 0 0 / 0.35);
+  --color-border-subtle: oklch(100% 0 0 / 0.18);
   /* Text */
   --text-primary:   oklch(92% 0.01 240);
   --text-secondary: oklch(68% 0.04 240);
-  /* WP-10: raised from oklch(50% ...) to oklch(58% ...) for WCAG AA on dark bg */
-  --text-muted:     oklch(58% 0.04 240);
+  /* WP-10/A1: raised for WCAG AA on dark elevated surfaces (#21232c binding case) */
+  --text-muted:     oklch(67% 0.04 240);
   --text-disabled:  oklch(38% 0.03 240);
   --text-on-accent: oklch(100% 0 0);
 
@@ -54,6 +55,18 @@
   --text-heading: 0.9375rem;  /* 15px  — card headings (h3), panel sub-titles */
   --text-body:    0.875rem;   /* 14px  — all body copy, table cells, labels */
   --text-note:    0.75rem;    /* 12px  — metadata, timestamps, KPI tile labels, footnotes */
+
+  /* Chart palette tokens */
+  --chart-color-1: oklch(62% 0.19 270);
+  --chart-color-2: oklch(60% 0.20 300);
+  --chart-color-3: oklch(65% 0.16 240);
+  --chart-color-4: oklch(68% 0.17 180);
+  --chart-color-5: oklch(70% 0.18 150);
+
+  /* Chart tooltip tokens */
+  --chart-tooltip-bg: var(--color-bg-elevated);
+  --chart-tooltip-text: var(--text-primary);
+  --chart-tooltip-border: var(--color-border-subtle);
 }
 
 /* ─── Light mode overrides ───────────────────────────────────────────────── */
@@ -64,10 +77,25 @@
   --color-bg-inset:    hsl(220, 15%, 94%);
   --text-primary:      oklch(20% 0.02 250);
   --text-secondary:    oklch(45% 0.04 245);
-  --text-muted:        oklch(62% 0.03 245);
+  /* A1: light-theme muted text must still clear AA on white/elevated surfaces */
+  --text-muted:        oklch(54% 0.03 245);
+  /* Batch 4: semantic *-text tokens default to LIGHT values tuned for dark
+     surfaces. On light backgrounds those pale reds/greens drop to ~1.5–1.9:1
+     on the 15%-tint muted badge backgrounds (invisible). Darken them here so
+     validation badges and semantic messages clear WCAG AA in light mode. */
   --color-warning-text:   oklch(42% 0.15 65);
+  --color-critical-text:  oklch(48% 0.18 25);
+  --color-positive-text:  oklch(45% 0.14 155);
   /* WP-10: light-mode input border — 0.35 opacity for WCAG non-text contrast */
   --color-input-border: rgba(0, 0, 0, 0.30);
+  --color-border-subtle: rgba(0, 0, 0, 0.16);
+  --chart-tooltip-bg: var(--color-bg-surface);
+  --chart-tooltip-text: var(--text-primary);
+  --chart-tooltip-border: var(--color-border-subtle);
+  /* W10: darkened for WCAG AA (4.5:1) against light surfaces — was oklch(80% 0.12 275) */
+  --color-accent-light: oklch(48% 0.18 275);
+  /* W-A11Y-02: darken base accent for WCAG AA (≥4.5:1) when used as text or focus ring on light bg */
+  --color-accent: oklch(45% 0.18 275);
 }
 
 /* ─── Reset + base ───────────────────────────────────────────────────────── */
@@ -89,7 +117,7 @@ html, body {
 /* ─── Cards ──────────────────────────────────────────────────────────────── */
 .card {
   background: var(--color-bg-surface);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--color-input-border);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
@@ -97,22 +125,24 @@ html, body {
 .card:hover,
 .card:focus-within {
   background: var(--color-bg-elevated);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-border-subtle);
   transition: background 150ms ease, border-color 150ms ease;
 }
 
 .card-inset {
   background: var(--color-bg-inset);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 16px;
 }
 
 /* ─── Light mode surface overrides ──────────────────────────────────────── */
-[data-theme="light"] .card                           { border-color: rgba(0, 0, 0, 0.08); }
+[data-theme="light"] .card,
 [data-theme="light"] .card:hover,
-[data-theme="light"] .card:focus-within              { border-color: rgba(0, 0, 0, 0.15); background: var(--color-bg-elevated); }
-[data-theme="light"] .card-inset                     { border-color: rgba(0, 0, 0, 0.07); }
+[data-theme="light"] .card:focus-within,
+[data-theme="light"] .card-inset { border-color: var(--color-input-border); }
+[data-theme="light"] .card:hover,
+[data-theme="light"] .card:focus-within { background: var(--color-bg-elevated); }
 [data-theme="light"] tr                              { border-bottom-color: rgba(0, 0, 0, 0.07); }
 [data-theme="light"] tr:hover                        { background: var(--color-bg-inset); }
 
@@ -138,32 +168,34 @@ html, body {
 .primary:hover   { opacity: 0.88; }
 .primary:active  { opacity: 0.76; }
 .primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.primary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 .secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
+  min-height: 44px;
   padding: 0 20px;
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: var(--radius-md);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--color-border-subtle);
   color: var(--text-secondary);
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
-.secondary:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--text-primary); }
-[data-theme="light"] .secondary { border-color: rgba(0,0,0,0.18); }
-[data-theme="light"] .secondary:hover { border-color: rgba(0,0,0,0.35); }
+.secondary:hover { border-color: var(--color-input-border); color: var(--text-primary); }
+.secondary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+[data-theme="light"] .secondary { border-color: var(--color-border-subtle); }
+[data-theme="light"] .secondary:hover { border-color: var(--color-input-border); }
 
 .danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
+  min-height: 44px;
   padding: 0 20px;
   font-family: inherit;
   font-size: 0.875rem;
@@ -176,6 +208,18 @@ html, body {
   transition: opacity 150ms ease;
 }
 .danger:hover { opacity: 0.8; }
+.danger:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ─── Global keyboard focus ring ────────────────────────────────────────── */
+/* W-FOCUS-01: Catch-all for bare <button> elements and role="button"/"switch"
+   widgets that carry no named class (.primary / .secondary / .danger).
+   Named-class rules above take precedence via specificity; this is the floor. */
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="switch"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
 
 /* ─── Toggle switch ─────────────────────────────────────────────────────── */
 .toggle-track {
@@ -184,8 +228,8 @@ html, body {
   width: 40px;
   height: 22px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
   flex-shrink: 0;
@@ -213,7 +257,7 @@ html, body {
 }
 [data-theme="light"] .toggle-track {
   background: rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 0, 0, 0.18);
+  border-color: var(--color-border-subtle);
 }
 [data-theme="light"] .toggle-track.on {
   background: var(--color-accent);
@@ -238,6 +282,10 @@ html, body {
 .upload-area:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-muted);
+}
+.upload-area:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .upload-area-icon {
   color: var(--text-muted);
@@ -266,13 +314,18 @@ html, body {
   white-space: nowrap;
 }
 .upload-file-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--color-positive-text);
   font-size: var(--text-heading);
   line-height: 1;
-  padding: 0 2px;
+  padding: 0;
   flex-shrink: 0;
 }
 [data-theme="light"] .upload-area {
@@ -283,6 +336,48 @@ html, body {
 /* ─── Panel table row hover ─────────────────────────────────────────────── */
 .panel-table-row:hover {
   background: var(--color-bg-inset);
+}
+
+/* ─── Top-recommendation row affordance (P2) ─────────────────────────────── */
+.rec-row:hover {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease;
+}
+.rec-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+.rec-row-chevron {
+  font-size: 1rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+/* W4: programmatic focus targets — suppress default ring but restore on keyboard focus */
+.rec-focus-target { outline: none; }
+/* FOCUS-FIX-1: Use :focus-visible only. Modern browsers (Chrome 86+, Firefox 85+,
+   Safari 15.4+) fire :focus-visible on programmatic .focus() when the previous
+   user interaction was keyboard-based — so keyboard users still get the ring while
+   mouse users do not. The old combined :focus, :focus-visible caused a ring flash
+   for mouse users on every page transition (regression). */
+.rec-focus-target:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* W-FOCUS-02: programmatic-focus heading ring */
+.focus-target { outline: none; }
+/* FOCUS-FIX-1: :focus-visible only — see .rec-focus-target comment above. */
+.focus-target:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+[data-theme="light"] .rec-row:hover {
+  background: var(--color-bg-elevated);
 }
 
 /* ─── Numeric / tabular ──────────────────────────────────────────────────── */
@@ -349,7 +444,7 @@ html, body {
     left: 0;
     background: var(--color-bg-surface);
     z-index: 1;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid var(--color-border-subtle);
   }
   [data-theme="light"] .table-col-sticky {
     background: var(--color-bg-surface);
@@ -374,7 +469,7 @@ html, body {
   font-size: var(--text-note);
   color: var(--text-muted);
   background: var(--color-bg-inset);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
@@ -382,8 +477,12 @@ html, body {
 }
 .disclosure-btn:hover {
   background: var(--color-bg-elevated);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: var(--color-input-border);
   color: var(--text-secondary);
+}
+.disclosure-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .disclosure-btn[aria-expanded="true"] {
   background: var(--color-bg-elevated);
@@ -393,10 +492,14 @@ html, body {
 [data-theme="light"] .disclosure-btn {
   border-color: rgba(0, 0, 0, 0.10);
   background: var(--color-bg-inset);
+  /* W1: --text-muted in light mode (oklch 54%) gives ~3.8:1; --text-secondary
+     (oklch 45%) achieves ≥4.5:1 against the light inset background. */
+  color: var(--text-secondary);
 }
 [data-theme="light"] .disclosure-btn:hover {
   border-color: rgba(0, 0, 0, 0.20);
   background: var(--color-bg-elevated);
+  color: var(--text-primary);
 }
 
 /* ─── Screen reader only ─────────────────────────────────────────────────── */
@@ -413,6 +516,36 @@ html, body {
   border: 0;
 }
 
+/* ─── Skip link (A1) ─────────────────────────────────────────────────────── */
+/* WP-1/A1: classed skip link replaces inline HTML style; AA-compliant themed colors */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 16px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  z-index: 1000;
+}
+.skip-link:focus {
+  left: 16px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  /* W2: WCAG 2.5.5 — minimum 44×44px focus/touch target */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  outline: 2px solid var(--color-accent-light);
+  outline-offset: 2px;
+}
+
 /* ─── Input minimum touch target ────────────────────────────────────────── */
 /* WP-4: All text/password/date inputs get min 44px height to meet touch target guidelines */
 /* (API key input was ~30px tall with padding:'8px 12px'; date inputs in Connection ~34px) */
@@ -423,6 +556,44 @@ input[type="email"],
 input[type="search"] {
   min-height: 44px;
   box-sizing: border-box;
+}
+
+/* ─── Date range picker (react-day-picker) ──────────────────────────────── */
+/* Tailwind is inert in this app; theme DayPicker with CSS vars + overrides */
+.promptly-day-picker {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: var(--color-accent);
+  --rdp-background-color: var(--color-accent-muted);
+  --rdp-accent-color-dark: var(--color-accent);
+  --rdp-background-color-dark: var(--color-accent-muted);
+  --rdp-outline: 2px solid var(--color-accent);
+  --rdp-outline-selected: 2px solid var(--color-accent);
+  margin: 0;
+  color: var(--text-primary);
+}
+.promptly-day-picker .rdp-caption_label,
+.promptly-day-picker .rdp-head_cell {
+  color: var(--text-secondary);
+}
+.promptly-day-picker .rdp-day {
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+}
+.promptly-day-picker .rdp-day_selected,
+.promptly-day-picker .rdp-day_selected:hover {
+  background: var(--color-accent);
+  color: var(--text-on-accent);
+}
+.promptly-day-picker .rdp-day_range_middle {
+  background: var(--color-accent-muted);
+  color: var(--color-accent-light);
+}
+.promptly-day-picker .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background: var(--color-bg-hover, var(--color-bg-inset));
+}
+.promptly-day-picker .rdp-day_disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
 }
 
 /* ─── Progress bar (Analysis page) ──────────────────────────────────────── */

@@ -19,8 +19,19 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
   const COLORS = getChartColors();
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-        <p className="text-slate-500">No data available</p>
+      <div
+        data-testid="chart-empty"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '20rem',
+          background: 'var(--color-bg-inset)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-border-subtle)',
+        }}
+      >
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No conversation length data for this period.</p>
       </div>
     );
   }
@@ -30,8 +41,19 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
   
   if (validData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-        <p className="text-slate-500">No data available</p>
+      <div
+        data-testid="chart-empty"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '20rem',
+          background: 'var(--color-bg-inset)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-border-subtle)',
+        }}
+      >
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No conversation length data for this period.</p>
       </div>
     );
   }
@@ -55,10 +77,10 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={validData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+        <BarChart data={validData} margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="bucket" />
-          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft', dx: -20, style: { textAnchor: 'middle' } }} />
           <Tooltip
             formatter={(value) => {
               if (typeof value === 'number') {
@@ -67,10 +89,13 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
               return value;
             }}
             contentStyle={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
+              backgroundColor: 'var(--chart-tooltip-bg)',
+              border: '1px solid var(--chart-tooltip-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--chart-tooltip-text)',
             }}
+            labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+            itemStyle={{ color: 'var(--chart-tooltip-text)' }}
           />
           <Bar
             dataKey="count"

@@ -21,8 +21,19 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
   if (!data || data.length === 0) {
     return (
       <figure aria-label="Daily spend over time">
-        <div className="flex items-center justify-center h-80 bg-slate-50 rounded border border-slate-200">
-          <p className="text-slate-500">No data available</p>
+        <div
+          data-testid="chart-empty"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '20rem',
+            background: 'var(--color-bg-inset)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border-subtle)',
+          }}
+        >
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>No daily spend data for this period.</p>
         </div>
       </figure>
     );
@@ -34,7 +45,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
       <figcaption className="sr-only">
         <table>
           <thead>
-            <tr><th scope="col">Date</th><th scope="col">Cost (USD)</th></tr>
+            <tr><th scope="col">Date</th><th scope="col">Daily Spend (USD)</th></tr>
           </thead>
           <tbody>
             {data.map((row) => (
@@ -47,26 +58,31 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+        <LineChart data={data} margin={{ top: 5, right: 30, left: 70, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
-          <YAxis label={{ value: 'Cost (USD)', angle: -90, position: 'insideLeft' }} />
+          <YAxis label={{ value: 'Daily Spend (USD)', angle: -90, position: 'insideLeft', dx: -30, style: { textAnchor: 'middle' } }} />
           <Tooltip
-            formatter={(value) => {
+            formatter={(value, name) => {
+              const label = name === 'costUsd' ? 'Daily Spend' : name;
               if (typeof value === 'number') {
-                return `$${value.toFixed(2)}`;
+                return [`$${value.toFixed(2)}`, label];
               }
-              return value;
+              return [value, label];
             }}
             contentStyle={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
+              backgroundColor: 'var(--chart-tooltip-bg)',
+              border: '1px solid var(--chart-tooltip-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--chart-tooltip-text)',
             }}
+            labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+            itemStyle={{ color: 'var(--chart-tooltip-text)' }}
           />
           <Line
             type="monotone"
             dataKey="costUsd"
+            name="Daily Spend"
             stroke={COLORS[0]}
             dot={{ fill: COLORS[0], r: 4 }}
             activeDot={{ r: 6 }}

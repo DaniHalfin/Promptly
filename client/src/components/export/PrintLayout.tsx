@@ -1,550 +1,327 @@
 import React from 'react';
-import type { AnalysisReport } from '../../types/index.js';
-import { friendlySourceName, friendlyModelName } from '../../lib/modelNames.js';
+import type { AnalysisReport, RecommendationResult, SourceReport, SpendByToolEntry } from '../../types/index.js';
+import { friendlySourceName } from '../../lib/modelNames.js';
+import { EfficiencySignalCallout } from '../Results/EfficiencySignalCallout.js';
+import { getModelSpendRows } from '../Results/ModelSpendMiniBar.js';
 
 interface PrintLayoutProps {
   report: AnalysisReport;
 }
 
+/** ADR-9 narrative print layout. No interactive elements — print-safe only. */
 export function PrintLayout({ report }: PrintLayoutProps) {
-  const totalSpend = report.cross_source_summary.total_actual_spend_usd;
-  const sourcesAnalyzed = report.sources.filter(s => !s.error).length;
-  const generatedDate = new Date(report.metadata.generated_at).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-  const periodStart = new Date(report.metadata.analysis_period_start).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-  const periodEnd = new Date(report.metadata.analysis_period_end).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  const css   = report.cross_source_summary;
+  const meta  = report.metadata;
 
-  return (
-    <div style={{ 
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      lineHeight: '1.5',
-      color: '#1f2937',
-      backgroundColor: '#ffffff',
-      padding: '40px',
-      width: '210mm',
-      minHeight: '297mm',
-      boxSizing: 'border-box'
-    }}>
-      {/* Header */}
-      <div style={{ marginBottom: '40px', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#0066cc' }}>
-          Promptly
-        </h1>
-        <p style={{ margin: '0', fontSize: '14px', color: '#6b7280' }}>
-          AI Spend Analysis Report
+  const totalSpend    = (css.total_estimated_spend_usd ?? 0) > 0 ? css.total_estimated_spend_usd : css.total_actual_spend_usd;
+  const spendLabel: 'Spend' | 'Estimated spend' = css.includes_estimates === true ? 'Estimated spend' : 'Spend';
+  const sourceCount   = report.sources.filter(s => !s.error).length;
+  // Parse a date-only string (YYYY-MM-DD) as local noon to avoid UTC-to-local off-by-one.
+  const parseDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T12:00:00`) : new Date(d);
+  const generatedDate = parseDate(meta.generated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const periodStart   = meta.analysis_period_start
+    ? parseDate(meta.analysis_period_start).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+  const periodEnd     = meta.analysis_period_end
+    ? parseDate(meta.analysis_period_end).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+  const spendByTool   = css.spend_by_tool ?? [];
+  const dailySpend    = css.daily_spend ?? [];
+
+  // Sort sources by spend_by_tool rank
+  const rankMap = new Map(spendByTool.map(e => [e.source_id as string, e.rank]));
+  const sortedSources = [...report.sources].sort((a, b) => (rankMap.get(a.source_id) ?? 999) - (rankMap.get(b.source_id) ?? 999));
+
+  const root: React.CSSProperties = {
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    lineHeight: 1.5,
+    color: '#1f2937',
+    backgroundColor: '#ffffff',
+    padding: '40px',
+    width: '210mm',
+    minHeight: '297mm',
+    boxSizing: 'border-box',
+  };
+
+  const sectionHead: React.CSSProperties = {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#111827',
+    borderBottom: '1.5px solid #e5e7eb',
+    paddingBottom: 8,
+    marginBottom: 16,
+    marginTop: 32,
+  };
+
+  const cell: React.CSSProperties = {
+    background: '#f9fafb',
+    padding: '12px 16px',
+    borderRadius: 6,
+    border: '1px solid #e5e7eb',
+  };
+
+  const label: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' };
+  const value: React.CSSProperties = { fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 };
+
+  // ── § 1  AnalysisHeader ────────────────────────────────────────────────
+  const AnalysisHeader = () => {
+    const totalPotentialSavings = css.total_potential_savings_usd ?? 0;
+    const actionableCount = css.actionable_recommendation_count ?? 0;
+    const showPotentialSavings = totalPotentialSavings > 0 && actionableCount > 0;
+
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ fontSize: 40, fontWeight: 800, color: '#0066cc', marginBottom: 4 }}>
+          ${(totalSpend ?? 0).toFixed(2)}
+        </div>
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {spendLabel} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · {periodStart} – {periodEnd}
         </p>
+        {showPotentialSavings && (
+          <div style={{ display: 'inline-block', marginTop: 16, padding: '10px 16px', border: '1px solid #16a34a', borderRadius: 8, textAlign: 'left', maxWidth: 520 }}>
+            <p style={{ ...label, color: '#16a34a' }}>Total Potential Savings</p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: '#111827', margin: 0 }}>
+              Save up to <strong style={{ color: '#16a34a' }}>${totalPotentialSavings.toFixed(2)}</strong> across {actionableCount} {actionableCount === 1 ? 'recommendation' : 'recommendations'}
+            </p>
+          </div>
+        )}
       </div>
+    );
+  };
 
-      {/* Summary Info */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr',
-        gap: '20px',
-        marginBottom: '30px',
-        backgroundColor: '#f9fafb',
-        padding: '20px',
-        borderRadius: '8px'
-      }}>
-        <div>
-          <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>
-            Generated
-          </p>
-          <p style={{ margin: '0', fontSize: '16px', fontWeight: '500' }}>
-            {generatedDate}
-          </p>
-        </div>
-        <div>
-          <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>
-            Period Analyzed
-          </p>
-          <p style={{ margin: '0', fontSize: '16px', fontWeight: '500' }}>
-            {periodStart} — {periodEnd}
-          </p>
-        </div>
-        <div>
-          <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>
-            Total Spend
-          </p>
-          <p style={{ margin: '0', fontSize: '24px', fontWeight: 'bold', color: '#0066cc' }}>
-            ${totalSpend.toFixed(2)}
-          </p>
-        </div>
-        <div>
-          <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>
-            Sources Analyzed
-          </p>
-          <p style={{ margin: '0', fontSize: '16px', fontWeight: '500' }}>
-            {sourcesAnalyzed}
-          </p>
-        </div>
-      </div>
-
-      {/* Per-Source Sections */}
-      {report.sources.map((source) => {
-        if (source.error) {
-          return (
-            <div 
-              key={source.source_id}
-              style={{
-                marginBottom: '24px',
-                padding: '16px',
-                border: '1px solid #fee2e2',
-                backgroundColor: '#fef2f2',
-                borderRadius: '6px'
-              }}
-            >
-              <h3 style={{ 
-                margin: '0 0 8px 0', 
-                fontSize: '18px', 
-                fontWeight: '600',
-                textTransform: 'capitalize'
-              }}>
-                {/* WP-14: friendlySourceName gives proper casing ("GitHub Copilot" not "github copilot") */}
-                {friendlySourceName(source.source_id)}
-              </h3>
-              <p style={{ margin: '0', fontSize: '14px', color: '#991b1b' }}>
-                Error: {source.error}
-              </p>
-            </div>
-          );
-        }
-
-        if (!source.metrics) {
-          return (
-            <div 
-              key={source.source_id}
-              style={{
-                marginBottom: '24px',
-                padding: '16px',
-                border: '1px solid #d1d5db',
-                backgroundColor: '#f3f4f6',
-                borderRadius: '6px'
-              }}
-            >
-              <h3 style={{ 
-                margin: '0', 
-                fontSize: '18px', 
-                fontWeight: '600',
-                textTransform: 'capitalize'
-              }}>
-                {friendlySourceName(source.source_id)}
-              </h3>
-              <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
-                No data available
-              </p>
-            </div>
-          );
-        }
-
-        const metrics = source.metrics;
-
-        return (
-          <div 
-            key={source.source_id}
-            style={{
-              marginBottom: '24px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              overflow: 'hidden'
-            }}
-          >
-            {/* Source Header */}
-            <div style={{
-              backgroundColor: '#f3f4f6',
-              padding: '16px',
-              borderBottom: '1px solid #d1d5db'
-            }}>
-              <h3 style={{ 
-                margin: '0 0 4px 0', 
-                fontSize: '18px', 
-                fontWeight: '600',
-                textTransform: 'capitalize'
-              }}>
-                {friendlySourceName(source.source_id)}
-              </h3>
-            </div>
-
-            {/* Metrics Grid */}
-            <div style={{
-              padding: '16px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px'
-            }}>
-              {(metrics.totalSpendUsd ?? metrics.totalActualSpendUsd ?? metrics.copilotTotalCostUsd) !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    TOTAL SPEND
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold', color: '#0066cc' }}>
-                    ${(metrics.totalSpendUsd ?? metrics.totalActualSpendUsd ?? metrics.copilotTotalCostUsd ?? 0).toFixed(2)}
-                  </p>
-                </div>
-              )}
-
-              {metrics.avgDailySpendUsd !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    AVG DAILY SPEND
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    ${metrics.avgDailySpendUsd.toFixed(2)}
-                  </p>
-                </div>
-              )}
-
-              {metrics.peakSpendDay && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    PEAK SPEND DAY
-                  </p>
-                  <p style={{ margin: '0', fontSize: '16px', fontWeight: '500' }}>
-                    ${metrics.peakSpendDay.spendUsd.toFixed(2)} ({new Date(metrics.peakSpendDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
-                  </p>
-                </div>
-              )}
-
-              {(metrics.totalActualTokens ?? metrics.estimatedTotalTokens) !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    TOTAL TOKENS
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    {(metrics.totalActualTokens ?? metrics.estimatedTotalTokens ?? 0).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              {metrics.momChangePct !== null && metrics.momChangePct !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    MOM CHANGE
-                  </p>
-                  <p style={{ 
-                    margin: '0', 
-                    fontSize: '18px', 
-                    fontWeight: 'bold',
-                    color: metrics.momChangePct >= 0 ? '#dc2626' : '#16a34a'
-                  }}>
-                    {metrics.momChangePct >= 0 ? '+' : ''}{metrics.momChangePct.toFixed(1)}%
-                  </p>
-                </div>
-              )}
-
-              {(metrics.cachedTokenSavingsUsdAnthropic !== undefined || metrics.cachedTokenSavingsUsdClaudeCode !== undefined) && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    CACHE SAVINGS
-                  </p>
-                  <p style={{ margin: '0', fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>
-                    ${(metrics.cachedTokenSavingsUsdAnthropic ?? metrics.cachedTokenSavingsUsdClaudeCode ?? 0).toFixed(2)}
-                  </p>
-                </div>
-              )}
-
-              {metrics.conversationCount !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    CONVERSATIONS
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    {metrics.conversationCount.toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              {metrics.copilotSessionCount !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    SESSIONS
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>
-                    {metrics.copilotSessionCount.toLocaleString()}
-                  </p>
-                </div>
-              )}
-              {metrics.copilotTotalCostUsd !== undefined && (
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
-                    TOTAL COST
-                  </p>
-                  <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold', color: '#0066cc' }}>
-                    ${metrics.copilotTotalCostUsd.toFixed(2)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Model Breakdown */}
-            {metrics.modelBreakdown && metrics.modelBreakdown.length > 0 && (
+  // ── § 2  MoneyByToolSection ────────────────────────────────────────────
+  const MoneyByToolSection = () => {
+    if (spendByTool.length === 0) return null;
+    const maxSpend = Math.max(...spendByTool.map(e => e.estimated_spend_usd ?? 0), 0.01);
+    return (
+      <div>
+        <h2 style={sectionHead}>Spend by Tool</h2>
+        {spendByTool.map(e => (
+          <div key={e.source_id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <div style={{ width: 140, fontSize: 13, color: '#374151', flexShrink: 0 }}>{friendlySourceName(e.source_id)}</div>
+            <div style={{ flex: 1, height: 16, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{
-                padding: '16px',
-                borderTop: '1px solid #d1d5db',
-                backgroundColor: '#fafafa'
-              }}>
-                <p style={{ 
-                  margin: '0 0 12px 0', 
-                  fontSize: '12px', 
-                  fontWeight: '600',
-                  color: '#6b7280',
-                  textTransform: 'uppercase'
-                }}>
-                  Model Breakdown
-                </p>
-                {metrics.modelBreakdown.slice(0, 5).map((model, idx) => (
-                  <div 
-                    key={idx}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1.5fr 0.8fr 0.7fr',
-                      gap: '12px',
-                      padding: '8px 0',
-                      borderBottom: idx < metrics.modelBreakdown!.length - 1 ? '1px solid #e5e7eb' : 'none',
-                      fontSize: '13px'
-                    }}
-                  >
-                    <div>
-                      {/* WP-14: friendlyModelName for proper model display names */}
-                      <p style={{ margin: '0', fontWeight: '500' }}>{friendlyModelName(model.model)}</p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ margin: '0', color: '#6b7280' }}>
-                        {(model.estimatedCostShare * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ margin: '0', fontWeight: '500', color: '#0066cc' }}>
-                        ${model.estimatedCostUsd.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
+                height: '100%',
+                background: '#0066cc',
+                width: `${((e.estimated_spend_usd ?? 0) / maxSpend) * 100}%`,
+                borderRadius: 4,
+              }} />
+            </div>
+            <div style={{ width: 80, textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#111827', flexShrink: 0 }}>
+              ${(e.estimated_spend_usd ?? 0).toFixed(2)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ── § 3  SpendingTrendSection ──────────────────────────────────────────
+  const SpendingTrendSection = () => {
+    if (dailySpend.length === 0) return null;
+    return (
+      <div>
+        <h2 style={sectionHead}>Daily Spend Trend</h2>
+        {css.spike_callout && (
+          <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#92400e' }}>
+              ⚠ Spend spike detected: {css.spike_callout.date} — ${(css.spike_callout.spend_usd ?? 0).toFixed(2)}
+              {css.spike_callout.message ? ` · ${css.spike_callout.message}` : ''}
+            </p>
+          </div>
+        )}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: '#f3f4f6' }}>
+              <th style={{ textAlign: 'left', padding: '6px 8px', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Date</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Spend</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dailySpend.map(row => (
+              <tr key={row.date} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                <td style={{ padding: '5px 8px', color: '#374151' }}>{row.date}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>${(row.spend_usd ?? 0).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // ── § 4  Per-source cards ──────────────────────────────────────────────
+  const SourceCard = ({ source, sourceRecs }: { source: SourceReport; sourceRecs: RecommendationResult[] }) => {
+    const m    = source.metrics;
+    const name = friendlySourceName(source.source_id);
+    const spend = spendByTool.find(e => e.source_id === source.source_id);
+    const isTierC = source.tier === 'C';
+    const modelSpendRows = getModelSpendRows(source);
+
+    if (source.error) {
+      return (
+        <div style={{ border: '1px solid #fca5a5', background: '#fef2f2', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 600 }}>{name}</h3>
+          <p style={{ margin: 0, fontSize: 13, color: '#991b1b' }}>Error: {source.error}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 6, marginBottom: 16, overflow: 'hidden' }}>
+        {/* Source header */}
+        <div style={{ background: '#f3f4f6', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#111827' }}>{name}</h3>
+          {spend && (
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#0066cc' }}>
+              ${(spend.estimated_spend_usd ?? 0).toFixed(2)}
+            </span>
+          )}
+        </div>
+
+        {m && (
+          <div style={{ padding: 16 }}>
+            {/* Canonical Tier B fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+              {(m as any).totalActualSpendUsd !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Total Spend</p>
+                  <p style={value}>${((m as any).totalActualSpendUsd as number).toFixed(2)}</p>
+                </div>
+              )}
+              {(m as any).totalActualTokens !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Total Tokens</p>
+                  <p style={value}>{((m as any).totalActualTokens as number).toLocaleString()}</p>
+                </div>
+              )}
+              {(m as any).avgDailySpendUsd !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Avg Daily Spend</p>
+                  <p style={value}>${((m as any).avgDailySpendUsd as number).toFixed(2)}</p>
+                </div>
+              )}
+              {((m as any).cachedTokenSavingsUsdAnthropic ?? (m as any).cachedTokenSavingsUsdClaudeCode) !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Cache Savings</p>
+                  <p style={{ ...value, color: '#16a34a' }}>${(((m as any).cachedTokenSavingsUsdAnthropic ?? (m as any).cachedTokenSavingsUsdClaudeCode ?? 0) as number).toFixed(2)}</p>
+                </div>
+              )}
+              {/* Tier C canonical fields */}
+              {(m as any).total_conversations !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Conversations</p>
+                  <p style={value}>{((m as any).total_conversations as number).toLocaleString()}</p>
+                </div>
+              )}
+              {(m as any).active_days !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Active Days</p>
+                  <p style={value}>{(m as any).active_days}</p>
+                </div>
+              )}
+              {(m as any).estimated_relative_cost_usd !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Relative Cost</p>
+                  <p style={value}>${((m as any).estimated_relative_cost_usd as number).toFixed(2)}</p>
+                </div>
+              )}
+              {(m as any).estimated_token_volume !== undefined && (
+                <div style={cell}>
+                  <p style={label}>Token Vol.</p>
+                  <p style={value}>{((m as any).estimated_token_volume as number).toLocaleString()}</p>
+                </div>
+              )}
+            </div>
+
+            {!isTierC && !(m.efficiencySignal?.kind === 'input_heavy' && sourceRecs.some(r => r.id === 'R3')) && (
+              <EfficiencySignalCallout signal={m.efficiencySignal} />
+            )}
+
+            {/* Model spend for Tier B, model chips for Tier C */}
+            {!isTierC && modelSpendRows.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ ...label, marginBottom: 6 }}>Model Spend</p>
+                {modelSpendRows.map(row => (
+                  <p key={row.model} style={{ margin: '2px 0', fontSize: 12, color: '#374151' }}>
+                    {row.model}: {Math.round(row.share * 100)}% of spend
+                  </p>
                 ))}
               </div>
             )}
-
-            {/* Copilot: Token Breakdown by Model */}
-            {metrics.copilotTokenBreakdownByModel && metrics.copilotTokenBreakdownByModel.length > 0 && (
-              <div style={{
-                padding: '16px',
-                borderTop: '1px solid #d1d5db',
-                backgroundColor: '#fafafa'
-              }}>
-                <p style={{
-                  margin: '0 0 12px 0',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#6b7280',
-                  textTransform: 'uppercase'
-                }}>
-                  Token Breakdown by Model
-                </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f3f4f6' }}>
-                      {(['Model', 'Input Tokens', 'Output Tokens', 'Cache Read', 'Cache Write', 'Reasoning', 'Requests', 'Cost'] as const).map((col, i) => (
-                        <th key={col} style={{
-                          textAlign: i === 0 ? 'left' : 'right',
-                          padding: '6px 8px',
-                          fontWeight: '600',
-                          color: '#6b7280',
-                          textTransform: 'uppercase',
-                          fontSize: '11px',
-                          borderBottom: '1px solid #e2e8f0',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.copilotTokenBreakdownByModel.map((row, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{row.model}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.inputTokens.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.outputTokens.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.cacheReadTokens.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.cacheWriteTokens.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.reasoningTokens.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{row.requestCount.toLocaleString()}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>${row.requestCost.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Copilot: Model Spend */}
-            {metrics.copilotModelCostBreakdown && metrics.copilotModelCostBreakdown.length > 0 && (
-              <div style={{
-                padding: '16px',
-                borderTop: '1px solid #d1d5db',
-                backgroundColor: '#fafafa'
-              }}>
-                <p style={{
-                  margin: '0 0 12px 0',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#6b7280',
-                  textTransform: 'uppercase'
-                }}>
-                  Model Spend
-                </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f3f4f6' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Model</th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Net Spend ($)</th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>% of Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...metrics.copilotModelCostBreakdown]
-                      .sort((a, b) => b.costUsd - a.costUsd)
-                      .map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{row.model}</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>${row.costUsd.toFixed(2)}</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{(row.costShare * 100).toFixed(1)}%</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Copilot: Cache Read Fraction by Model */}
-            {metrics.copilotCachedTokenFraction && metrics.copilotCachedTokenFraction.perModel.length > 0 && (
-              <div style={{
-                padding: '16px',
-                borderTop: '1px solid #d1d5db',
-                backgroundColor: '#fafafa'
-              }}>
-                <p style={{
-                  margin: '0 0 12px 0',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#6b7280',
-                  textTransform: 'uppercase'
-                }}>
-                  Cache Read Fraction by Model
-                </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f3f4f6' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Model</th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Cache Read %</th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', fontSize: '11px', borderBottom: '1px solid #e2e8f0' }}>Cache Read Tokens</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.copilotCachedTokenFraction.perModel.map((entry, idx) => {
-                      const tokenRow = metrics.copilotTokenBreakdownByModel?.find(r => r.model === entry.model);
-                      return (
-                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: '6px 8px', color: '#1e293b', fontWeight: '500' }}>{entry.model}</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>{(entry.fraction * 100).toFixed(1)}%</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1e293b' }}>
-                            {tokenRow ? tokenRow.cacheReadTokens.toLocaleString() : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#9ca3af' }}>
-                  Aggregate cache-read fraction: {(metrics.copilotCachedTokenFraction.aggregate * 100).toFixed(1)}%
-                </p>
-              </div>
-            )}
-
-          </div>
-        );
-      })}
-
-      {/* Recommendations */}
-      {report.recommendations.length > 0 && (
-        <div style={{ marginBottom: '30px' }}>
-          <h2 style={{ 
-            fontSize: '22px', 
-            fontWeight: 'bold', 
-            margin: '30px 0 16px 0',
-            paddingTop: '20px',
-            borderTop: '2px solid #e5e7eb'
-          }}>
-            Recommendations
-          </h2>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            {report.recommendations.slice(0, 3).map((rec, idx) => (
-              <div 
-                key={idx}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #dbeafe',
-                  borderLeft: '4px solid #0066cc',
-                  borderRadius: '4px',
-                  backgroundColor: '#eff6ff'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ 
-                      margin: '0 0 4px 0', 
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#1e40af'
-                    }}>
-                      {rec.title}
-                    </p>
-                    <p style={{ margin: '0', fontSize: '13px', color: '#1e3a8a', lineHeight: '1.4' }}>
-                      {rec.body}
-                    </p>
-                  </div>
-                  {rec.estimatedSavingsUsd && (
-                    <div style={{ 
-                      textAlign: 'right',
-                      padding: '4px 8px',
-                      backgroundColor: '#dcfce7',
-                      borderRadius: '4px'
-                    }}>
-                      <p style={{ margin: '0', fontSize: '12px', fontWeight: '600', color: '#15803d' }}>
-                        Save ${rec.estimatedSavingsUsd.toFixed(2)}/mo
-                      </p>
-                    </div>
-                  )}
+            {isTierC && (m as any).models_identified && ((m as any).models_identified as string[]).length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ ...label, marginBottom: 6 }}>Models Identified</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {((m as any).models_identified as string[]).map(mod => (
+                    <span key={mod} style={{ fontSize: 12, padding: '2px 8px', background: '#f3f4f6', borderRadius: 100, color: '#374151' }}>{mod}</span>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
-
-
-      {/* Footer */}
-      <div style={{
-        marginTop: '40px',
-        paddingTop: '20px',
-        borderTop: '1px solid #e5e7eb',
-        textAlign: 'center',
-        fontSize: '12px',
-        color: '#9ca3af'
-      }}>
-        <p style={{ margin: '0' }}>
-          Generated by Promptly — local analysis, no data stored
-        </p>
+        )}
       </div>
+    );
+  };
+
+  // ── § 5  Recommendations ──────────────────────────────────────────────
+  // No slice cap — show ALL recommendations
+  const RecommendationsSection = () => {
+    if (report.recommendations.length === 0) return null;
+    return (
+      <div>
+        <h2 style={sectionHead}>Recommendations</h2>
+        {report.recommendations.map((r, idx) => (
+          <div key={r.id ?? idx} style={{ display: 'flex', gap: 12, marginBottom: 12, padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <div style={{ flexShrink: 0, width: 28, height: 28, borderRadius: '50%', background: r.severity === 'High' ? '#fee2e2' : r.severity === 'Medium' ? '#fef3c7' : '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: r.severity === 'High' ? '#991b1b' : r.severity === 'Medium' ? '#92400e' : '#065f46' }}>
+              {idx + 1}
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600, color: '#111827' }}>{r.title}</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#6b7280', whiteSpace: 'pre-line' }}>{r.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={root}>
+      {/* Document header */}
+      <div style={{ marginBottom: 32, borderBottom: '2px solid #e5e7eb', paddingBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 4px', color: '#0066cc' }}>Promptly</h1>
+          <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>AI Spend Analysis Report</p>
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>Generated {generatedDate}</p>
+      </div>
+
+      {/* § 1 AnalysisHeader */}
+      <AnalysisHeader />
+
+      {/* § 2 MoneyByToolSection */}
+      <MoneyByToolSection />
+
+      {/* § 3 SpendingTrendSection */}
+      <SpendingTrendSection />
+
+      {/* § 4 Per-source cards */}
+      <div>
+        <h2 style={sectionHead}>AI Sources</h2>
+        {sortedSources.map(s => (
+          <SourceCard
+            key={s.source_id}
+            source={s}
+            sourceRecs={report.recommendations.filter(r => r.sourceIds.includes(s.source_id))}
+          />
+        ))}
+      </div>
+
+      {/* § 5 Recommendations — ALL, no slice cap */}
+      <RecommendationsSection />
     </div>
   );
 }
