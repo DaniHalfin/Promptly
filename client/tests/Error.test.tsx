@@ -42,6 +42,11 @@ describe('Error page', () => {
     expect(screen.getByText('Something broke')).toBeInTheDocument();
   });
 
+  it('renders actionable guidance note below the error message — FIX-12', () => {
+    renderError();
+    expect(screen.getByText(/check that your api keys are valid/i)).toBeInTheDocument();
+  });
+
   it('renders centered themed error card without Tailwind dependency', () => {
     renderError();
     // Outer container is centered and full-height via inline CSS vars (no inert Tailwind)
@@ -60,5 +65,17 @@ describe('Error page', () => {
     expect(screen.getByTestId('error-actions')).toHaveStyle({ display: 'flex' });
     // No inert Tailwind utility classes remain on the root
     expect(page.className).not.toMatch(/min-h-screen|items-center|justify-center/);
+  });
+});
+
+describe('FIX-12: Error page actionable copy', () => {
+  it('renders a guidance note below the error message', () => {
+    renderError();
+    expect(screen.getByText(/check that your api keys are valid/i)).toBeInTheDocument();
+  });
+
+  it('displays error message from state.analysisError', () => {
+    renderError();
+    expect(screen.getByText('Something broke')).toBeInTheDocument();
   });
 });

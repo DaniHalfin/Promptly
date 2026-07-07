@@ -31,6 +31,16 @@ export function AnalysisHeader({
         {' · '}{dateRange.start} – {dateRange.end}
       </p>
 
+      {/* FIX-6: global spend-estimate disclosure — always visible, replaces the
+          narrow "savings estimated" note that implied all other figures were exact */}
+      <p
+        role="note"
+        data-testid="spend-estimate-disclosure"
+        style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '8px 0 0', fontStyle: 'italic' }}
+      >
+        All spend figures are estimates based on token usage and provider list pricing.
+      </p>
+
       {showPotentialSavings && (
         <div
           data-testid="potential-savings-callout"
@@ -56,12 +66,6 @@ export function AnalysisHeader({
               <strong style={{ color: 'var(--color-positive-text)' }}>${totalPotentialSavingsUsd.toFixed(2)}</strong>
               {' '}across {actionableRecommendationCount} {actionableRecommendationCount === 1 ? 'recommendation' : 'recommendations'}
             </div>
-            <p
-              role="note"
-              style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '4px 0 0', fontStyle: 'italic' }}
-            >
-              Savings estimates are based on your usage patterns and may vary.
-            </p>
           </div>
         </div>
       )}

@@ -42,8 +42,12 @@ export function Error() {
         >
           Analysis Failed
         </h1>
-        <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>
-          {state.analysisError || 'An unknown error occurred'}
+        {/* FIX-12: improved actionable error copy */}
+        <p style={{ margin: '0 0 8px', color: 'var(--text-secondary)', fontSize: 'var(--text-body)' }}>
+          {state.analysisError || 'Something went wrong while analysing your data.'}
+        </p>
+        <p style={{ margin: '0 0 24px', color: 'var(--text-muted)', fontSize: 'var(--text-note)' }}>
+          Check that your API keys are valid and that you have data for the selected period, then try again. If the problem persists, start over with a fresh session.
         </p>
 
         <div data-testid="error-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

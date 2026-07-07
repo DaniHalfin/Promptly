@@ -69,7 +69,7 @@ export function TokenRatioBar({
           border: '1px solid var(--color-border-subtle)',
         }}
       >
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No token usage data for this period.</p>
       </div>
     );
   }

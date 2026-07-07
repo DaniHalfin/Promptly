@@ -33,7 +33,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
             border: '1px solid var(--color-border-subtle)',
           }}
         >
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>No daily spend data for this period.</p>
         </div>
       </figure>
     );
@@ -58,7 +58,7 @@ export function DailySpendLine({ data }: DailySpendLineProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={data} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
           <YAxis label={{ value: 'Daily Spend (USD)', angle: -90, position: 'insideLeft', dx: -10 }} />

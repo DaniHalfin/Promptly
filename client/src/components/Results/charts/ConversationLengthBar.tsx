@@ -31,7 +31,7 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
           border: '1px solid var(--color-border-subtle)',
         }}
       >
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No conversation length data for this period.</p>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
           border: '1px solid var(--color-border-subtle)',
         }}
       >
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No data available</p>
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>No conversation length data for this period.</p>
       </div>
     );
   }
@@ -77,10 +77,10 @@ export function ConversationLengthBar({ data }: ConversationLengthBarProps) {
         </table>
       </figcaption>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={validData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+        <BarChart data={validData} margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="bucket" />
-          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft', dx: -5 }} />
           <Tooltip
             formatter={(value) => {
               if (typeof value === 'number') {

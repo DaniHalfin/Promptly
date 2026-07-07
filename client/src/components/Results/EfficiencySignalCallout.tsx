@@ -18,7 +18,7 @@ export function EfficiencySignalCallout({ signal }: EfficiencySignalCalloutProps
     ? 'Most of your cost went to sending, not receiving'
     : signal.headline;
   const ratioText = isInputHeavy
-    ? `Your prompts send roughly ${inputOutputMultiplier}× more text than you get back — the bulk of your cost is context, not answers. See the recommendation below.`
+    ? `Your prompts send roughly ${inputOutputMultiplier}× more text than you get back — the bulk of your cost is context, not answers.`
     : `You receive roughly ${outputInputMultiplier}× more text than you send.`;
 
   return (

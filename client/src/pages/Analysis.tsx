@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
-import { apiClient } from '../api/client.js';
+import { apiClient, normalizeErrorMessage } from '../api/client.js';
 import type { SourceId, SourceReport } from '../types/index.js';
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -111,7 +111,7 @@ export function Analysis() {
         }
       } catch (err) {
         if (controller.signal.aborted) return;
-        dispatch({ phase: 'error', analysisError: (err as Error).message });
+        dispatch({ phase: 'error', analysisError: normalizeErrorMessage((err as Error).message) });
       } finally {
         abortControllerRef.current = null;
       }

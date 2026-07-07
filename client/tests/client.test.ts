@@ -2,7 +2,49 @@
  * Phase 3 Unit E1 — apiClient.validate contract.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiClient } from '../src/api/client';
+import { apiClient, normalizeErrorMessage } from '../src/api/client';
+
+describe('FIX-7: normalizeErrorMessage', () => {
+  it('returns safe fallback for null/undefined/empty', () => {
+    expect(normalizeErrorMessage(null)).toBe('An unknown error occurred.');
+    expect(normalizeErrorMessage(undefined)).toBe('An unknown error occurred.');
+    expect(normalizeErrorMessage('')).toBe('An unknown error occurred.');
+  });
+
+  it('passes through safe single-line messages unchanged', () => {
+    expect(normalizeErrorMessage('No data available for this period')).toBe(
+      'No data available for this period'
+    );
+  });
+
+  it('strips multi-line stack traces — returns only first line', () => {
+    const stack = 'Error: Cannot read property\n    at Object.<anonymous> (/server/routes/analyze.ts:42:10)\n    at Module._compile (node:internal/modules/cjs/loader:1376:14)';
+    const result = normalizeErrorMessage(stack);
+    expect(result).not.toContain('at Object');
+    expect(result).not.toContain('node:internal');
+    expect(result).toBe('Cannot read property');
+  });
+
+  it('strips "Error:" prefix from first line', () => {
+    expect(normalizeErrorMessage('Error: Internal server error')).toBe('Internal server error');
+  });
+
+  it('strips inline stack-trace patterns', () => {
+    const msg = 'Something broke at Object.fn (index.js:12:5)';
+    expect(normalizeErrorMessage(msg)).not.toContain('(index.js:12:5)');
+  });
+
+  it('Error.tsx must not render raw Error.message without normalization', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const errorSrc = readFileSync(resolve(__dirname, '../src/pages/Error.tsx'), 'utf-8');
+    const analysisSrc = readFileSync(resolve(__dirname, '../src/pages/Analysis.tsx'), 'utf-8');
+    // Analysis.tsx must apply normalizeErrorMessage before dispatching analysisError
+    expect(analysisSrc).toContain('normalizeErrorMessage(');
+    // Error.tsx must not directly dereference .message or .stack
+    expect(errorSrc).not.toMatch(/error\.message|error\.stack/);
+  });
+});
 
 describe('apiClient.validate', () => {
   beforeEach(() => {

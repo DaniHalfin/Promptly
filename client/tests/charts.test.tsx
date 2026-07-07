@@ -11,7 +11,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { DailySpendLine } from '../src/components/Results/charts/DailySpendLine';
-import { ModelCostSharePie } from '../src/components/Results/charts/ModelCostSharePie';
 import { ConversationLengthBar } from '../src/components/Results/charts/ConversationLengthBar';
 import { TokenRatioBar } from '../src/components/Results/charts/TokenRatioBar';
 
@@ -87,14 +86,16 @@ describe('DailySpendLine (WP-9)', () => {
     expect(source).not.toContain("value: 'Cost (USD)'");
   });
 
-  it('LineChart left margin is 20 to prevent Y-axis label clipping — P3', async () => {
+  it('LineChart left margin is ≥40 to prevent Y-axis label clipping — FIX-3', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
       resolve(__dirname, '../src/components/Results/charts/DailySpendLine.tsx'),
       'utf8',
     );
-    expect(source).toContain('left: 20');
+    // Must be 50 (or any value ≥ 40); must not be the old insufficient 20 or 0.
+    expect(source).toContain('left: 50');
+    expect(source).not.toContain('left: 20');
     expect(source).not.toContain('left: 0');
   });
 
@@ -109,35 +110,15 @@ describe('DailySpendLine (WP-9)', () => {
   });
 });
 
-// ── ModelCostSharePie ────────────────────────────────────────────────────────
+// ModelCostSharePie was deleted (FIX-4): it was never imported in production.
+// ModelSpendMiniBar is the canonical model breakdown visualization (used in ToolSpendCard.tsx).
 
-describe('ModelCostSharePie (WP-9)', () => {
-  const sampleData = [
-    { model: 'gpt-4o', costUsd: 5.50, percentage: 70 },
-    { model: 'gpt-4o-mini', costUsd: 2.35, percentage: 30 },
-  ];
-
-  it('renders a <figure> with aria-label "Model cost share"', () => {
-    const { container } = render(<ModelCostSharePie data={sampleData} />);
-    const fig = container.querySelector('figure');
-    expect(fig).not.toBeNull();
-    expect(fig!.getAttribute('aria-label')).toBe('Model cost share');
-  });
-
-  it('contains an sr-only table with a data row', () => {
-    const { container } = render(<ModelCostSharePie data={sampleData} />);
-    const srOnly = container.querySelector('.sr-only');
-    expect(srOnly).not.toBeNull();
-    const rows = srOnly!.querySelectorAll('tbody tr');
-    expect(rows.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('table rows include model name, cost, and percentage', () => {
-    const { container } = render(<ModelCostSharePie data={sampleData} />);
-    const tds = container.querySelectorAll('.sr-only tbody tr td');
-    const texts = Array.from(tds).map((td) => td.textContent);
-    expect(texts.some((t) => t?.includes('%'))).toBe(true);
-    expect(texts.some((t) => t?.includes('$'))).toBe(true);
+describe('FIX-4: ModelCostSharePie must not exist (dead code deleted)', () => {
+  it('ModelCostSharePie.tsx file does not exist in charts directory', async () => {
+    const { existsSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const path = resolve(__dirname, '../src/components/Results/charts/ModelCostSharePie.tsx');
+    expect(existsSync(path)).toBe(false);
   });
 });
 
@@ -239,9 +220,7 @@ describe('chart empty states use CSS vars, not inert Tailwind', () => {
       justifyContent: 'center',
     });
     expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
-    const text = screen.getByText('No data available');
-    expect(text).toHaveStyle({ color: 'var(--text-muted)' });
-    expect(text.className).not.toMatch(/text-slate-500/);
+    expect(screen.getByText('No daily spend data for this period.')).toHaveStyle({ color: 'var(--text-muted)' });
   });
 
   it('ConversationLengthBar empty state (no data) is themed and Tailwind-free', () => {
@@ -249,7 +228,7 @@ describe('chart empty states use CSS vars, not inert Tailwind', () => {
     const empty = screen.getByTestId('chart-empty');
     expect(empty).toHaveStyle({ background: 'var(--color-bg-inset)' });
     expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
-    expect(screen.getByText('No data available')).toHaveStyle({ color: 'var(--text-muted)' });
+    expect(screen.getByText('No conversation length data for this period.')).toHaveStyle({ color: 'var(--text-muted)' });
   });
 
   it('ConversationLengthBar empty state (all-zero counts) is themed and Tailwind-free', () => {
@@ -264,6 +243,56 @@ describe('chart empty states use CSS vars, not inert Tailwind', () => {
     const empty = screen.getByTestId('chart-empty');
     expect(empty).toHaveStyle({ background: 'var(--color-bg-inset)' });
     expect(empty.className).not.toMatch(/bg-slate-50|border-slate-200|items-center|justify-center|h-80/);
-    expect(screen.getByText('No data available')).toHaveStyle({ color: 'var(--text-muted)' });
+    expect(screen.getByText('No token usage data for this period.')).toHaveStyle({ color: 'var(--text-muted)' });
+  });
+});
+
+// ── FIX-3: Y-axis label clipping ─────────────────────────────────────────────
+
+describe('ConversationLengthBar (FIX-3 Y-axis margin)', () => {
+  it('BarChart left margin is ≥40 to prevent Y-axis label clipping — FIX-3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('left: 50');
+    expect(source).not.toContain('left: 0');
+  });
+
+  it('YAxis label has dx offset so rotated label does not overlap tick numbers — FIX-3', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../src/components/Results/charts/ConversationLengthBar.tsx'),
+      'utf8',
+    );
+    expect(source).toMatch(/YAxis.*label.*dx:/s);
+  });
+});
+
+// ── FIX-12: Period-specific empty-state messages ──────────────────────────────
+
+describe('FIX-12: chart empty states use period-specific messages', () => {
+  it('ConversationLengthBar empty state shows period-specific message (not generic "No data available")', () => {
+    const { container } = render(<ConversationLengthBar data={[]} />);
+    const emptyEl = container.querySelector('[data-testid="chart-empty"] p');
+    expect(emptyEl?.textContent).not.toBe('No data available');
+    expect(emptyEl?.textContent).toContain('this period');
+  });
+
+  it('DailySpendLine empty state shows period-specific message', () => {
+    const { container } = render(<DailySpendLine data={[]} />);
+    const emptyEl = container.querySelector('[data-testid="chart-empty"] p');
+    expect(emptyEl?.textContent).not.toBe('No data available');
+    expect(emptyEl?.textContent).toContain('this period');
+  });
+
+  it('TokenRatioBar empty state shows period-specific message', () => {
+    const { container } = render(<TokenRatioBar inputTokens={0} outputTokens={0} />);
+    const emptyEl = container.querySelector('[data-testid="chart-empty"] p');
+    expect(emptyEl?.textContent).not.toBe('No data available');
+    expect(emptyEl?.textContent).toContain('this period');
   });
 });

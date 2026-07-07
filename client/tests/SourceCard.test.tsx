@@ -580,3 +580,79 @@ describe('SourceCard — E5 validation badges', () => {
     expect(wrapper).toHaveAttribute('aria-atomic', 'true');
   });
 });
+
+describe('FIX-10: file drop-zone type filter', () => {
+  it('accepts a .json file drop without showing an error', async () => {
+    const { container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const jsonFile = new File(['{"messages":[]}'], 'conversations.json', { type: 'application/json' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [jsonFile] },
+    });
+
+    expect(container.querySelector('[data-testid="chatgpt_export-file-type-error"]')).toBeNull();
+  });
+
+  it('rejects a .pdf drop and shows an inline error without processing the file', () => {
+    const { updateSource, container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const pdfFile = new File(['%PDF-1.4'], 'document.pdf', { type: 'application/pdf' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [pdfFile] },
+    });
+
+    const errorEl = container.querySelector('[data-testid="chatgpt_export-file-type-error"]');
+    expect(errorEl).not.toBeNull();
+    expect(errorEl!.textContent).toMatch(/only .json and .jsonl/i);
+    expect(updateSource).not.toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: pdfFile }));
+  });
+
+  it('rejects a .txt drop and shows an inline error', () => {
+    const { updateSource, container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+
+    const txtFile = new File(['hello'], 'export.txt', { type: 'text/plain' });
+    // .txt extension will be rejected even though MIME type is text/plain
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [txtFile] },
+    });
+
+    const errorEl = container.querySelector('[data-testid="chatgpt_export-file-type-error"]');
+    expect(errorEl).not.toBeNull();
+    expect(updateSource).not.toHaveBeenCalledWith('chatgpt_export', expect.objectContaining({ file: txtFile }));
+  });
+
+  it('accepts a .jsonl file drop regardless of MIME variant (x-ndjson)', async () => {
+    const { container } = renderSourceCard('chatgpt_export');
+    const dropZone = container.querySelector('.upload-area')!;
+    const jsonlFile = new File(['{"role":"user"}'], 'export.jsonl', { type: 'application/x-ndjson' });
+    fireEvent.drop(dropZone, { dataTransfer: { files: [jsonlFile] } });
+    expect(container.querySelector('[data-testid="chatgpt_export-file-type-error"]')).toBeNull();
+  });
+});
+
+describe('FIX-11: source description copy — no JSONL jargon, product-first', () => {
+  it('claude_code description does not use "JSONL" jargon', () => {
+    renderSourceCard('claude_code', { enabled: false });
+    const description = screen.queryByText(/JSONL/i);
+    expect(description).toBeNull();
+  });
+
+  it('claude_code description uses plain-language "conversation logs"', () => {
+    renderSourceCard('claude_code', { enabled: false });
+    expect(screen.getByText(/conversation logs/i)).toBeInTheDocument();
+  });
+
+  it('chatgpt_export description is product-first (not "Exported conversation JSON")', () => {
+    renderSourceCard('chatgpt_export');
+    const descriptions = screen.queryAllByText(/exported conversation json/i);
+    expect(descriptions).toHaveLength(0);
+  });
+
+  it('chatgpt_export description mentions ChatGPT conversation history', () => {
+    renderSourceCard('chatgpt_export');
+    expect(screen.getByText(/chatgpt conversation history/i)).toBeInTheDocument();
+  });
+});

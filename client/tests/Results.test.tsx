@@ -277,3 +277,14 @@ describe('Results — ADR-9 narrative layout', () => {
     });
   });
 });
+
+describe('FIX-2: Results h1 center alignment', () => {
+  it('Results h1 eyebrow is center-aligned to match AnalysisHeader', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../src/pages/Results.tsx'), 'utf8');
+    const h1Start = src.indexOf('id="results-heading"');
+    const h1Block = src.slice(h1Start, src.indexOf('>', h1Start + 400));
+    expect(h1Block).toContain("textAlign: 'center'");
+  });
+});

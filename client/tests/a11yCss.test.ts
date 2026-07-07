@@ -28,6 +28,8 @@ const convLengthBarSrc = readFileSync(convLengthBarPath, 'utf-8');
 const tokenRatioBarSrc = readFileSync(tokenRatioBarPath, 'utf-8');
 const appPath = resolve(__dirname, '../src/App.tsx');
 const appSrc = readFileSync(appPath, 'utf-8');
+const sourceCardPath = resolve(__dirname, '../src/components/SourceCard.tsx');
+const sourceCardSrc = readFileSync(sourceCardPath, 'utf-8');
 
 /** Extract the body of the first CSS rule matching the given selector. */
 function ruleBody(source: string, selector: string): string {
@@ -247,10 +249,12 @@ describe('W-FOCUS-02: .focus-target class', () => {
     expect(body).toMatch(/outline:\s*none/);
   });
 
-  it('.focus-target:focus-visible restores outline', () => {
+  it('.focus-target:focus-visible restores outline (single selector — no plain :focus)', () => {
     expect(css).toContain('.focus-target:focus-visible');
     const body = ruleBody(css, '.focus-target:focus-visible {');
     expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+    // Regression ban: the old combined form must not exist
+    expect(css).not.toContain('.focus-target:focus,');
   });
 });
 
@@ -347,20 +351,31 @@ describe('B1: skip-link target focusability', () => {
   });
 });
 
-describe('B3: programmatic focus ring via plain :focus rules', () => {
-  // CORRECT — trailing comma only exists in the combined selector after the fix
-  it('B3: .focus-target has a plain :focus rule (not just :focus-visible)', () => {
-    const idx = css.indexOf('.focus-target:focus,');
-    expect(idx).toBeGreaterThan(-1);
-    const block = css.slice(idx, css.indexOf('}', idx));
-    expect(block).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+describe('FOCUS-FIX-1: programmatic focus ring via :focus-visible only', () => {
+  // After FIX-1: plain :focus was removed from the combined selector because it
+  // caused a visible ring flash for mouse users on every phase transition.
+  // :focus-visible alone is sufficient — modern browsers fire it on programmatic
+  // .focus() when the previous user interaction was keyboard-based.
+
+  it('FOCUS-FIX-1 regression ban: combined ":focus, :focus-visible" selector must NOT exist for .focus-target', () => {
+    // If this test fails, the ring-flash regression has been re-introduced.
+    expect(css).not.toContain('.focus-target:focus,');
   });
 
-  it('B3: .rec-focus-target has a plain :focus rule (not just :focus-visible)', () => {
-    const idx = css.indexOf('.rec-focus-target:focus,');
-    expect(idx).toBeGreaterThan(-1);
-    const block = css.slice(idx, css.indexOf('}', idx));
-    expect(block).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  it('FOCUS-FIX-1 regression ban: combined ":focus, :focus-visible" selector must NOT exist for .rec-focus-target', () => {
+    expect(css).not.toContain('.rec-focus-target:focus,');
+  });
+
+  it('.focus-target:focus-visible rule exists with correct outline', () => {
+    expect(css).toContain('.focus-target:focus-visible');
+    const body = ruleBody(css, '.focus-target:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('.rec-focus-target:focus-visible rule exists with correct outline', () => {
+    expect(css).toContain('.rec-focus-target:focus-visible');
+    const body = ruleBody(css, '.rec-focus-target:focus-visible {');
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
   });
 });
 
@@ -444,5 +459,34 @@ describe('W7: no spatial directional language in run-disabled copy', () => {
     // Fail if any of the user-facing strings contain "above" or "below" as a spatial reference.
     expect(disabledReasonBlock).not.toMatch(/['"][^'"]*\babove\b[^'"]*['"]/i);
     expect(disabledReasonBlock).not.toMatch(/['"][^'"]*\bbelow\b[^'"]*['"]/i);
+  });
+});
+
+describe('FIX-8: ValidationBadge "validating" state contrast', () => {
+  it('validating badge does not use --color-bg-inset (low-contrast dark background)', () => {
+    const validatingIdx = sourceCardSrc.indexOf('data-validation-status="validating"');
+    expect(validatingIdx).toBeGreaterThan(-1);
+    const snippetEnd = sourceCardSrc.indexOf('</span>', validatingIdx);
+    const snippet = sourceCardSrc.slice(validatingIdx, snippetEnd);
+    // Must NOT use the old low-contrast background
+    expect(snippet).not.toContain('var(--color-bg-inset)');
+  });
+
+  it('validating badge uses --color-bg-elevated (sufficient contrast background)', () => {
+    const validatingIdx = sourceCardSrc.indexOf('data-validation-status="validating"');
+    const snippetEnd = sourceCardSrc.indexOf('</span>', validatingIdx);
+    const snippet = sourceCardSrc.slice(validatingIdx, snippetEnd);
+    expect(snippet).toContain('var(--color-bg-elevated)');
+  });
+});
+
+describe('FIX-13: Results back-button SVG aria-hidden', () => {
+  it('Results.tsx back-button SVG has aria-hidden="true"', () => {
+    const backSvgIdx = resultsSrc.indexOf('"M19 12H5"');
+    expect(backSvgIdx).toBeGreaterThan(-1);
+    const svgOpenStart = resultsSrc.lastIndexOf('<svg', backSvgIdx);
+    const svgOpenEnd = resultsSrc.indexOf('>', svgOpenStart);
+    const svgTag = resultsSrc.slice(svgOpenStart, svgOpenEnd + 1);
+    expect(svgTag).toContain('aria-hidden="true"');
   });
 });

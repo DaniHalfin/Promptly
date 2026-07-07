@@ -355,13 +355,13 @@ button:focus-visible,
   flex-shrink: 0;
   pointer-events: none;
 }
-/* W4: programmatic focus targets — suppress default ring but restore on focus */
+/* W4: programmatic focus targets — suppress default ring but restore on keyboard focus */
 .rec-focus-target { outline: none; }
-/* B3: plain :focus fires on programmatic .focus() calls (Chrome/Edge/Safari do NOT
-   fire :focus-visible for programmatic focus). This is safe because rec-focus-target
-   elements have tabIndex={-1} — users cannot naturally tab to them, so the ring
-   only appears on programmatic focus, which is exactly when we need it. */
-.rec-focus-target:focus,
+/* FOCUS-FIX-1: Use :focus-visible only. Modern browsers (Chrome 86+, Firefox 85+,
+   Safari 15.4+) fire :focus-visible on programmatic .focus() when the previous
+   user interaction was keyboard-based — so keyboard users still get the ring while
+   mouse users do not. The old combined :focus, :focus-visible caused a ring flash
+   for mouse users on every page transition (regression). */
 .rec-focus-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
@@ -369,9 +369,7 @@ button:focus-visible,
 
 /* W-FOCUS-02: programmatic-focus heading ring */
 .focus-target { outline: none; }
-/* B3: plain :focus covers programmatic .focus() in all browsers (not just keyboard nav).
-   Safe because these elements have tabIndex={-1} — not reachable by tab. */
-.focus-target:focus,
+/* FOCUS-FIX-1: :focus-visible only — see .rec-focus-target comment above. */
 .focus-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 4px;

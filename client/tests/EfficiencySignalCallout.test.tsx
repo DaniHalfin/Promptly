@@ -55,3 +55,25 @@ describe('EfficiencySignalCallout', () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe('FIX-5: note/recommendation separation', () => {
+  it('note copy does not contain "See the recommendation" (redundancy banned)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(
+      resolve(__dirname, '../src/components/Results/EfficiencySignalCallout.tsx'),
+      'utf-8'
+    );
+    expect(src).not.toContain('See the recommendation');
+  });
+
+  it('note copy does not contain directional "below" spatial reference', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(
+      resolve(__dirname, '../src/components/Results/EfficiencySignalCallout.tsx'),
+      'utf-8'
+    );
+    expect(src).not.toMatch(/['"][^'"]*\bbelow\b[^'"]*['"]/i);
+  });
+});

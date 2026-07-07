@@ -57,7 +57,8 @@ const sourceInfo: Record<
   chatgpt_export: {
     label: 'ChatGPT Export',
     type: 'file',
-    description: 'Exported conversation JSON',
+    /* FIX-11: Product-first (not format-first) description */
+    description: 'Your ChatGPT conversation history',
     setupInstructions: {
       steps: [
         'In ChatGPT, go to Settings → Data controls → Export data',
@@ -78,8 +79,8 @@ const sourceInfo: Record<
   claude_code: {
     label: 'Claude Code',
     type: 'local',
-    /* WP-13: Shorter copy — footer covers global privacy claim; JSONL glossed inline */
-    description: 'Local JSONL logs — no API key or upload required.',
+    /* FIX-11: Replaced "JSONL logs" with plain-language "conversation logs" */
+    description: 'Claude Code conversation logs — no API key or upload required.',
     localPath: '~/.claude/projects',
     localCheckMessage: 'Checking local Claude Code data...',
     setupInstructions: {
@@ -97,11 +98,24 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
   const source = state.sources[sourceId];
   const [validating, setValidating] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [fileTypeError, setFileTypeError] = useState<string | null>(null);
   const credInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const checkboxRef = useRef<HTMLInputElement>(null);
 
   const isConnected = source?.status === 'connected' || source?.status === 'ready';
+
+  /** FIX-10: validate file type before accepting a drop or input selection. */
+  const ACCEPTED_EXTENSIONS = ['.json', '.jsonl'];
+  const ACCEPTED_MIMES = ['application/json', 'application/jsonlines', 'application/x-ndjson', 'text/plain'];
+
+  function isAcceptedFile(file: File): boolean {
+    const name = file.name.toLowerCase();
+    const hasValidExt = ACCEPTED_EXTENSIONS.some(ext => name.endsWith(ext));
+    // MIME check is secondary (some systems report text/plain for .jsonl)
+    const hasValidMime = !file.type || ACCEPTED_MIMES.some(m => file.type.startsWith(m));
+    return hasValidExt && hasValidMime;
+  }
 
   const handleCredentialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateSource(sourceId, { credential: e.target.value, status: 'pending' });
@@ -109,6 +123,12 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (file && !isAcceptedFile(file)) {
+      setFileTypeError('Only .json and .jsonl files are accepted. Please select a valid file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setFileTypeError(null);
     updateSource(sourceId, { file, status: file ? 'ready' : 'pending' });
   };
 
@@ -349,7 +369,13 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             onDrop={(e) => {
               e.preventDefault();
               const file = e.dataTransfer.files?.[0];
-              if (file) updateSource(sourceId, { file, status: 'ready' });
+              if (!file) return;
+              if (!isAcceptedFile(file)) {
+                setFileTypeError('Only .json and .jsonl files are accepted. Please drop a valid file.');
+                return;
+              }
+              setFileTypeError(null);
+              updateSource(sourceId, { file, status: 'ready' });
             }}
             role="button"
             tabIndex={0}
@@ -371,6 +397,15 @@ export function SourceCard({ sourceId }: { sourceId: SourceId }) {
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+          {fileTypeError && (
+            <p
+              role="alert"
+              data-testid={`${sourceId}-file-type-error`}
+              style={{ fontSize: 'var(--text-note)', color: 'var(--color-critical-text)', marginTop: 6, margin: '6px 0 0' }}
+            >
+              {fileTypeError}
+            </p>
+          )}
           {source?.file && (
             <div className="upload-file-selected">
               <span>✓ {source.file.name}</span>
@@ -442,10 +477,12 @@ function ValidationBadge({ validation }: { validation: SourceValidationState | n
     if (validation.status === 'validating') {
       badge = (
         /* aria-live moved to outer wrapper — inner span no longer needs it */
+        /* FIX-8: --color-bg-inset (hsl 230 20% 9%) + --text-muted fails WCAG AA at 4.36:1.
+           --color-bg-elevated (hsl 226 15% 15%) raises contrast to ~6.5:1. */
         <span
           data-testid="source-validation-badge"
           data-validation-status="validating"
-          style={{ ...base, background: 'var(--color-bg-inset)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
+          style={{ ...base, background: 'var(--color-bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--color-input-border)' }}
         >
           Checking data…
         </span>

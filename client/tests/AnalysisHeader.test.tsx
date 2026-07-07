@@ -33,7 +33,8 @@ describe('AnalysisHeader', () => {
     expect(screen.getByText(/Save up to/)).toBeInTheDocument();
     expect(screen.getByText('$42.50')).toBeInTheDocument();
     expect(screen.getByText(/across 3 recommendations/)).toBeInTheDocument();
-    expect(screen.getByText(/Savings estimates are based on your usage patterns/)).toBeInTheDocument();
+    // FIX-6: narrow "savings estimated" sub-note was removed from the callout
+    expect(screen.queryByText(/Savings estimates are based on your usage patterns/)).not.toBeInTheDocument();
   });
 
   it('suppresses savings callout when no topSlotEligible recs', () => {
@@ -52,7 +53,9 @@ describe('AnalysisHeader', () => {
 
   it('renders Spend when no estimates are included', () => {
     render(<AnalysisHeader {...baseProps} spendLabel="Spend" />);
-    expect(screen.getByText(/\bSpend\b/i)).toBeInTheDocument();
+    // Use getAllByText and verify at least one element contains just the label
+    const matches = screen.getAllByText(/\bSpend\b/);
+    expect(matches.length).toBeGreaterThan(0);
     expect(screen.queryByText(/Estimated spend/i)).not.toBeInTheDocument();
   });
 
@@ -66,7 +69,7 @@ describe('AnalysisHeader', () => {
     expect(screen.getByText(/1 source\b/)).toBeInTheDocument();
   });
 
-  it('savings callout disclaimer has role="note" for AT identification — S1', () => {
+  it('spend-estimate disclosure has role="note" and is always visible — FIX-6', () => {
     render(
       <AnalysisHeader
         {...baseProps}
@@ -76,11 +79,53 @@ describe('AnalysisHeader', () => {
     );
     const note = document.querySelector('[role="note"]');
     expect(note).not.toBeNull();
-    expect(note?.textContent).toMatch(/Savings estimates are based on your usage patterns/);
+    expect(note?.textContent).toMatch(/All spend figures are estimates/i);
   });
 
-  it('disclaimer role="note" is NOT rendered when savings callout is hidden — S1', () => {
+  it('spend-estimate disclosure is visible even without savings callout — FIX-6', () => {
     render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={0} actionableRecommendationCount={0} />);
-    expect(document.querySelector('[role="note"]')).toBeNull();
+    const note = document.querySelector('[role="note"]');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toMatch(/All spend figures are estimates/i);
+  });
+
+  it('spend-estimate disclosure is visible even without savings callout — FIX-6', () => {
+    render(<AnalysisHeader {...baseProps} totalPotentialSavingsUsd={0} actionableRecommendationCount={0} />);
+    const note = document.querySelector('[role="note"]');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toMatch(/All spend figures are estimates/i);
+  });
+});
+
+describe('FIX-6: spend-estimate disclosure', () => {
+  it('renders the global spend-estimate disclosure note regardless of savings data', () => {
+    render(
+      <AnalysisHeader
+        totalSpend={42.50}
+        spendLabel="Estimated spend"
+        dateRange={{ start: '2024-01-01', end: '2024-01-31' }}
+        sourceCount={2}
+        totalPotentialSavingsUsd={0}
+        actionableRecommendationCount={0}
+      />
+    );
+    const note = screen.getByTestId('spend-estimate-disclosure');
+    expect(note).toBeInTheDocument();
+    expect(note).toHaveTextContent(/all spend figures are estimates/i);
+  });
+
+  it('does not contain a "savings estimates" narrow disclaimer within the savings callout', () => {
+    const { container } = render(
+      <AnalysisHeader
+        totalSpend={42.50}
+        spendLabel="Estimated spend"
+        dateRange={{ start: '2024-01-01', end: '2024-01-31' }}
+        sourceCount={2}
+        totalPotentialSavingsUsd={10}
+        actionableRecommendationCount={1}
+      />
+    );
+    const callout = container.querySelector('[data-testid="potential-savings-callout"]');
+    expect(callout?.textContent).not.toMatch(/savings estimates are based on your usage patterns/i);
   });
 });

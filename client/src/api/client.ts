@@ -13,6 +13,34 @@ export interface ValidateSourceResult {
   errorMessage?: string;
 }
 
+/**
+ * FIX-7: Normalizes error messages before they reach the UI.
+ * - Strips multi-line content (stack traces are multi-line)
+ * - Strips common stack-trace indicators
+ * - Returns a safe user-facing string
+ */
+export function normalizeErrorMessage(raw: string | undefined | null): string {
+  if (!raw) return 'An unknown error occurred.';
+  // Stack traces and technical paths: detect "at " frames or multiple newlines
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 1) {
+    // Multi-line = likely a stack trace. Return only the first line, sanitized.
+    const first = lines[0];
+    // If first line looks like an Error constructor ("Error: ..."), strip the prefix
+    return first.replace(/^Error:\s*/i, '') || 'An unexpected error occurred.';
+  }
+  // Single-line but contains stack-trace markers
+  if (/\s+at\s+\S+\s+\(/.test(raw)) {
+    return 'An unexpected error occurred.';
+  }
+  // Strip "Error: " prefix and any trailing file path fragments
+  return raw
+    .replace(/^Error:\s*/i, '')
+    .replace(/\s*\([^)]*\.(ts|js|tsx):\d+\)$/, '')
+    .trim()
+    || 'An unexpected error occurred.';
+}
+
 class APIClient {
   private baseURL = import.meta.env.VITE_API_URL ?? '/api';
   private headers: Record<string, string> = {};
@@ -69,7 +97,7 @@ class APIClient {
     // Throw only for unexpected transport/server failures (e.g. 5xx) where the
     // response body carries no structured validation contract.
     if (!response.ok && result.availability === undefined && result.valid === undefined) {
-      throw new Error(result.errorMessage || `Validation failed: ${response.statusText}`);
+      throw new Error(normalizeErrorMessage(result.errorMessage || `Validation failed: ${response.statusText}`));
     }
 
     return {
@@ -109,7 +137,7 @@ class APIClient {
       signal,
     });
 
-    if (!response.ok) throw new Error(`Analysis failed for ${sourceId}: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Analysis failed for ${sourceId}: ${normalizeErrorMessage(response.statusText)}`);
     return response.json() as Promise<SourceReport>;
   }
 
@@ -122,7 +150,7 @@ class APIClient {
       signal,
     });
 
-    if (!response.ok) throw new Error(`Recommendations failed: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Recommendations failed: ${normalizeErrorMessage(response.statusText)}`);
     return response.json() as Promise<AnalysisReport>;
   }
 
