@@ -190,7 +190,9 @@ export function ToolSpendCard({ source, recommendations, spendEntry, expanded = 
         </div>
       )}
 
-      {!isTierC && <EfficiencySignalCallout signal={m.efficiencySignal} />}
+      {!isTierC && !(m.efficiencySignal?.kind === 'input_heavy' && recommendations.some(r => r.id === 'R3')) && (
+        <EfficiencySignalCallout signal={m.efficiencySignal} />
+      )}
 
       {!isTierC && <ModelSpendMiniBar source={source} />}
 

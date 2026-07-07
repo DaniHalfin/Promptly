@@ -209,7 +209,7 @@ export function Landing() {
   const runDisabledReason = enabledSourceIds.length === 0
     ? 'Connect and validate a source card to enable analysis.'
     : isValidating
-      ? 'Sources are being checked…'                             // W4: distinct from spinner
+      ? null
       : allResolvedNoData
         ? 'No selected source has data for this period.'
         : !hasAnyUsableSource

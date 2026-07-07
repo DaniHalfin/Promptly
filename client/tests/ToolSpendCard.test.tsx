@@ -238,6 +238,55 @@ describe('ToolSpendCard EfficiencySignalCallout', () => {
   });
 });
 
+describe('ToolSpendCard EfficiencySignalCallout — R3 suppression', () => {
+  const inputHeavySignal = {
+    kind: 'input_heavy' as const,
+    headline: 'Input-heavy usage',
+    explanation: 'Most of your cost came from sending context.',
+    inputOutputRatio: 15,
+  };
+
+  const r3Rec: RecommendationResult = {
+    id: 'R3' as any,
+    title: 'Your prompts may be longer than needed',
+    body: 'GitHub Copilot sends roughly 15× more text…',
+    severity: 'Medium',
+    triggeringMetric: 'aggregateInputOutputRatio',
+    triggeringValue: '15',
+    sourceIds: ['openai' as any],
+  };
+
+  it('suppresses EfficiencySignalCallout for input_heavy when R3 recommendation is present', () => {
+    const source = makeSource('openai', 'B', { totalActualSpendUsd: 50, efficiencySignal: inputHeavySignal });
+    render(<ToolSpendCard source={source} recommendations={[r3Rec]} />);
+    expect(screen.queryByTestId('efficiency-signal-callout')).not.toBeInTheDocument();
+    expect(screen.getByText(/Your prompts may be longer than needed/)).toBeInTheDocument();
+  });
+
+  it('renders EfficiencySignalCallout for input_heavy when R3 is NOT present', () => {
+    const source = makeSource('openai', 'B', { totalActualSpendUsd: 50, efficiencySignal: inputHeavySignal });
+    render(<ToolSpendCard source={source} recommendations={[]} />);
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText(/Most of your cost went to sending, not receiving/)).toBeInTheDocument();
+  });
+
+  it('renders EfficiencySignalCallout for output_heavy regardless of any recommendations', () => {
+    const source = makeSource('openai', 'B', {
+      totalActualSpendUsd: 50,
+      efficiencySignal: { kind: 'output_heavy' as const, headline: 'Output-heavy usage', explanation: "You're generating a lot.", inputOutputRatio: 0.4 },
+    });
+    render(<ToolSpendCard source={source} recommendations={[r3Rec]} />);
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText('Output-heavy usage')).toBeInTheDocument();
+  });
+
+  it('R3 body renders its opening sentence when callout is suppressed — not orphaned', () => {
+    const source = makeSource('openai', 'B', { totalActualSpendUsd: 50, efficiencySignal: inputHeavySignal });
+    render(<ToolSpendCard source={source} recommendations={[r3Rec]} />);
+    expect(screen.getByText(/GitHub Copilot sends roughly 15× more text/)).toBeInTheDocument();
+  });
+});
+
 describe('ToolSpendCard ModelSpendMiniBar', () => {
   it('renders model spend mini-bar for Tier B modelBreakdown', () => {
     const source = makeSource('anthropic', 'B', {

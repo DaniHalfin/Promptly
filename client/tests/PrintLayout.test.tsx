@@ -244,11 +244,35 @@ describe('PrintLayout — ADR-9 narrative structure', () => {
     expect(screen.getAllByText(/2026-06-21/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('PrintLayout renders efficiencySignal callout for non-TierC source', () => {
+  it('PrintLayout suppresses efficiencySignal callout for input_heavy source when R3 is in recommendations', () => {
     render(<PrintLayout report={report} />);
+    expect(screen.queryByTestId('efficiency-signal-callout')).not.toBeInTheDocument();
+    expect(screen.getByText('Reduce verbosity')).toBeInTheDocument();
+  });
+
+  it('PrintLayout renders efficiencySignal callout for input_heavy source when R3 is NOT in recommendations', () => {
+    const reportNoR3: AnalysisReport = {
+      ...report,
+      recommendations: report.recommendations.filter(r => r.id !== ('R3' as any)),
+    };
+    render(<PrintLayout report={reportNoR3} />);
     expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
     expect(screen.getByText('Most of your cost went to sending, not receiving')).toBeInTheDocument();
     expect(screen.getByText(/the bulk of your cost is context/)).toBeInTheDocument();
+  });
+
+  it('PrintLayout renders efficiencySignal callout for output_heavy source regardless of recommendations', () => {
+    const reportOutputHeavy: AnalysisReport = {
+      ...report,
+      sources: report.sources.map(s =>
+        s.source_id === 'openai'
+          ? { ...s, metrics: { ...s.metrics, efficiencySignal: { kind: 'output_heavy' as const, headline: 'Output-heavy usage', explanation: "You're generating a lot.", inputOutputRatio: 0.3 } } as any }
+          : s
+      ),
+    };
+    render(<PrintLayout report={reportOutputHeavy} />);
+    expect(screen.getByTestId('efficiency-signal-callout')).toBeInTheDocument();
+    expect(screen.getByText('Output-heavy usage')).toBeInTheDocument();
   });
 
   it('PrintLayout shows aggregate savings callout, not per-rec headline', () => {

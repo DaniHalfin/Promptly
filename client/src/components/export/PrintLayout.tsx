@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AnalysisReport, SourceReport, SpendByToolEntry } from '../../types/index.js';
+import type { AnalysisReport, RecommendationResult, SourceReport, SpendByToolEntry } from '../../types/index.js';
 import { friendlySourceName } from '../../lib/modelNames.js';
 import { EfficiencySignalCallout } from '../Results/EfficiencySignalCallout.js';
 import { getModelSpendRows } from '../Results/ModelSpendMiniBar.js';
@@ -152,7 +152,7 @@ export function PrintLayout({ report }: PrintLayoutProps) {
   };
 
   // ── § 4  Per-source cards ──────────────────────────────────────────────
-  const SourceCard = ({ source }: { source: SourceReport }) => {
+  const SourceCard = ({ source, sourceRecs }: { source: SourceReport; sourceRecs: RecommendationResult[] }) => {
     const m    = source.metrics;
     const name = friendlySourceName(source.source_id);
     const spend = spendByTool.find(e => e.source_id === source.source_id);
@@ -235,7 +235,9 @@ export function PrintLayout({ report }: PrintLayoutProps) {
               )}
             </div>
 
-            {!isTierC && <EfficiencySignalCallout signal={m.efficiencySignal} />}
+            {!isTierC && !(m.efficiencySignal?.kind === 'input_heavy' && sourceRecs.some(r => r.id === 'R3')) && (
+              <EfficiencySignalCallout signal={m.efficiencySignal} />
+            )}
 
             {/* Model spend for Tier B, model chips for Tier C */}
             {!isTierC && modelSpendRows.length > 0 && (
@@ -309,7 +311,13 @@ export function PrintLayout({ report }: PrintLayoutProps) {
       {/* § 4 Per-source cards */}
       <div>
         <h2 style={sectionHead}>AI Sources</h2>
-        {sortedSources.map(s => <SourceCard key={s.source_id} source={s} />)}
+        {sortedSources.map(s => (
+          <SourceCard
+            key={s.source_id}
+            source={s}
+            sourceRecs={report.recommendations.filter(r => r.sourceIds.includes(s.source_id))}
+          />
+        ))}
       </div>
 
       {/* § 5 Recommendations — ALL, no slice cap */}
