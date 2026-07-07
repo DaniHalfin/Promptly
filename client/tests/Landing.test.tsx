@@ -33,7 +33,17 @@ vi.mock('../src/api/client.js', () => ({
       const first = lines[0];
       return first.replace(/^Error:\s*/i, '') || 'An unexpected error occurred.';
     }
-    return raw;
+    // Single-line but contains stack-trace markers
+    if (/\s+at\s+\S+\s+\(/.test(raw)) {
+      return 'An unexpected error occurred.';
+    }
+    // Strip "Error: " prefix and any trailing file path fragments
+    return (
+      raw
+        .replace(/^Error:\s*/i, '')
+        .replace(/\s*\([^)]*\.(ts|js|tsx):\d+\)$/, '')
+        .trim() || 'An unexpected error occurred.'
+    );
   },
 }));
 
