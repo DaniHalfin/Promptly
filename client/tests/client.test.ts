@@ -151,6 +151,6 @@ describe('apiClient.validate — network failure paths — CG-3', () => {
     );
 
     await expect(apiClient.validate('openai', '2026-01-01', '2026-03-01'))
-      .rejects.toThrow();
+      .rejects.toThrow(/Validation failed/);
   });
 });
