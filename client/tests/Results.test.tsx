@@ -309,6 +309,9 @@ describe('Results — empty sources edge case — CG-9', () => {
     expect(() => render(<Results />)).not.toThrow();
     // No tool spend cards
     expect(document.querySelectorAll('[data-testid^="tool-spend-card-"]').length).toBe(0);
+    // CG-9: export buttons must be disabled when no source has data
+    expect(screen.getByRole('button', { name: 'Export JSON' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeDisabled();
   });
 });
 

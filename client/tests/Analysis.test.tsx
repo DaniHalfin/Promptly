@@ -311,7 +311,7 @@ describe('Analysis — CG-8: AbortController cancel flow', () => {
 
     const abortSpy = vi.spyOn(AbortController.prototype, 'abort');
     try {
-      renderAnalysis({
+      const { dispatch } = renderAnalysis({
         openai: { status: 'connected', credential: 'sk-test' },
       });
 
@@ -321,6 +321,8 @@ describe('Analysis — CG-8: AbortController cancel flow', () => {
 
       // abort() must have been called (at least once for the cancel click)
       expect(abortSpy).toHaveBeenCalled();
+      // Cancel must synchronously dispatch { phase: 'landing' } to return to Landing
+      expect(dispatch).toHaveBeenCalledWith({ phase: 'landing' });
     } finally {
       abortSpy.mockRestore();
     }

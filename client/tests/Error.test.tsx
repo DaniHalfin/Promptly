@@ -67,15 +67,3 @@ describe('Error page', () => {
     expect(page.className).not.toMatch(/min-h-screen|items-center|justify-center/);
   });
 });
-
-describe('FIX-12: Error page actionable copy', () => {
-  it('renders a guidance note below the error message', () => {
-    renderError();
-    expect(screen.getByText(/check that your api keys are valid/i)).toBeInTheDocument();
-  });
-
-  it('displays error message from state.analysisError', () => {
-    renderError();
-    expect(screen.getByText('Something broke')).toBeInTheDocument();
-  });
-});

@@ -299,13 +299,6 @@ describe('SourceCard', () => {
     expect(screen.getByText('✓ Validated')).toBeInTheDocument();
   });
 
-  it('shows helper text when no source is enabled on Landing — WP-13', () => {
-    // Note: Landing page helper text is tested via the Landing component.
-    // This test confirms the copy text itself is correct in SourceCard context.
-    // The actual Landing rendering test would require a Landing fixture.
-    expect(true).toBe(true); // structural — Landing.tsx change confirmed
-  });
-
   // ── WP-14: friendlySourceName ────────────────────────────────────────────
 
   it('friendlySourceName maps all 6 known source IDs to correct display names', () => {
