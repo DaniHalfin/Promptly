@@ -8,6 +8,16 @@ Promptly is a local-first monorepo for analyzing AI usage and spend across the t
 
 The platform is designed for practical cost visibility: connect supported sources, review normalized usage data, inspect trends and peaks, and act on prioritized recommendations. The current implementation emphasizes privacy-conscious analysis, a fast developer workflow, and a clear path from raw usage to decisions.
 
+## Screenshots
+
+![Promptly Results View](docs/screenshots/promptly-results.png)
+
+*Analysis results view — spend breakdown by model, spending trend chart, spike detection, and actionable recommendations. All data stays on your machine.*
+
+![Promptly Setup View](docs/screenshots/promptly-setup.png)
+
+*Setup view — connect local AI sources and choose your analysis period. No API keys or uploads required for GitHub Copilot and Claude Code.*
+
 ## Features
 
 - **Currently supports** GitHub Copilot, Claude Code, OpenAI API, and Claude API — with an extensible adapter model for additional sources
