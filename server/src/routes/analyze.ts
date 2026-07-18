@@ -6,7 +6,7 @@ import { classifyTier } from '../engine/tiers.js';
 import { computeSourceMetrics, computeCrossSourceMetrics, selectTopRecommendations, summarizePotentialSavings } from '../engine/metrics/index.js';
 import { generateRecommendations } from '../engine/recommendations/index.js';
 import { AnalysisReport, SourceReport, SourceConfig, SourceMetrics, SourceId } from '../types/index.js';
-import { parseAndValidateDateWindow } from '../lib/dateWindow.js';
+import { parseAndValidateDateWindow, type ParsedDateWindow } from '../lib/dateWindow.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 const router = Router();
@@ -26,8 +26,8 @@ const ANALYSIS_ASSUMPTIONS = [
 async function runSourceAdapter(
   sourceId: string,
   req: Request,
-  startDateStr?: string,
-  endDateStr?: string
+  startDate?: Date,
+  endDate?: Date
 ): Promise<SourceReport> {
   const adapter = getAdapter(sourceId);
   if (!adapter) {
@@ -48,8 +48,8 @@ async function runSourceAdapter(
 
   const ctx = {
     credential,
-    startDate: startDateStr ? new Date(startDateStr) : undefined,
-    endDate: endDateStr ? new Date(endDateStr) : undefined,
+    startDate,
+    endDate,
     fileBuffer,
     priceMap,
   };
@@ -131,7 +131,7 @@ router.post('/analyze/:sourceId', upload.any(), async (req: Request, res: Respon
     if (!window.ok) {
       return res.status(400).json({ error: window.error });
     }
-    const report = await runSourceAdapter(sourceId, req, startDate, endDate);
+    const report = await runSourceAdapter(sourceId, req, window.startDate, window.endDate);
     res.json(report);
   } catch (err: unknown) {
     next(err);
@@ -146,16 +146,20 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
     const priceMap = await loadPriceMap();
 
     // Validate each source's analysis window up front (A4: reject invalid windows with 400)
+    const validatedWindows: ParsedDateWindow[] = [];
     for (const src of config.sources as SourceConfig[]) {
-      const window = parseAndValidateDateWindow(src.startDate, src.endDate);
-      if (!window.ok) {
-        return res.status(400).json({ error: `Invalid analysis window for ${src.sourceId}: ${window.error}` });
+      const win = parseAndValidateDateWindow(src.startDate, src.endDate);
+      if (!win.ok) {
+        return res.status(400).json({ error: `Invalid analysis window for ${src.sourceId}: ${win.error}` });
       }
+      validatedWindows.push(win);
     }
 
     // Run all adapters in parallel
     const results = await Promise.allSettled(
-      config.sources.map(async (src: SourceConfig) => {
+      config.sources.map(async (src: SourceConfig, i: number) => {
+        // i must align with validatedWindows[] — do not filter/slice config.sources between validation and execution
+        const win = validatedWindows[i];
         const adapter = getAdapter(src.sourceId);
         if (!adapter) throw new Error(`Unknown source: ${src.sourceId}`);
 
@@ -171,8 +175,8 @@ router.post('/analyze', upload.any(), async (req: Request, res: Response, next) 
 
         const ctx = {
           credential,
-          startDate: src.startDate ? new Date(src.startDate) : undefined,
-          endDate: src.endDate ? new Date(src.endDate) : undefined,
+          startDate: win.startDate,
+          endDate: win.endDate,
           options: src.options,
           fileBuffer,
           priceMap,

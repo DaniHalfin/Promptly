@@ -73,7 +73,7 @@ promptly/
 4. Run the full test bar before opening a pull request.
 5. Open a PR with a clear summary, testing notes, and any relevant screenshots.
 
-All 701 tests (686 unit + 15 end-to-end) must pass before review or merge.
+All 726 tests (711 unit + 15 end-to-end) must pass before review or merge.
 
 ## Running Tests
 
@@ -85,8 +85,8 @@ npm --workspace client run test
 npx playwright test
 ```
 
-- **Server unit tests:** 244 tests
-- **Client component tests:** 442 tests
+- **Server unit tests:** 272 tests
+- **Client component tests:** 439 tests
 - **End-to-end tests:** 15 tests
 
 ## Docs
@@ -145,7 +145,7 @@ Packages used only during development and testing of the server workspace (`serv
 
 | Package | Version | Role in Promptly |
 |---|---|---|
-| `vitest` | ^4.1.9 | Test runner for all 244 server unit tests — adapter parsing, metric calculations, recommendation rules |
+| `vitest` | ^4.1.9 | Test runner for all 272 server unit tests — adapter parsing, metric calculations, recommendation rules |
 | `@vitest/coverage-v8` | ^4.1.9 | V8-native code coverage reporter plugged into Vitest — generates per-file line/branch coverage for server code |
 | `tsx` | ^4.7.0 | TypeScript execution engine — powers `tsx watch src/index.ts` for zero-compile hot-reload during development |
 | `typescript` | ^5.3.3 | TypeScript compiler — type-checks and compiles the server to `dist/` for production |

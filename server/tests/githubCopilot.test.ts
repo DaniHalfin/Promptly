@@ -229,5 +229,76 @@ describe('githubCopilot adapter', () => {
       expect((result.raw as any).copilotSessions).toHaveLength(0);
       expect(result.warnings.some(w => w.includes('malformed'))).toBe(true);
     });
+
+    it('includes session when endDate is noon-based Date', async () => {
+      const { writeFile, mkdir } = await import('node:fs/promises');
+
+      const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-copilot-noon-'));
+      tempDirs.push(root);
+      process.env.COPILOT_SESSION_STATE_DIR = root;
+
+      const sessionDir = path.join(root, 'session-noon');
+      await mkdir(sessionDir);
+
+      const todayAt6pm = new Date();
+      todayAt6pm.setHours(18, 0, 0, 0);
+
+      const event = {
+        type: 'session.shutdown',
+        data: {
+          sessionStartTime: todayAt6pm.getTime(),
+          totalPremiumRequests: 1,
+          modelMetrics: {
+            'gpt-5.4': { requests: { count: 1, cost: 1 }, usage: { inputTokens: 100, outputTokens: 50 } },
+          },
+        },
+      };
+      await writeFile(path.join(sessionDir, 'events.jsonl'), JSON.stringify(event) + '\n', 'utf-8');
+
+      const endDate = new Date(); endDate.setHours(12, 0, 0, 0);
+      const startDate = new Date(); startDate.setDate(startDate.getDate() - 29); startDate.setHours(12, 0, 0, 0);
+
+      const priceMap: PriceMap = new Map();
+      const result = await githubCopilotAdapter.run({ priceMap, startDate, endDate });
+
+      const sessions = (result.raw as any)?.copilotSessions ?? [];
+      expect(sessions).toHaveLength(1);
+    });
+
+    it('excludes sessions outside window', async () => {
+      const { writeFile, mkdir } = await import('node:fs/promises');
+
+      const root = await mkdtemp(path.join(os.tmpdir(), 'promptly-copilot-outside-'));
+      tempDirs.push(root);
+      process.env.COPILOT_SESSION_STATE_DIR = root;
+
+      const sessionDir = path.join(root, 'session-outside');
+      await mkdir(sessionDir);
+
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      sixtyDaysAgo.setHours(12, 0, 0, 0);
+
+      const event = {
+        type: 'session.shutdown',
+        data: {
+          sessionStartTime: sixtyDaysAgo.getTime(),
+          totalPremiumRequests: 1,
+          modelMetrics: {
+            'gpt-5.4': { requests: { count: 1, cost: 1 }, usage: { inputTokens: 100, outputTokens: 50 } },
+          },
+        },
+      };
+      await writeFile(path.join(sessionDir, 'events.jsonl'), JSON.stringify(event) + '\n', 'utf-8');
+
+      const endDate = new Date(); endDate.setHours(12, 0, 0, 0);
+      const startDate = new Date(); startDate.setDate(startDate.getDate() - 29); startDate.setHours(12, 0, 0, 0);
+
+      const priceMap: PriceMap = new Map();
+      const result = await githubCopilotAdapter.run({ priceMap, startDate, endDate });
+
+      const sessions = (result.raw as any)?.copilotSessions ?? [];
+      expect(sessions).toHaveLength(0);
+    });
   });
 });
