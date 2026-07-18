@@ -160,10 +160,10 @@ After the full suite runs, diagnoses any failures and applies targeted fixes.
 
 | Suite | Location | Tests | Framework |
 |---|---|---|---|
-| Server unit tests | `server/tests/` | 244 | Vitest |
-| Client component tests | `client/tests/` | 442 | Vitest + React Testing Library |
+| Server unit tests | `server/tests/` | 272 | Vitest |
+| Client component tests | `client/tests/` | 439 | Vitest + React Testing Library |
 | End-to-end tests | `e2e/` | 15 | Playwright (mocked) |
-| **Total** | | **701** | |
+| **Total** | | **726** | |
 
 ### Loop
 
