@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdirSync, rmSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
@@ -293,6 +294,90 @@ describe('analyze routes', () => {
     } finally {
       delete process.env.COPILOT_SESSION_STATE_DIR;
       rmSync(emptyDir, { recursive: true, force: true });
+    }
+  }, 15_000);
+
+  it("today as endDate includes today's sessions", async () => {
+    const root = join(tmpdir(), `copilot-tz-today-${Date.now()}`);
+    mkdirSync(root, { recursive: true });
+    const sessionDir = join(root, 'session-today');
+    mkdirSync(sessionDir, { recursive: true });
+
+    const sessionMs = Date.now() - 2 * 60 * 60 * 1000;
+    const event = {
+      type: 'session.shutdown',
+      data: {
+        sessionStartTime: sessionMs,
+        totalPremiumRequests: 1,
+        modelMetrics: {
+          'gpt-5.4': { requests: { count: 1, cost: 1 }, usage: { inputTokens: 100, outputTokens: 50 } },
+        },
+      },
+    };
+    await writeFile(join(sessionDir, 'events.jsonl'), JSON.stringify(event) + '\n', 'utf-8');
+    process.env.COPILOT_SESSION_STATE_DIR = root;
+
+    try {
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: localTz });
+      const thirtyDaysAgo = new Date(Date.now() - 29 * 86_400_000)
+        .toLocaleDateString('en-CA', { timeZone: localTz });
+
+      const res = await fetch(`${baseUrl}/api/analyze/github_copilot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: thirtyDaysAgo, endDate: today }),
+      });
+      expect(res.status).toBe(200);
+      const report = await res.json() as SourceReport;
+      expect(report.connected).toBe(true);
+      expect(report.tier).toBe('B');
+    } finally {
+      delete process.env.COPILOT_SESSION_STATE_DIR;
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 15_000);
+
+  it('YYYY-MM-DD endDate does not shift to previous day', async () => {
+    const root = join(tmpdir(), `copilot-tz-shift-${Date.now()}`);
+    mkdirSync(root, { recursive: true });
+    const sessionDir = join(root, 'session-shift');
+    mkdirSync(sessionDir, { recursive: true });
+
+    const targetDay = new Date();
+    targetDay.setDate(targetDay.getDate() - 2);
+    targetDay.setHours(14, 0, 0, 0);
+    const sessionMs = targetDay.getTime();
+
+    const event = {
+      type: 'session.shutdown',
+      data: {
+        sessionStartTime: sessionMs,
+        totalPremiumRequests: 1,
+        modelMetrics: {
+          'gpt-5.4': { requests: { count: 1, cost: 1 }, usage: { inputTokens: 100, outputTokens: 50 } },
+        },
+      },
+    };
+    await writeFile(join(sessionDir, 'events.jsonl'), JSON.stringify(event) + '\n', 'utf-8');
+    process.env.COPILOT_SESSION_STATE_DIR = root;
+
+    try {
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const sessionDate = new Date(sessionMs).toLocaleDateString('en-CA', { timeZone: localTz });
+
+      const res = await fetch(`${baseUrl}/api/analyze/github_copilot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: sessionDate, endDate: sessionDate }),
+      });
+      expect(res.status).toBe(200);
+      const report = await res.json() as SourceReport;
+      expect(report.connected).toBe(true);
+      expect(report.tier).toBe('B');
+    } finally {
+      delete process.env.COPILOT_SESSION_STATE_DIR;
+      rmSync(root, { recursive: true, force: true });
     }
   }, 15_000);
 });

@@ -10,6 +10,8 @@ router.get('/meta', (req: Request, res: Response) => {
     source: meta.source,
     modelCount: meta.modelCount,
     sourceDate: meta.sourceDate,
+    snapshotAgeDays: meta.snapshotAgeDays ?? null,
+    lastRevalidatedAt: meta.lastRevalidatedAt ?? null,
   });
 });
 

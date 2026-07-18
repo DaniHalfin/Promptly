@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'node:http';
 import type { Application } from 'express';
 import { createApp } from '../src/index.js';
+import { parseAndValidateDateWindow } from '../src/lib/dateWindow.js';
 
 let app: Application;
 let server: Server;
@@ -131,5 +132,36 @@ describe('validate route', () => {
     expect(body.valid).toBe(false);
     expect(body.availability).toBe('none');
     expect(body.errorCode).toBe('INVALID_DATE_WINDOW');
+  });
+});
+
+describe('parseAndValidateDateWindow returns correct Date objects', () => {
+  it('returns ok:true with undefined startDate and endDate when both omitted', () => {
+    const result = parseAndValidateDateWindow();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.startDate).toBeUndefined();
+      expect(result.endDate).toBeUndefined();
+    }
+  });
+
+  it('returns a noon-based startDate that converts back to the same calendar day', () => {
+    const result = parseAndValidateDateWindow('2026-06-01');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      expect(result.startDate!.toLocaleDateString('en-CA', { timeZone: localTz }))
+        .toBe('2026-06-01');
+    }
+  });
+
+  it('returns noon-based startDate and endDate both resolving to their respective calendar days', () => {
+    const result = parseAndValidateDateWindow('2026-06-01', '2026-06-30');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      expect(result.startDate!.toLocaleDateString('en-CA', { timeZone: localTz })).toBe('2026-06-01');
+      expect(result.endDate!.toLocaleDateString('en-CA', { timeZone: localTz })).toBe('2026-06-30');
+    }
   });
 });
